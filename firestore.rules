@@ -1,0 +1,84 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() && request.auth.uid == userId &&
+        request.resource.data.role == 'user';
+      allow update: if isSignedIn() && request.auth.uid == userId &&
+        request.resource.data.role == resource.data.role;
+      allow update: if isAdmin();
+    }
+
+    match /marathons/{marathonId} {
+      // Non-drafts stay readable even after an event closes, so a registrant
+      // keeps seeing their event's details (banner, date, payment info) on
+      // their My Registrations view after registration closes.
+      allow read: if isSignedIn() &&
+        (resource.data.status != 'draft' || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /questionnaireTemplates/{templateId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /registrations/{registrationId} {
+      allow read: if isSignedIn() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'queued';
+
+      // User may only progress their own registration through the
+      // acceptance wizard (terms -> payment submission), never set
+      // admin-controlled outcomes (accepted/rejected/confirmed).
+      allow update: if isSignedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.status in ['terms_accepted', 'payment_submitted'];
+
+      allow update: if isAdmin();
+    }
+
+    match /personalThreads/{userId} {
+      allow read, create, update: if isSignedIn() && (userId == request.auth.uid || isAdmin());
+    }
+
+    match /personalThreads/{userId}/messages/{messageId} {
+      allow read: if isSignedIn() && (userId == request.auth.uid || isAdmin());
+
+      // Messages are immutable once created — no update/delete rule.
+      allow create: if isSignedIn() &&
+        (userId == request.auth.uid || isAdmin()) &&
+        request.resource.data.senderId == request.auth.uid &&
+        request.resource.data.senderRole == (isAdmin() ? 'admin' : 'user');
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /groupMessages/{messageId} {
+      allow read: if isSignedIn();
+
+      // Messages are immutable once created — no update/delete rule.
+      allow create: if isSignedIn() &&
+        request.resource.data.senderId == request.auth.uid &&
+        request.resource.data.senderRole == (isAdmin() ? 'admin' : 'user');
+    }
+  }
+}

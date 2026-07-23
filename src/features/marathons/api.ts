@@ -1,0 +1,94 @@
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore'
+
+import { db } from '@/firebase/config'
+import type { Marathon, MarathonPackage, MarathonQuestion, MarathonStatus } from '@/types'
+import type { MarathonRestoreInput } from '@/features/admin/export-import/serialize'
+
+const marathonsRef = collection(db, 'marathons')
+
+export function subscribeToPublishedMarathons(onData: (marathons: Marathon[]) => void) {
+  const q = query(marathonsRef, where('status', '==', 'published'), orderBy('eventDate', 'asc'))
+  return onSnapshot(q, (snapshot) => {
+    onData(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Marathon))
+  })
+}
+
+export function subscribeToAllMarathons(onData: (marathons: Marathon[]) => void) {
+  const q = query(marathonsRef, orderBy('eventDate', 'asc'))
+  return onSnapshot(q, (snapshot) => {
+    onData(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Marathon))
+  })
+}
+
+/** One-shot read of every marathon, for admin data export — see subscribeToAllMarathons for why an unfiltered admin query is safe under firestore.rules. */
+export async function getAllMarathonsOnce(): Promise<Marathon[]> {
+  const snapshot = await getDocs(query(marathonsRef, orderBy('eventDate', 'asc')))
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Marathon)
+}
+
+export function subscribeToMarathon(marathonId: string, onData: (marathon: Marathon | null) => void) {
+  return onSnapshot(doc(db, 'marathons', marathonId), (snapshot) => {
+    onData(snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as Marathon) : null)
+  })
+}
+
+export interface MarathonInput {
+  title: string
+  description: string
+  bannerImageUrl: string
+  location: string
+  eventDate: Date
+  registrationOpensAt: Date
+  registrationClosesAt: Date
+  capacity: number
+  paymentInstructions: string
+  packages: MarathonPackage[]
+  questions: MarathonQuestion[]
+}
+
+export async function createMarathon(input: MarathonInput, createdBy: string) {
+  await addDoc(marathonsRef, {
+    ...input,
+    confirmedCount: 0,
+    status: 'draft' satisfies MarathonStatus,
+    createdBy,
+    createdAt: serverTimestamp(),
+  })
+}
+
+export async function updateMarathon(marathonId: string, input: MarathonInput) {
+  await updateDoc(doc(db, 'marathons', marathonId), { ...input })
+}
+
+export async function setMarathonStatus(marathonId: string, status: MarathonStatus) {
+  await updateDoc(doc(db, 'marathons', marathonId), { status })
+}
+
+/**
+ * Restore-from-backup only: writes the full doc at its original id via setDoc
+ * (never addDoc) so existing registrations' marathonId references stay valid.
+ * confirmedCount is deliberately not part of this write — it's a server-derived
+ * counter (see confirmPayment's transaction) and is always recomputed live by
+ * the restore plan after registrations are restored, never trusted from a CSV.
+ */
+export async function restoreMarathon(input: MarathonRestoreInput) {
+  const { id, ...data } = input
+  await setDoc(doc(db, 'marathons', id), { ...data, confirmedCount: 0 })
+}
+
+/** Restore-from-backup only: overwrites confirmedCount with a freshly recomputed value (see countConfirmedRegistrations) — never with a value taken from a CSV. */
+export async function setConfirmedCount(marathonId: string, confirmedCount: number) {
+  await updateDoc(doc(db, 'marathons', marathonId), { confirmedCount })
+}
