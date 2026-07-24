@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { LogOutIcon, UserPenIcon } from 'lucide-react'
+import { LogOutIcon, MoonIcon, SunIcon, UserPenIcon } from 'lucide-react'
 
 import { BottomNav } from '@/components/BottomNav'
 import { NotificationBell } from '@/components/NotificationBell'
@@ -14,7 +14,24 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { signOutUser } from '@/features/auth/auth-actions'
 import { useAuthStore } from '@/features/auth/auth-store'
+import { useThemeStore } from '@/lib/theme-store'
 import { cn } from '@/lib/utils'
+
+function ThemeToggle() {
+  const theme = useThemeStore((state) => state.theme)
+  const toggleTheme = useThemeStore((state) => state.toggleTheme)
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggleTheme}
+      aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+    >
+      {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+    </Button>
+  )
+}
 
 export function Layout({ children }: { children: ReactNode }) {
   const firebaseUser = useAuthStore((state) => state.firebaseUser)
@@ -30,6 +47,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
           {isLoading ? null : firebaseUser ? (
             <div className="flex items-center gap-1">
+              <ThemeToggle />
               <NotificationBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -55,9 +73,12 @@ export function Layout({ children }: { children: ReactNode }) {
               </DropdownMenu>
             </div>
           ) : (
-            <Button size="sm" asChild>
-              <Link to="/sign-in">Sign in</Link>
-            </Button>
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+              <Button size="sm" asChild>
+                <Link to="/sign-in">Sign in</Link>
+              </Button>
+            </div>
           )}
         </div>
       </header>
