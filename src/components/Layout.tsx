@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { LogOutIcon, MoonIcon, SunIcon, UserPenIcon } from 'lucide-react'
 
 import { BottomNav } from '@/components/BottomNav'
+import { Logo } from '@/components/Logo'
 import { NotificationBell } from '@/components/NotificationBell'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -41,8 +42,8 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="flex min-h-svh flex-col">
       <header className="border-border sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-          <Link to="/" className="font-display text-2xl tracking-wide">
-            ARS <span className="text-primary">DREAM</span>
+          <Link to="/" aria-label="ARS Dream">
+            <Logo className="h-8 w-auto" />
           </Link>
 
           {isLoading ? null : firebaseUser ? (

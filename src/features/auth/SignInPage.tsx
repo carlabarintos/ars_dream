@@ -2,8 +2,9 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
+import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -65,8 +66,8 @@ export function SignInPage() {
   return (
     <div className="flex min-h-svh items-center justify-center px-4">
       <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl">ARS DREAM</CardTitle>
+        <CardHeader className="items-center text-center">
+          <Logo className="h-14 w-auto" />
           <CardDescription>
             {mode === 'sign-in' ? 'Sign in to join the queue for your next race.' : 'Create an account to get started.'}
           </CardDescription>
