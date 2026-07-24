@@ -13,10 +13,11 @@ interface ThreadMessage {
   senderId: string
   senderRole: MessageSenderRole
   text: string
-  createdAt: Timestamp
+  createdAt: Timestamp | null
 }
 
-function formatMessageTime(timestamp: Timestamp) {
+function formatMessageTime(timestamp: Timestamp | null) {
+  if (!timestamp) return 'sending…'
   return timestamp.toDate().toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',

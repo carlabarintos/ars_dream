@@ -24,7 +24,7 @@ function personalMessagesRef(userId: string) {
 export function subscribeToPersonalThreadMessages(userId: string, onData: (messages: PersonalMessage[]) => void) {
   const q = query(personalMessagesRef(userId), orderBy('createdAt', 'asc'))
   return onSnapshot(q, (snapshot) => {
-    onData(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as PersonalMessage))
+    onData(snapshot.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }) as PersonalMessage))
   })
 }
 
@@ -62,14 +62,14 @@ export async function markPersonalThreadRead(userId: string, viewer: MessageSend
 export function subscribeToAllPersonalThreads(onData: (threads: PersonalThread[]) => void) {
   const q = query(personalThreadsRef, orderBy('lastMessageAt', 'desc'))
   return onSnapshot(q, (snapshot) => {
-    onData(snapshot.docs.map((d) => ({ ...d.data() }) as PersonalThread))
+    onData(snapshot.docs.map((d) => ({ ...d.data({ serverTimestamps: 'estimate' }) }) as PersonalThread))
   })
 }
 
 export function subscribeToAnnouncements(onData: (announcements: Announcement[]) => void) {
   const q = query(announcementsRef, orderBy('createdAt', 'desc'))
   return onSnapshot(q, (snapshot) => {
-    onData(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Announcement))
+    onData(snapshot.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }) as Announcement))
   })
 }
 
@@ -89,7 +89,7 @@ export async function deleteAnnouncement(announcementId: string) {
 export function subscribeToGroupMessages(onData: (messages: GroupMessage[]) => void) {
   const q = query(groupMessagesRef, orderBy('createdAt', 'asc'))
   return onSnapshot(q, (snapshot) => {
-    onData(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as GroupMessage))
+    onData(snapshot.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }) as GroupMessage))
   })
 }
 

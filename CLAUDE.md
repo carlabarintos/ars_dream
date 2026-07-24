@@ -53,6 +53,15 @@ Running the emulators requires a JDK on PATH (Firestore/Auth emulators are JVM-b
 - **OAuth consent screen** — Google Cloud Console → APIs & Services → OAuth consent screen (auto-created when Google sign-in is enabled) needs to be out of "Testing" mode (or have real users added as test users) with app name/support email filled in.
 - **OAuth client authorized origins** — Google Cloud Console → Credentials → the auto-created "Web client" should list `https://arsdreamph.com` under Authorized JavaScript origins.
 
+#### Deploying via GitHub Actions
+
+No `.github/workflows/` exist yet — deploys today are manual (`firebase deploy`). If/when that changes to CI-driven deploys, the path is:
+
+1. Add a second alias to `.firebaserc` (e.g. `"production": "<real-project-id>"`), keeping `default: demo-ars-dream` for local emulator use.
+2. Run `firebase init hosting:github` locally (needs `firebase login` + GitHub repo access). It provisions a GCP service account, adds it as a GitHub Actions secret automatically, and writes two workflows: deploy-on-merge-to-`main`, and a preview channel per PR. Build command to give it: `npm ci && npm run build` (hosting serves `dist`, per `firebase.json`).
+3. The generator only wires up Hosting — it does **not** know about `VITE_FIREBASE_*` (Vite bakes these into the build at compile time, so they must be added as GitHub Actions repo secrets and exported as env vars in the workflow's build step) or about Cloud Functions/Firestore/Storage rules. Those need a separate job in the workflow using the same service account, e.g. `firebase deploy --only functions,firestore:rules,storage --project production`.
+4. Since no test runner exists (see Commands above), the only sensible CI gate is `npm run lint` and `tsc -b` (part of `npm run build`) before deploy.
+
 ## Architecture
 
 ### Data model & status pipelines

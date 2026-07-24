@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 
 export function Layout({ children }: { children: ReactNode }) {
   const firebaseUser = useAuthStore((state) => state.firebaseUser)
+  const isLoading = useAuthStore((state) => state.isLoading)
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -27,7 +28,7 @@ export function Layout({ children }: { children: ReactNode }) {
             ARS <span className="text-primary">DREAM</span>
           </Link>
 
-          {firebaseUser ? (
+          {isLoading ? null : firebaseUser ? (
             <div className="flex items-center gap-1">
               <NotificationBell />
               <DropdownMenu>

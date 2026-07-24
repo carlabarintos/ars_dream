@@ -8,7 +8,8 @@ import { markPersonalThreadRead, sendGroupMessage, sendPersonalMessage } from '.
 import { ThreadView } from './ThreadView'
 import { useAnnouncements, useGroupMessages, usePersonalThreadMessages } from './use-messages'
 
-function formatAnnouncementDate(timestamp: { toDate: () => Date }) {
+function formatAnnouncementDate(timestamp: { toDate: () => Date } | null) {
+  if (!timestamp) return 'just now'
   return timestamp.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
