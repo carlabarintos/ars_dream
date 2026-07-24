@@ -18,7 +18,7 @@ export const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
 export const db = getFirestore(app)
 export const storage = getStorage(app)
-export const functions = getFunctions(app)
+export const functions = getFunctions(app, 'asia-southeast1')
 
 const useEmulators = import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true'
 const recaptchaSiteKey = import.meta.env.VITE_FIREBASE_RECAPTCHA_SITE_KEY

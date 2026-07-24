@@ -1,9 +1,7 @@
 import {
-  GoogleAuthProvider,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
-  signInWithPopup,
   signOut,
   updateProfile,
 } from 'firebase/auth'
@@ -11,8 +9,6 @@ import { doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 
 import { auth, db } from '@/firebase/config'
 import type { Gender, UserRole } from '@/types'
-
-const googleProvider = new GoogleAuthProvider()
 
 export interface SignUpProfileInput {
   firstName: string
@@ -95,10 +91,6 @@ export async function sendAdminPasswordReset(email: string) {
 
 export async function signInWithEmail(email: string, password: string) {
   await signInWithEmailAndPassword(auth, email, password)
-}
-
-export async function signInWithGoogle() {
-  await signInWithPopup(auth, googleProvider)
 }
 
 export async function signOutUser() {

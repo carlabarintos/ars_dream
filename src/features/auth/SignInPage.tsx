@@ -7,9 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
 import type { Gender } from '@/types'
-import { signInWithEmail, signInWithGoogle, signUpWithEmail } from './auth-actions'
+import { signInWithEmail, signUpWithEmail } from './auth-actions'
 
 const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: 'male', label: 'Male' },
@@ -55,18 +54,6 @@ export function SignInPage() {
       } else {
         await signInWithEmail(email, password)
       }
-      navigate('/')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Something went wrong')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  async function handleGoogle() {
-    setIsSubmitting(true)
-    try {
-      await signInWithGoogle()
       navigate('/')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
@@ -176,16 +163,6 @@ export function SignInPage() {
               {mode === 'sign-in' ? 'Sign in' : 'Create account'}
             </Button>
           </form>
-
-          <div className="my-4 flex items-center gap-3">
-            <Separator className="flex-1" />
-            <span className="text-muted-foreground text-xs">OR</span>
-            <Separator className="flex-1" />
-          </div>
-
-          <Button variant="outline" className="w-full" onClick={handleGoogle} disabled={isSubmitting}>
-            Continue with Google
-          </Button>
 
           <p className="text-muted-foreground mt-4 text-center text-sm">
             {mode === 'sign-in' ? "Don't have an account? " : 'Already have an account? '}
