@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -13,20 +14,23 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuthStore } from '@/features/auth/auth-store'
-import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
+import { formatUserName, useAllUsers, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
+import { useAllMarathons } from '@/features/marathons/use-marathons'
 import {
   createAnnouncement,
   deleteAnnouncement,
   markPersonalThreadRead,
   sendPersonalMessage,
+  type AnnouncementInput,
 } from '@/features/messages/api'
 import { ThreadView } from '@/features/messages/ThreadView'
 import { useAllPersonalThreads, useAnnouncements, usePersonalThreadMessages } from '@/features/messages/use-messages'
-import type { PersonalThread } from '@/types'
+import type { AnnouncementAudience, PersonalThread } from '@/types'
 
 function formatThreadTime(timestamp: PersonalThread['lastMessageAt']) {
   if (!timestamp) return '—'
@@ -108,22 +112,130 @@ function SupportInboxTab() {
   )
 }
 
+const AUDIENCE_OPTIONS: { value: AnnouncementAudience; label: string }[] = [
+  { value: 'all', label: 'All users' },
+  { value: 'marathon', label: 'Registrants of a marathon' },
+  { value: 'users', label: 'Specific users' },
+]
+
+function UserMultiSelect({
+  selectedUserIds,
+  onChange,
+}: {
+  selectedUserIds: string[]
+  onChange: (userIds: string[]) => void
+}) {
+  const { profiles } = useAllUsers()
+  const [search, setSearch] = useState('')
+  const selectedProfiles = useUserProfilesByIds(selectedUserIds)
+
+  const filteredProfiles = profiles
+    .filter((profile) => !selectedUserIds.includes(profile.uid))
+    .filter((profile) => {
+      if (!search.trim()) return true
+      const query = search.trim().toLowerCase()
+      return (
+        formatUserName(profile).toLowerCase().includes(query) ||
+        (profile.email ?? '').toLowerCase().includes(query)
+      )
+    })
+
+  function toggleUser(uid: string) {
+    onChange([...selectedUserIds, uid])
+  }
+
+  function removeUser(uid: string) {
+    onChange(selectedUserIds.filter((id) => id !== uid))
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {selectedUserIds.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedUserIds.map((uid) => (
+            <Badge key={uid} variant="secondary" className="gap-1">
+              {formatUserName(selectedProfiles[uid])}
+              <button type="button" onClick={() => removeUser(uid)} aria-label="Remove user">
+                <XIcon className="size-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+      <Input
+        placeholder="Search users by name or email…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      <div className="max-h-40 overflow-y-auto rounded-md border border-border">
+        {filteredProfiles.length === 0 ? (
+          <p className="text-muted-foreground p-3 text-center text-xs">No matching users.</p>
+        ) : (
+          filteredProfiles.map((profile) => (
+            <button
+              key={profile.uid}
+              type="button"
+              onClick={() => toggleUser(profile.uid)}
+              className="hover:bg-secondary flex w-full items-center justify-between gap-2 border-b border-border px-3 py-2 text-left text-sm last:border-b-0"
+            >
+              <span>{formatUserName(profile)}</span>
+              <span className="text-muted-foreground text-xs">{profile.email}</span>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
 function AnnouncementsTab() {
   const adminUid = useAuthStore((state) => state.firebaseUser?.uid)
   const { announcements, isLoading } = useAnnouncements()
+  const { marathons } = useAllMarathons()
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
+  const [bannerImageUrl, setBannerImageUrl] = useState('')
+  const [audience, setAudience] = useState<AnnouncementAudience>('all')
+  const [targetMarathonId, setTargetMarathonId] = useState('')
+  const [targetUserIds, setTargetUserIds] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const marathonById = useMemo(() => new Map(marathons.map((m) => [m.id, m])), [marathons])
+
+  function resetForm() {
+    setTitle('')
+    setBody('')
+    setBannerImageUrl('')
+    setAudience('all')
+    setTargetMarathonId('')
+    setTargetUserIds([])
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!adminUid) return
+    if (audience === 'marathon' && !targetMarathonId) {
+      toast.error('Choose a marathon to target.')
+      return
+    }
+    if (audience === 'users' && targetUserIds.length === 0) {
+      toast.error('Choose at least one user to target.')
+      return
+    }
+
+    const input: AnnouncementInput = {
+      title: title.trim(),
+      body: body.trim(),
+      audience,
+      ...(bannerImageUrl.trim() ? { bannerImageUrl: bannerImageUrl.trim() } : {}),
+      ...(audience === 'marathon' ? { targetMarathonId } : {}),
+      ...(audience === 'users' ? { targetUserIds } : {}),
+    }
 
     setIsSubmitting(true)
     try {
-      await createAnnouncement(adminUid, title.trim(), body.trim())
-      setTitle('')
-      setBody('')
+      await createAnnouncement(input, adminUid)
+      resetForm()
       toast.success('Announcement posted.')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
@@ -152,6 +264,57 @@ function AnnouncementsTab() {
           <Label htmlFor="announcement-body">Message</Label>
           <Textarea id="announcement-body" value={body} onChange={(e) => setBody(e.target.value)} required />
         </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="announcement-banner">Banner image URL (optional)</Label>
+          <Input
+            id="announcement-banner"
+            value={bannerImageUrl}
+            onChange={(e) => setBannerImageUrl(e.target.value)}
+            placeholder="https://…"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label>Send to</Label>
+          <Select value={audience} onValueChange={(value) => setAudience(value as AnnouncementAudience)}>
+            <SelectTrigger className="w-full sm:w-64">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {AUDIENCE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {audience === 'marathon' && (
+          <div className="flex flex-col gap-1.5">
+            <Label>Marathon</Label>
+            <Select value={targetMarathonId} onValueChange={setTargetMarathonId}>
+              <SelectTrigger className="w-full sm:w-64">
+                <SelectValue placeholder="Choose a marathon…" />
+              </SelectTrigger>
+              <SelectContent>
+                {marathons.map((marathon) => (
+                  <SelectItem key={marathon.id} value={marathon.id}>
+                    {marathon.title} ({marathon.status})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {audience === 'users' && (
+          <div className="flex flex-col gap-1.5">
+            <Label>Users</Label>
+            <UserMultiSelect selectedUserIds={targetUserIds} onChange={setTargetUserIds} />
+          </div>
+        )}
+
         <Button type="submit" className="self-start" disabled={isSubmitting}>
           Post announcement
         </Button>
@@ -165,9 +328,27 @@ function AnnouncementsTab() {
         <div className="flex flex-col gap-3">
           {announcements.map((announcement) => (
             <div key={announcement.id} className="flex items-start justify-between gap-3 rounded-md border border-border p-4">
-              <div>
-                <h3 className="font-medium">{announcement.title}</h3>
-                <p className="text-muted-foreground mt-1 text-sm whitespace-pre-wrap">{announcement.body}</p>
+              <div className="flex gap-3">
+                {announcement.bannerImageUrl && (
+                  <img
+                    src={announcement.bannerImageUrl}
+                    alt=""
+                    className="size-16 shrink-0 rounded-md object-cover"
+                  />
+                )}
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-medium">{announcement.title}</h3>
+                    <Badge variant="secondary">
+                      {announcement.audience === 'all'
+                        ? 'All users'
+                        : announcement.audience === 'marathon'
+                          ? `Marathon: ${marathonById.get(announcement.targetMarathonId ?? '')?.title ?? 'Unknown'}`
+                          : `${announcement.targetUserIds?.length ?? 0} ${announcement.targetUserIds?.length === 1 ? 'user' : 'users'}`}
+                    </Badge>
+                  </div>
+                  <p className="text-muted-foreground mt-1 text-sm whitespace-pre-wrap">{announcement.body}</p>
+                </div>
               </div>
               <Button variant="ghost" size="sm" onClick={() => handleDelete(announcement.id)}>
                 Delete

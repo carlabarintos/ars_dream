@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore'
 
 import { db } from '@/firebase/config'
-import type { Announcement, GroupMessage, MessageSenderRole, PersonalMessage, PersonalThread } from '@/types'
+import type { Announcement, GroupMessage, MessageSenderRole, PersonalMessage, PersonalThread, Registration } from '@/types'
 
 const personalThreadsRef = collection(db, 'personalThreads')
 const announcementsRef = collection(db, 'announcements')
@@ -73,10 +73,18 @@ export function subscribeToAnnouncements(onData: (announcements: Announcement[])
   })
 }
 
-export async function createAnnouncement(createdBy: string, title: string, body: string) {
+export interface AnnouncementInput {
+  title: string
+  body: string
+  bannerImageUrl?: string
+  audience: Announcement['audience']
+  targetMarathonId?: string
+  targetUserIds?: string[]
+}
+
+export async function createAnnouncement(input: AnnouncementInput, createdBy: string) {
   await addDoc(announcementsRef, {
-    title,
-    body,
+    ...input,
     createdBy,
     createdAt: serverTimestamp(),
   })
@@ -84,6 +92,21 @@ export async function createAnnouncement(createdBy: string, title: string, body:
 
 export async function deleteAnnouncement(announcementId: string) {
   await deleteDoc(doc(announcementsRef, announcementId))
+}
+
+/** Whether `announcement` should be shown/pushed to a given user, based on its audience targeting. */
+export function isAnnouncementVisibleTo(
+  announcement: Announcement,
+  uid: string | undefined,
+  registrations: Registration[],
+) {
+  if (announcement.audience === 'marathon') {
+    return registrations.some((r) => r.marathonId === announcement.targetMarathonId)
+  }
+  if (announcement.audience === 'users') {
+    return !!uid && !!announcement.targetUserIds?.includes(uid)
+  }
+  return true
 }
 
 export function subscribeToGroupMessages(onData: (messages: GroupMessage[]) => void) {

@@ -3,8 +3,9 @@ import { useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
+import { useUserRegistrations } from '@/features/registrations/use-registrations'
 
-import { markPersonalThreadRead, sendGroupMessage, sendPersonalMessage } from './api'
+import { isAnnouncementVisibleTo, markPersonalThreadRead, sendGroupMessage, sendPersonalMessage } from './api'
 import { ThreadView } from './ThreadView'
 import { useAnnouncements, useGroupMessages, usePersonalThreadMessages } from './use-messages'
 
@@ -35,23 +36,34 @@ function SupportTab({ uid }: { uid: string }) {
   )
 }
 
-function AnnouncementsTab() {
+function AnnouncementsTab({ uid }: { uid: string }) {
   const { announcements, isLoading } = useAnnouncements()
+  const { registrations } = useUserRegistrations(uid)
+
+  const visibleAnnouncements = announcements.filter((a) => isAnnouncementVisibleTo(a, uid, registrations))
 
   if (isLoading) return <p className="text-muted-foreground text-sm">Loading…</p>
-  if (announcements.length === 0) {
+  if (visibleAnnouncements.length === 0) {
     return <p className="text-muted-foreground text-sm">No announcements yet.</p>
   }
 
   return (
     <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto">
-      {announcements.map((announcement) => (
-        <div key={announcement.id} className="rounded-md border border-border p-4">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="font-medium">{announcement.title}</h3>
-            <span className="text-muted-foreground shrink-0 text-xs">{formatAnnouncementDate(announcement.createdAt)}</span>
+      {visibleAnnouncements.map((announcement) => (
+        <div key={announcement.id} className="overflow-hidden rounded-md border border-border">
+          {announcement.bannerImageUrl && (
+            <div
+              className="h-32 w-full bg-cover bg-center"
+              style={{ backgroundImage: `url(${announcement.bannerImageUrl})` }}
+            />
+          )}
+          <div className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="font-medium">{announcement.title}</h3>
+              <span className="text-muted-foreground shrink-0 text-xs">{formatAnnouncementDate(announcement.createdAt)}</span>
+            </div>
+            <p className="text-muted-foreground mt-2 text-sm whitespace-pre-wrap">{announcement.body}</p>
           </div>
-          <p className="text-muted-foreground mt-2 text-sm whitespace-pre-wrap">{announcement.body}</p>
         </div>
       ))}
     </div>
@@ -105,7 +117,7 @@ export function MessagesPage() {
           </TabsContent>
         )}
         <TabsContent value="announcements">
-          <AnnouncementsTab />
+          <AnnouncementsTab uid={uid} />
         </TabsContent>
         <TabsContent value="community">
           <CommunityTab uid={uid} />

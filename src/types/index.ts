@@ -139,11 +139,19 @@ export interface PersonalMessage {
   createdAt: Timestamp
 }
 
-/** Admin-authored, read-only broadcast visible to every signed-in user. */
+export type AnnouncementAudience = 'all' | 'marathon' | 'users'
+
+/** Admin-authored broadcast. Visibility to a given user is determined by `audience`. */
 export interface Announcement {
   id: string
   title: string
   body: string
+  bannerImageUrl?: string
+  audience: AnnouncementAudience
+  /** Present when audience === 'marathon': registrants of this marathon see it. */
+  targetMarathonId?: string
+  /** Present when audience === 'users': exactly these uids see it. */
+  targetUserIds?: string[]
   createdBy: string
   createdAt: Timestamp
 }
