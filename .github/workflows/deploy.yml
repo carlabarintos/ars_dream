@@ -70,4 +70,4 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       # functions/ is built automatically by firebase.json's predeploy hooks
-      - run: npx firebase deploy --only functions,firestore:rules,storage --project ${{ env.FIREBASE_PROJECT_ID }} --non-interactive
+      - run: npx firebase deploy --only functions,firestore:rules,storage --project ${{ env.FIREBASE_PROJECT_ID }} --non-interactive --force
