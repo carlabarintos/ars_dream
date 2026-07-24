@@ -1,0 +1,73 @@
+name: Deploy to Firebase
+
+on:
+  workflow_dispatch:
+
+env:
+  FIREBASE_PROJECT_ID: arsdream-1f00f
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: prd
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_VAPID_KEY: ${{ secrets.VITE_FIREBASE_VAPID_KEY }}
+          VITE_FIREBASE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_FIREBASE_RECAPTCHA_SITE_KEY }}
+          VITE_USE_FIREBASE_EMULATORS: "false"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+  deploy_hosting:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: prd
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ env.FIREBASE_PROJECT_ID }}
+          channelId: live
+
+  deploy_backend:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: prd
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      # functions/ is built automatically by firebase.json's predeploy hooks
+      - run: npx firebase deploy --only functions,firestore:rules,storage --project ${{ env.FIREBASE_PROJECT_ID }} --non-interactive
