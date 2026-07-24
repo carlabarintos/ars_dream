@@ -2,6 +2,11 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     match /proof-of-payment/{registrationId}/{fileName} {
       function registration() {
         return firestore.get(/databases/(default)/documents/registrations/$(registrationId)).data;
@@ -11,17 +16,28 @@ service firebase.storage {
         return request.auth != null && registration().userId == request.auth.uid;
       }
 
-      function isAdmin() {
-        return request.auth != null &&
-          firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      }
-
       // Only the registrant who owns this registration may upload their own
       // proof of payment; admins (and the owner) may read it back for review.
       allow read: if isOwner() || isAdmin();
       allow write: if isOwner() &&
         request.resource.size < 10 * 1024 * 1024 &&
         request.resource.contentType.matches('image/.*|application/pdf');
+    }
+
+    // Marathon and announcement banners are public-facing images shown to
+    // every signed-in user (timeline, home feed) — only admins may upload them.
+    match /marathon-banners/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+
+    match /announcement-banners/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
     }
   }
 }

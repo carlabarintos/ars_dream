@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteField,
   doc,
   getDocs,
   onSnapshot,
@@ -11,8 +12,9 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 
-import { db } from '@/firebase/config'
+import { db, storage } from '@/firebase/config'
 import type { Marathon, MarathonPackage, MarathonQuestion, MarathonStatus } from '@/types'
 import type { MarathonRestoreInput } from '@/features/admin/export-import/serialize'
 
@@ -44,6 +46,13 @@ export function subscribeToMarathon(marathonId: string, onData: (marathon: Marat
   })
 }
 
+/** Uploads an admin-selected banner image and returns its public download URL, for use as `MarathonInput.bannerImageUrl`. */
+export async function uploadMarathonBanner(file: File): Promise<string> {
+  const storageRef = ref(storage, `marathon-banners/${crypto.randomUUID()}-${file.name}`)
+  await uploadBytes(storageRef, file)
+  return getDownloadURL(storageRef)
+}
+
 export interface MarathonInput {
   title: string
   description: string
@@ -56,11 +65,15 @@ export interface MarathonInput {
   paymentInstructions: string
   packages: MarathonPackage[]
   questions: MarathonQuestion[]
+  /** null clears an existing deadline; undefined/omitted leaves it unset (create) or untouched (update is not possible this way — pass null to clear). */
+  feedDeadline?: Date | null
 }
 
 export async function createMarathon(input: MarathonInput, createdBy: string) {
+  const { feedDeadline, ...rest } = input
   await addDoc(marathonsRef, {
-    ...input,
+    ...rest,
+    ...(feedDeadline ? { feedDeadline } : {}),
     confirmedCount: 0,
     status: 'draft' satisfies MarathonStatus,
     createdBy,
@@ -69,7 +82,8 @@ export async function createMarathon(input: MarathonInput, createdBy: string) {
 }
 
 export async function updateMarathon(marathonId: string, input: MarathonInput) {
-  await updateDoc(doc(db, 'marathons', marathonId), { ...input })
+  const { feedDeadline, ...rest } = input
+  await updateDoc(doc(db, 'marathons', marathonId), { ...rest, feedDeadline: feedDeadline ?? deleteField() })
 }
 
 export async function setMarathonStatus(marathonId: string, status: MarathonStatus) {

@@ -75,6 +75,8 @@ export interface Marathon {
   packages?: MarathonPackage[]
   /** Registration questions a registrant must complete before payment (e.g. an agreement checkbox, emergency contact, dietary restrictions). Absent on events created before this field existed. May originate from a QuestionnaireTemplate copied in at authoring time, but is independent of it thereafter. */
   questions?: MarathonQuestion[]
+  /** Once passed, this stops appearing in the Home/Timeline feed — independent of `status`/`registrationClosesAt`, and doesn't affect any other view (e.g. a registrant's My Registrations still shows it). Absent means always shown while published. */
+  feedDeadline?: Timestamp
   status: MarathonStatus
   createdBy: string
   createdAt: Timestamp
@@ -152,6 +154,8 @@ export interface Announcement {
   targetMarathonId?: string
   /** Present when audience === 'users': exactly these uids see it. */
   targetUserIds?: string[]
+  /** Once passed, this stops appearing in the Home/Timeline feed — it's still shown in the Messages page's Announcements tab. Absent means always shown in the feed. */
+  feedDeadline?: Timestamp
   createdBy: string
   createdAt: Timestamp
 }

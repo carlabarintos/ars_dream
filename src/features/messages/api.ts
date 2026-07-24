@@ -9,8 +9,9 @@ import {
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore'
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 
-import { db } from '@/firebase/config'
+import { db, storage } from '@/firebase/config'
 import type { Announcement, GroupMessage, MessageSenderRole, PersonalMessage, PersonalThread, Registration } from '@/types'
 
 const personalThreadsRef = collection(db, 'personalThreads')
@@ -79,6 +80,13 @@ export function subscribeToAnnouncements(onData: (announcements: Announcement[])
   })
 }
 
+/** Uploads an admin-selected banner image and returns its public download URL, for use as `AnnouncementInput.bannerImageUrl`. */
+export async function uploadAnnouncementBanner(file: File): Promise<string> {
+  const storageRef = ref(storage, `announcement-banners/${crypto.randomUUID()}-${file.name}`)
+  await uploadBytes(storageRef, file)
+  return getDownloadURL(storageRef)
+}
+
 export interface AnnouncementInput {
   title: string
   body: string
@@ -86,6 +94,7 @@ export interface AnnouncementInput {
   audience: Announcement['audience']
   targetMarathonId?: string
   targetUserIds?: string[]
+  feedDeadline?: Date
 }
 
 export async function createAnnouncement(input: AnnouncementInput, createdBy: string) {

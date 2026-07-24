@@ -12,6 +12,11 @@ type FeedItem =
   | { kind: 'marathon'; date: Date; marathon: Marathon }
   | { kind: 'announcement'; date: Date; announcement: Announcement }
 
+/** Whether a feed item's optional `feedDeadline` hasn't passed yet — gates Home/Timeline visibility only, not any other view. */
+function isBeforeFeedDeadline(item: { feedDeadline?: { toDate: () => Date } }) {
+  return !item.feedDeadline || item.feedDeadline.toDate().getTime() >= Date.now()
+}
+
 export function TimelinePage() {
   const { marathons, isLoading: isLoadingMarathons } = usePublishedMarathons()
   const { announcements, isLoading: isLoadingAnnouncements } = useAnnouncements()
@@ -21,10 +26,13 @@ export function TimelinePage() {
   const isLoading = isLoadingMarathons || isLoadingAnnouncements
   const registrationByMarathon = new Map(registrations.map((r) => [r.marathonId, r]))
 
-  const visibleAnnouncements = announcements.filter((a) => isAnnouncementVisibleTo(a, uid, registrations))
+  const visibleMarathons = marathons.filter(isBeforeFeedDeadline)
+  const visibleAnnouncements = announcements
+    .filter((a) => isAnnouncementVisibleTo(a, uid, registrations))
+    .filter(isBeforeFeedDeadline)
 
   const feed: FeedItem[] = [
-    ...marathons.map((marathon): FeedItem => ({ kind: 'marathon', date: marathon.createdAt.toDate(), marathon })),
+    ...visibleMarathons.map((marathon): FeedItem => ({ kind: 'marathon', date: marathon.createdAt.toDate(), marathon })),
     ...visibleAnnouncements.map((announcement): FeedItem => ({
       kind: 'announcement',
       date: announcement.createdAt.toDate(),

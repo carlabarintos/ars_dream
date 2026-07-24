@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { PlusIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useAuthStore } from '@/features/auth/auth-store'
 import type { Marathon, MarathonPackage, MarathonQuestion, QuestionType } from '@/types'
 
-import { createMarathon, updateMarathon } from '@/features/marathons/api'
+import { createMarathon, updateMarathon, uploadMarathonBanner } from '@/features/marathons/api'
 import { useQuestionnaireTemplates } from '@/features/questionnaire-templates/use-questionnaire-templates'
 
 const LOAD_TEMPLATE_PLACEHOLDER = ''
@@ -99,8 +99,20 @@ export function MarathonFormDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [packageRows, setPackageRows] = useState<PackageRow[]>(() => toPackageRows(marathon?.packages))
   const [questionRows, setQuestionRows] = useState<QuestionRow[]>(() => toQuestionRows(marathon?.questions))
+  const [bannerFile, setBannerFile] = useState<File | null>(null)
+  const [bannerPreviewUrl, setBannerPreviewUrl] = useState<string | undefined>(marathon?.bannerImageUrl)
+  const [feedDeadline, setFeedDeadline] = useState(
+    marathon?.feedDeadline ? toDateInputValue(marathon.feedDeadline.toDate()) : '',
+  )
   const uid = useAuthStore((state) => state.firebaseUser?.uid)
   const { templates: questionnaireTemplates } = useQuestionnaireTemplates()
+
+  function handleBannerFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setBannerFile(file)
+    setBannerPreviewUrl(URL.createObjectURL(file))
+  }
 
   function loadQuestionsFromTemplate(templateId: string) {
     const template = questionnaireTemplates.find((t) => t.id === templateId)
@@ -214,22 +226,29 @@ export function MarathonFormDialog({
           : {}),
       }))
 
-    const form = new FormData(event.currentTarget)
-    const input = {
-      title: String(form.get('title')),
-      description: String(form.get('description')),
-      bannerImageUrl: String(form.get('bannerImageUrl')),
-      location: String(form.get('location')),
-      eventDate: new Date(String(form.get('eventDate'))),
-      registrationOpensAt: new Date(String(form.get('registrationOpensAt'))),
-      registrationClosesAt: new Date(String(form.get('registrationClosesAt'))),
-      capacity: Number(form.get('capacity')),
-      paymentInstructions: String(form.get('paymentInstructions')),
-      packages,
-      questions,
+    if (!bannerFile && !marathon?.bannerImageUrl) {
+      toast.error('Upload a banner image.')
+      return
     }
+
+    const form = new FormData(event.currentTarget)
     setIsSubmitting(true)
     try {
+      const bannerImageUrl = bannerFile ? await uploadMarathonBanner(bannerFile) : marathon!.bannerImageUrl
+      const input = {
+        title: String(form.get('title')),
+        description: String(form.get('description')),
+        bannerImageUrl,
+        location: String(form.get('location')),
+        eventDate: new Date(String(form.get('eventDate'))),
+        registrationOpensAt: new Date(String(form.get('registrationOpensAt'))),
+        registrationClosesAt: new Date(String(form.get('registrationClosesAt'))),
+        capacity: Number(form.get('capacity')),
+        paymentInstructions: String(form.get('paymentInstructions')),
+        packages,
+        questions,
+        feedDeadline: feedDeadline ? new Date(feedDeadline) : null,
+      }
       if (isEditing) {
         await updateMarathon(marathon.id, input)
         toast.success('Marathon updated.')
@@ -238,6 +257,9 @@ export function MarathonFormDialog({
         toast.success('Marathon created as a draft. Publish it when ready.')
         setPackageRows([])
         setQuestionRows([])
+        setBannerFile(null)
+        setBannerPreviewUrl(undefined)
+        setFeedDeadline('')
       }
       setOpen(false)
     } catch (error) {
@@ -271,12 +293,17 @@ export function MarathonFormDialog({
               defaultValue={marathon?.description}
             />
           </div>
-          <Field
-            label="Banner image URL"
-            name="bannerImageUrl"
-            required
-            defaultValue={marathon?.bannerImageUrl}
-          />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="bannerFile">Banner image</Label>
+            {bannerPreviewUrl && (
+              <img
+                src={bannerPreviewUrl}
+                alt=""
+                className="h-32 w-full rounded-md border border-border object-cover"
+              />
+            )}
+            <Input id="bannerFile" type="file" accept="image/*" onChange={handleBannerFileChange} />
+          </div>
           <Field label="Location" name="location" required defaultValue={marathon?.location} />
           <div className="grid grid-cols-3 gap-3">
             <Field
@@ -308,6 +335,19 @@ export function MarathonFormDialog({
             required
             defaultValue={marathon?.capacity.toString()}
           />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="feedDeadline">Show in feed until (optional)</Label>
+            <Input
+              id="feedDeadline"
+              type="date"
+              value={feedDeadline}
+              onChange={(e) => setFeedDeadline(e.target.value)}
+            />
+            <p className="text-muted-foreground text-xs">
+              After this date the marathon drops off the Home feed. Independent of the registration
+              deadline and status below — leave blank to show for as long as it's published.
+            </p>
+          </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="paymentInstructions">Payment instructions</Label>
             <Textarea

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -26,6 +26,7 @@ import {
   deleteAnnouncement,
   markPersonalThreadRead,
   sendPersonalMessage,
+  uploadAnnouncementBanner,
   type AnnouncementInput,
 } from '@/features/messages/api'
 import { ThreadView } from '@/features/messages/ThreadView'
@@ -194,7 +195,9 @@ function AnnouncementsTab() {
   const { marathons } = useAllMarathons()
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
-  const [bannerImageUrl, setBannerImageUrl] = useState('')
+  const [bannerFile, setBannerFile] = useState<File | null>(null)
+  const [bannerPreviewUrl, setBannerPreviewUrl] = useState('')
+  const [feedDeadline, setFeedDeadline] = useState('')
   const [audience, setAudience] = useState<AnnouncementAudience>('all')
   const [targetMarathonId, setTargetMarathonId] = useState('')
   const [targetUserIds, setTargetUserIds] = useState<string[]>([])
@@ -206,10 +209,19 @@ function AnnouncementsTab() {
   function resetForm() {
     setTitle('')
     setBody('')
-    setBannerImageUrl('')
+    setBannerFile(null)
+    setBannerPreviewUrl('')
+    setFeedDeadline('')
     setAudience('all')
     setTargetMarathonId('')
     setTargetUserIds([])
+  }
+
+  function handleBannerFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setBannerFile(file)
+    setBannerPreviewUrl(URL.createObjectURL(file))
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -224,17 +236,18 @@ function AnnouncementsTab() {
       return
     }
 
-    const input: AnnouncementInput = {
-      title: title.trim(),
-      body: body.trim(),
-      audience,
-      ...(bannerImageUrl.trim() ? { bannerImageUrl: bannerImageUrl.trim() } : {}),
-      ...(audience === 'marathon' ? { targetMarathonId } : {}),
-      ...(audience === 'users' ? { targetUserIds } : {}),
-    }
-
     setIsSubmitting(true)
     try {
+      const bannerImageUrl = bannerFile ? await uploadAnnouncementBanner(bannerFile) : undefined
+      const input: AnnouncementInput = {
+        title: title.trim(),
+        body: body.trim(),
+        audience,
+        ...(bannerImageUrl ? { bannerImageUrl } : {}),
+        ...(feedDeadline ? { feedDeadline: new Date(feedDeadline) } : {}),
+        ...(audience === 'marathon' ? { targetMarathonId } : {}),
+        ...(audience === 'users' ? { targetUserIds } : {}),
+      }
       await createAnnouncement(input, adminUid)
       resetForm()
       toast.success('Announcement posted.')
@@ -269,13 +282,29 @@ function AnnouncementsTab() {
           <Textarea id="announcement-body" value={body} onChange={(e) => setBody(e.target.value)} required />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="announcement-banner">Banner image URL (optional)</Label>
+          <Label htmlFor="announcement-banner">Banner image (optional)</Label>
+          {bannerPreviewUrl && (
+            <img
+              src={bannerPreviewUrl}
+              alt=""
+              className="h-32 w-full rounded-md border border-border object-cover"
+            />
+          )}
+          <Input id="announcement-banner" type="file" accept="image/*" onChange={handleBannerFileChange} />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="announcement-feed-deadline">Show in feed until (optional)</Label>
           <Input
-            id="announcement-banner"
-            value={bannerImageUrl}
-            onChange={(e) => setBannerImageUrl(e.target.value)}
-            placeholder="https://…"
+            id="announcement-feed-deadline"
+            type="date"
+            value={feedDeadline}
+            onChange={(e) => setFeedDeadline(e.target.value)}
           />
+          <p className="text-muted-foreground text-xs">
+            After this date the announcement drops off the Home feed, but stays visible in Messages →
+            Announcements. Leave blank to show indefinitely.
+          </p>
         </div>
 
         <div className="flex flex-col gap-1.5">
