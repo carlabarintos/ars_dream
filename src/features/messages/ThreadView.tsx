@@ -112,7 +112,7 @@ export function ThreadView<TMessage extends ThreadMessage>({
             }
           }}
         />
-        <Button type="submit" size="icon" disabled={isSending || !text.trim()}>
+        <Button type="submit" size="icon" disabled={!text.trim()} loading={isSending}>
           <SendIcon className="size-4" />
         </Button>
       </form>

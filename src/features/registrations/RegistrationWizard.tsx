@@ -146,7 +146,7 @@ export function RegistrationWizard({
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button disabled={isSubmitting} onClick={handleSubmitTerms}>
+              <Button loading={isSubmitting} onClick={handleSubmitTerms}>
                 Continue
               </Button>
             </DialogFooter>
@@ -177,7 +177,7 @@ export function RegistrationWizard({
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button disabled={!file || isSubmitting} onClick={handleSubmitPayment}>
+              <Button disabled={!file} loading={isSubmitting} onClick={handleSubmitPayment}>
                 Submit Payment Proof
               </Button>
             </DialogFooter>

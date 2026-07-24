@@ -199,6 +199,7 @@ function AnnouncementsTab() {
   const [targetMarathonId, setTargetMarathonId] = useState('')
   const [targetUserIds, setTargetUserIds] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const marathonById = useMemo(() => new Map(marathons.map((m) => [m.id, m])), [marathons])
 
@@ -245,11 +246,14 @@ function AnnouncementsTab() {
   }
 
   async function handleDelete(announcementId: string) {
+    setDeletingId(announcementId)
     try {
       await deleteAnnouncement(announcementId)
       toast.success('Announcement removed.')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -315,7 +319,7 @@ function AnnouncementsTab() {
           </div>
         )}
 
-        <Button type="submit" className="self-start" disabled={isSubmitting}>
+        <Button type="submit" className="self-start" loading={isSubmitting}>
           Post announcement
         </Button>
       </form>
@@ -350,7 +354,12 @@ function AnnouncementsTab() {
                   <p className="text-muted-foreground mt-1 text-sm whitespace-pre-wrap">{announcement.body}</p>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => handleDelete(announcement.id)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                loading={deletingId === announcement.id}
+                onClick={() => handleDelete(announcement.id)}
+              >
                 Delete
               </Button>
             </div>

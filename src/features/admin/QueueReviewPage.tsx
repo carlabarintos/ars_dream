@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -49,13 +50,17 @@ export function QueueReviewPage() {
     (a, b) => (a.queuePosition ?? Infinity) - (b.queuePosition ?? Infinity),
   )
   const profiles = useUserProfilesByIds(orderedRegistrations.map((registration) => registration.userId))
+  const [decidingKey, setDecidingKey] = useState<string | null>(null)
 
   async function handleDecision(id: string, decision: 'accepted' | 'rejected') {
+    setDecidingKey(`${id}-${decision}`)
     try {
       await decideQueueRegistration(id, decision)
       toast.success(decision === 'accepted' ? 'Registration accepted.' : 'Registration rejected.')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setDecidingKey(null)
     }
   }
 
@@ -114,12 +119,17 @@ export function QueueReviewPage() {
                 <TableCell className="flex justify-end gap-2">
                   {registration.status === 'queued' ? (
                     <>
-                      <Button size="sm" onClick={() => handleDecision(registration.id, 'accepted')}>
+                      <Button
+                        size="sm"
+                        loading={decidingKey === `${registration.id}-accepted`}
+                        onClick={() => handleDecision(registration.id, 'accepted')}
+                      >
                         Accept
                       </Button>
                       <Button
                         variant="destructive"
                         size="sm"
+                        loading={decidingKey === `${registration.id}-rejected`}
                         onClick={() => handleDecision(registration.id, 'rejected')}
                       >
                         Reject

@@ -148,6 +148,7 @@ export function PackageSelectionPage() {
                 <Button
                   className="w-full"
                   disabled={isFull || isClosed || joiningPackageId !== null}
+                  loading={joiningPackageId === pkg.id}
                   onClick={() => handleSelectPackage(pkg)}
                 >
                   {isFull || isClosed

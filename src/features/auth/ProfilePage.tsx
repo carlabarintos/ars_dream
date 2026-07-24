@@ -126,7 +126,7 @@ export function ProfilePage() {
               <Button type="button" variant="outline" className="flex-1" onClick={() => navigate(-1)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting} className="flex-1">
+              <Button type="submit" loading={isSubmitting} className="flex-1">
                 Save changes
               </Button>
             </div>

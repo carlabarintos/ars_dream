@@ -203,7 +203,8 @@ function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: () =>
           type="button"
           variant="outline"
           size="sm"
-          disabled={isSendingReset || !profile.firstName}
+          disabled={!profile.firstName}
+          loading={isSendingReset}
           onClick={handlePasswordReset}
         >
           Send reset email
@@ -225,7 +226,8 @@ function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: () =>
           type="button"
           variant={profile.role === 'admin' ? 'destructive' : 'outline'}
           size="sm"
-          disabled={isUpdatingRole || isSelf}
+          disabled={isSelf}
+          loading={isUpdatingRole}
           onClick={handleToggleRole}
         >
           {profile.role === 'admin' ? 'Revoke admin' : 'Make admin'}
@@ -233,7 +235,7 @@ function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: () =>
       </div>
 
       <DialogFooter>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" loading={isSubmitting}>
           Save changes
         </Button>
       </DialogFooter>

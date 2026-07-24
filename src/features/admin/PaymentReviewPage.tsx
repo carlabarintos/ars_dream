@@ -21,18 +21,24 @@ export function PaymentReviewPage() {
   const { registrations, isLoading } = useMarathonRegistrations(marathonId, 'payment_submitted')
   const [rejecting, setRejecting] = useState<Registration | null>(null)
   const [note, setNote] = useState('')
+  const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const [isRejecting, setIsRejecting] = useState(false)
 
   async function handleConfirm(registration: Registration) {
+    setConfirmingId(registration.id)
     try {
       await confirmPayment(registration.id)
       toast.success('Payment confirmed — registration complete.')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setConfirmingId(null)
     }
   }
 
   async function handleReject() {
     if (!rejecting) return
+    setIsRejecting(true)
     try {
       await rejectPayment(rejecting.id, note)
       toast.success('Payment rejected. The user can resubmit.')
@@ -40,6 +46,8 @@ export function PaymentReviewPage() {
       setNote('')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setIsRejecting(false)
     }
   }
 
@@ -69,7 +77,9 @@ export function PaymentReviewPage() {
                 )}
               </CardContent>
               <CardFooter className="gap-2">
-                <Button onClick={() => handleConfirm(registration)}>Confirm</Button>
+                <Button loading={confirmingId === registration.id} onClick={() => handleConfirm(registration)}>
+                  Confirm
+                </Button>
                 <Button variant="destructive" onClick={() => setRejecting(registration)}>
                   Reject
                 </Button>
@@ -93,7 +103,7 @@ export function PaymentReviewPage() {
             <Button variant="outline" onClick={() => setRejecting(null)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleReject} disabled={!note}>
+            <Button variant="destructive" onClick={handleReject} disabled={!note} loading={isRejecting}>
               Reject
             </Button>
           </DialogFooter>

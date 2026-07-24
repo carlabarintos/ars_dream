@@ -210,7 +210,7 @@ export function ImportDialog({ scope, trigger }: { scope: ImportScope; trigger?:
               <Button variant="outline" onClick={reset} disabled={isBusy}>
                 Choose a different file
               </Button>
-              <Button onClick={handleConfirm} disabled={isBusy}>
+              <Button onClick={handleConfirm} loading={isBusy}>
                 Confirm Restore
               </Button>
             </DialogFooter>

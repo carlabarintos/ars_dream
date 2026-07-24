@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -19,13 +20,17 @@ const STATUS_VARIANT: Record<MarathonStatus, 'secondary' | 'success' | 'destruct
 
 export function AdminDashboard() {
   const { marathons, isLoading } = useAllMarathons()
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   async function handleStatusChange(id: string, status: MarathonStatus) {
+    setUpdatingId(id)
     try {
       await setMarathonStatus(id, status)
       toast.success(`Marathon marked as ${status}.`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setUpdatingId(null)
     }
   }
 
@@ -81,7 +86,11 @@ export function AdminDashboard() {
                     <Link to={`/admin/marathons/${marathon.id}/payments`}>Payments</Link>
                   </Button>
                   {marathon.status !== 'published' && (
-                    <Button size="sm" onClick={() => handleStatusChange(marathon.id, 'published')}>
+                    <Button
+                      size="sm"
+                      loading={updatingId === marathon.id}
+                      onClick={() => handleStatusChange(marathon.id, 'published')}
+                    >
                       Publish
                     </Button>
                   )}
@@ -89,6 +98,7 @@ export function AdminDashboard() {
                     <Button
                       variant="destructive"
                       size="sm"
+                      loading={updatingId === marathon.id}
                       onClick={() => handleStatusChange(marathon.id, 'closed')}
                     >
                       Close

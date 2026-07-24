@@ -159,7 +159,7 @@ export function SignInPage() {
                 required
               />
             </div>
-            <Button type="submit" disabled={isSubmitting} className="mt-2">
+            <Button type="submit" loading={isSubmitting} className="mt-2">
               {mode === 'sign-in' ? 'Sign in' : 'Create account'}
             </Button>
           </form>

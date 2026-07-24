@@ -93,6 +93,27 @@
   --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
 }
 
+@keyframes runner {
+  0%,
+  100% {
+    transform: translateX(-15%) rotate(-10deg);
+  }
+  50% {
+    transform: translateX(15%) rotate(10deg);
+  }
+}
+
+.animate-runner {
+  animation: runner 0.6s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-runner {
+    animation: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

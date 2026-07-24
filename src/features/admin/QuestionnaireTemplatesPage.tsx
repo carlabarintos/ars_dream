@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -10,14 +11,18 @@ import { QuestionnaireTemplateFormDialog } from './QuestionnaireTemplateFormDial
 
 export function QuestionnaireTemplatesPage() {
   const { templates, isLoading } = useQuestionnaireTemplates()
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   async function handleDelete(id: string, title: string) {
     if (!window.confirm(`Delete template "${title}"? Marathons that already loaded from it are unaffected.`)) return
+    setDeletingId(id)
     try {
       await deleteQuestionnaireTemplate(id)
       toast.success('Template deleted.')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -65,7 +70,12 @@ export function QuestionnaireTemplatesPage() {
                 </TableCell>
                 <TableCell className="flex justify-end gap-2">
                   <QuestionnaireTemplateFormDialog template={template} />
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(template.id, template.title)}>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    loading={deletingId === template.id}
+                    onClick={() => handleDelete(template.id, template.title)}
+                  >
                     Delete
                   </Button>
                 </TableCell>

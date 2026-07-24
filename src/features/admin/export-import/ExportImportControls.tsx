@@ -23,7 +23,7 @@ export function ExportImportControls() {
 
   return (
     <div className="flex gap-2">
-      <Button variant="outline" onClick={handleExport} disabled={isExporting}>
+      <Button variant="outline" onClick={handleExport} loading={isExporting}>
         {isExporting ? 'Exporting…' : 'Export All Data'}
       </Button>
       <ImportDialog scope={{ mode: 'full' }} />

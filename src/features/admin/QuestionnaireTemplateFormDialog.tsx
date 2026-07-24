@@ -216,7 +216,7 @@ export function QuestionnaireTemplateFormDialog({
           </div>
 
           <DialogFooter>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" loading={isSubmitting}>
               {isEditing ? 'Save Changes' : 'Create Template'}
             </Button>
           </DialogFooter>
