@@ -53,3 +53,19 @@ export function getPendingActionStep(
   if (registration.status === 'terms_accepted' || registration.status === 'payment_rejected') return 'payment'
   return null
 }
+
+/**
+ * Whether the registrant should still be able to open the registration wizard right now.
+ * A strict superset of getPendingActionStep: a submitted-but-not-yet-reviewed proof of
+ * payment isn't a "pending action" (nothing is required of the user), but they should
+ * still be able to view or replace it before an admin acts on it.
+ */
+export function canReopenWizard(registration: Registration) {
+  return getPendingActionStep(registration, undefined) != null || registration.status === 'payment_submitted'
+}
+
+/** Button label for reopening the wizard, covering the not-a-pending-action case (already submitted, awaiting review). */
+export function getWizardButtonLabel(step: PendingActionStep | null) {
+  if (step) return PENDING_ACTION_LABEL[step]
+  return 'View / Update Proof of Payment'
+}

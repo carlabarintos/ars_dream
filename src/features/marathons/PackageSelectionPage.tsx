@@ -15,9 +15,10 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { useAuthStore } from '@/features/auth/auth-store'
 import { joinQueue } from '@/features/registrations/api'
 import {
-  PENDING_ACTION_LABEL,
+  canReopenWizard,
   getPendingActionStep,
   getRegistrationStatusMessage,
+  getWizardButtonLabel,
 } from '@/features/registrations/registration-flow'
 import { RegistrationWizard } from '@/features/registrations/RegistrationWizard'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
@@ -114,10 +115,10 @@ export function PackageSelectionPage() {
             </p>
             <p className="text-muted-foreground">{getRegistrationStatusMessage(myRegistration)}</p>
           </CardContent>
-          {pendingStep && (
+          {myRegistration && canReopenWizard(myRegistration) && (
             <CardFooter className="border-border border-t pt-4">
               <Button className="w-full" onClick={() => setShowWizard(true)}>
-                {PENDING_ACTION_LABEL[pendingStep]}
+                {getWizardButtonLabel(pendingStep)}
               </Button>
             </CardFooter>
           )}

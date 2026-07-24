@@ -16,7 +16,7 @@ import { useAuthStore } from '@/features/auth/auth-store'
 import { useMarathonsByIds } from '@/features/marathons/use-marathons'
 import type { Registration } from '@/types'
 
-import { PENDING_ACTION_LABEL, getPendingActionStep, getRegistrationStatusMessage } from './registration-flow'
+import { canReopenWizard, getPendingActionStep, getRegistrationStatusMessage, getWizardButtonLabel } from './registration-flow'
 import { RegistrationWizard } from './RegistrationWizard'
 import { StatusBadge } from './StatusBadge'
 import { useUserRegistrations } from './use-registrations'
@@ -109,10 +109,10 @@ export function MyRegistrationsPage() {
                   </div>
                 </CardContent>
 
-                {pendingStep && (
+                {canReopenWizard(registration) && (
                   <CardFooter className="border-border border-t pt-4 pb-5">
                     <Button className="w-full" onClick={() => setActiveRegistration(registration)}>
-                      {PENDING_ACTION_LABEL[pendingStep]}
+                      {getWizardButtonLabel(pendingStep)}
                     </Button>
                   </CardFooter>
                 )}

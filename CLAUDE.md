@@ -52,7 +52,7 @@ Running the emulators requires a JDK on PATH (Firestore/Auth emulators are JVM-b
 
 #### Deploying via GitHub Actions
 
-Real production project is `arsdream-1f00f` (not aliased in `.firebaserc`, which still only defines the local `demo-ars-dream` project — production deploys pass `--project arsdream-1f00f` directly). `.github/workflows/deploy.yml` runs on `workflow_dispatch` against the `prd` GitHub environment, with three jobs: `build` (lint + `tsc -b`/`vite build`, `VITE_FIREBASE_*` secrets incl. `VITE_FIREBASE_RECAPTCHA_SITE_KEY` injected as build-time env vars), `deploy_hosting`, and `deploy_backend` (`firebase deploy --only functions,firestore:rules,firestore:indexes,storage --force`).
+Real production project is `arsdream-1f00f` (not aliased in `.firebaserc`, which still only defines the local `demo-ars-dream` project — production deploys pass `--project arsdream-1f00f` directly). `.github/workflows/deploy.yml` runs automatically on every push to `main` (as well as manual `workflow_dispatch`), against the `prd` GitHub environment, with three jobs: `build` (lint + `tsc -b`/`vite build`, `VITE_FIREBASE_*` secrets incl. `VITE_FIREBASE_RECAPTCHA_SITE_KEY` injected as build-time env vars), `deploy_hosting`, and `deploy_backend` (`firebase deploy --only functions,firestore:rules,firestore:indexes,storage --force`). A `deploy-prd` concurrency group serializes runs so overlapping pushes can't race each other to production.
 
 Two gotchas hit in production that are worth knowing before touching this area again:
 

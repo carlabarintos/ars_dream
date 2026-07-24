@@ -37,7 +37,8 @@ export function RegistrationWizard({
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const items = marathon?.questions ?? []
-  const step = getPendingActionStep(registration, marathon) ?? 'done'
+  const pendingStep = getPendingActionStep(registration, marathon)
+  const step = pendingStep ?? (registration.status === 'payment_submitted' ? 'payment' : 'done')
 
   async function handleSubmitTerms() {
     const missingRequired = items.some(
@@ -160,17 +161,39 @@ export function RegistrationWizard({
                 Your previous submission was rejected: {registration.adminNote}
               </div>
             )}
+            {registration.status === 'payment_submitted' && (
+              <div className="bg-muted/50 rounded-md border border-border p-3 text-sm">
+                Your proof of payment is under review. You can still replace it below if you submitted the
+                wrong file.
+              </div>
+            )}
             <div className="text-muted-foreground rounded-md border border-border p-3 text-sm whitespace-pre-line">
               {marathon?.paymentInstructions ?? 'Payment instructions will be provided here.'}
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="proof">Upload proof of payment (receipt/screenshot)</Label>
+              {registration.proofOfPaymentUrl && (
+                <a
+                  href={registration.proofOfPaymentUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary text-sm underline underline-offset-2"
+                >
+                  View current submission
+                </a>
+              )}
+              <label
+                htmlFor="proof"
+                className="border-input hover:bg-accent flex h-10 w-fit cursor-pointer items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors"
+              >
+                {file ? file.name : registration.proofOfPaymentUrl ? 'Choose replacement file' : 'Choose file'}
+              </label>
               <input
                 id="proof"
                 type="file"
                 accept="image/*,application/pdf"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                className="text-sm"
+                className="sr-only"
               />
             </div>
             <DialogFooter>
@@ -178,7 +201,7 @@ export function RegistrationWizard({
                 Cancel
               </Button>
               <Button disabled={!file} loading={isSubmitting} onClick={handleSubmitPayment}>
-                Submit Payment Proof
+                {registration.proofOfPaymentUrl ? 'Replace Payment Proof' : 'Submit Payment Proof'}
               </Button>
             </DialogFooter>
           </div>
