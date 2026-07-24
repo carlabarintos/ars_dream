@@ -1,6 +1,4 @@
-import { setGlobalOptions } from 'firebase-functions/v2/options'
-
-setGlobalOptions({ region: 'asia-southeast1' })
+import './global-options.js'
 
 export { acceptRegistration } from './accept-registration.js'
 export { confirmPayment } from './confirm-payment.js'
