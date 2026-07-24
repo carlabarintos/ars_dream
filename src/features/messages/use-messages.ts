@@ -6,6 +6,7 @@ import {
   subscribeToAllPersonalThreads,
   subscribeToAnnouncements,
   subscribeToGroupMessages,
+  subscribeToPersonalThread,
   subscribeToPersonalThreadMessages,
 } from './api'
 
@@ -29,17 +30,43 @@ export function usePersonalThreadMessages(userId: string | undefined) {
   return { messages, isLoading }
 }
 
-export function useAllPersonalThreads() {
+export function usePersonalThread(userId: string | undefined) {
+  const [thread, setThread] = useState<PersonalThread | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    if (!userId) {
+      setThread(null)
+      setIsLoading(false)
+      return
+    }
+    const unsubscribe = subscribeToPersonalThread(userId, (data) => {
+      setThread(data)
+      setIsLoading(false)
+    })
+    return unsubscribe
+  }, [userId])
+
+  return { thread, isLoading }
+}
+
+/** Pass `enabled: false` to skip subscribing — a non-admin's security rules can't satisfy a collection-wide query. */
+export function useAllPersonalThreads(enabled = true) {
   const [threads, setThreads] = useState<PersonalThread[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    if (!enabled) {
+      setThreads([])
+      setIsLoading(false)
+      return
+    }
     const unsubscribe = subscribeToAllPersonalThreads((data) => {
       setThreads(data)
       setIsLoading(false)
     })
     return unsubscribe
-  }, [])
+  }, [enabled])
 
   return { threads, isLoading }
 }

@@ -59,6 +59,12 @@ export async function markPersonalThreadRead(userId: string, viewer: MessageSend
   )
 }
 
+export function subscribeToPersonalThread(userId: string, onData: (thread: PersonalThread | null) => void) {
+  return onSnapshot(doc(personalThreadsRef, userId), (snapshot) => {
+    onData(snapshot.exists() ? ({ ...snapshot.data({ serverTimestamps: 'estimate' }) } as PersonalThread) : null)
+  })
+}
+
 export function subscribeToAllPersonalThreads(onData: (threads: PersonalThread[]) => void) {
   const q = query(personalThreadsRef, orderBy('lastMessageAt', 'desc'))
   return onSnapshot(q, (snapshot) => {
