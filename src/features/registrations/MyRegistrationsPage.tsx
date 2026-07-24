@@ -78,29 +78,27 @@ export function MyRegistrationsPage() {
                   />
                 )}
                 <CardHeader>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h2 className="font-display text-2xl leading-tight tracking-wide">
-                        {marathon?.title ?? 'Marathon'}
-                      </h2>
-                      {marathon && (
-                        <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                          <span className="flex items-center gap-1">
-                            <MapPinIcon className="size-3.5" />
-                            {marathon.location}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <CalendarIcon className="size-3.5" />
-                            {formatDate(marathon.eventDate.toDate())}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <StatusBadge status={registration.status} />
+                  <div>
+                    <h2 className="font-display text-2xl leading-tight tracking-wide">
+                      {marathon?.title ?? 'Marathon'}
+                    </h2>
+                    {marathon && (
+                      <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                        <span className="flex items-center gap-1">
+                          <MapPinIcon className="size-3.5" />
+                          {marathon.location}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <CalendarIcon className="size-3.5" />
+                          {formatDate(marathon.eventDate.toDate())}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </CardHeader>
 
                 <CardContent className="flex flex-col gap-3 pb-5">
+                  <StatusBadge status={registration.status} />
                   <div className="text-muted-foreground text-sm">
                     {registration.packageName} · {registration.packagePriceCurrency}{' '}
                     {registration.packagePriceAmount.toLocaleString()}
