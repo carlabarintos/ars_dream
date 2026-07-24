@@ -65,16 +65,16 @@ export function PaymentReviewPage() {
               <CardHeader>
                 <CardTitle className="font-mono text-sm">{registration.userId}</CardTitle>
               </CardHeader>
-              <CardContent>
-                {registration.proofOfPaymentUrl && (
-                  <a href={registration.proofOfPaymentUrl} target="_blank" rel="noreferrer">
+              <CardContent className="grid grid-cols-2 gap-2">
+                {registration.proofOfPaymentUrls.map((url, index) => (
+                  <a key={url} href={url} target="_blank" rel="noreferrer">
                     <img
-                      src={registration.proofOfPaymentUrl}
-                      alt="Proof of payment"
+                      src={url}
+                      alt={`Proof of payment ${index + 1}`}
                       className="max-h-64 w-full rounded-md border border-border object-contain"
                     />
                   </a>
-                )}
+                ))}
               </CardContent>
               <CardFooter className="gap-2">
                 <Button loading={confirmingId === registration.id} onClick={() => handleConfirm(registration)}>

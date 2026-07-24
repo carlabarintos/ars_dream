@@ -28,7 +28,7 @@ export function RegistrationWizard({
   marathon: Marathon | undefined
   onClose: () => void
 }) {
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [answerValues, setAnswerValues] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
     for (const answer of registration.answers ?? []) initial[answer.questionId] = answer.value
@@ -68,10 +68,10 @@ export function RegistrationWizard({
   }
 
   async function handleSubmitPayment() {
-    if (!file) return
+    if (files.length === 0) return
     setIsSubmitting(true)
     try {
-      await submitProofOfPayment(registration.id, file)
+      await submitProofOfPayment(registration.id, files)
       toast.success('Proof of payment submitted. An admin will review it shortly.')
       onClose()
     } catch (error) {
@@ -171,28 +171,38 @@ export function RegistrationWizard({
               {marathon?.paymentInstructions ?? 'Payment instructions will be provided here.'}
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="proof">Upload proof of payment (receipt/screenshot)</Label>
-              {registration.proofOfPaymentUrl && (
-                <a
-                  href={registration.proofOfPaymentUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary text-sm underline underline-offset-2"
-                >
-                  View current submission
-                </a>
+              <Label htmlFor="proof">Upload proof of payment (receipts/screenshots)</Label>
+              {registration.proofOfPaymentUrls.length > 0 && (
+                <div className="flex flex-col gap-1">
+                  {registration.proofOfPaymentUrls.map((url, index) => (
+                    <a
+                      key={url}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary text-sm underline underline-offset-2"
+                    >
+                      View current submission {registration.proofOfPaymentUrls.length > 1 ? index + 1 : ''}
+                    </a>
+                  ))}
+                </div>
               )}
               <label
                 htmlFor="proof"
                 className="border-input hover:bg-accent flex h-10 w-fit cursor-pointer items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors"
               >
-                {file ? file.name : registration.proofOfPaymentUrl ? 'Choose replacement file' : 'Choose file'}
+                {files.length > 0
+                  ? `${files.length} file${files.length > 1 ? 's' : ''} selected`
+                  : registration.proofOfPaymentUrls.length > 0
+                    ? 'Choose replacement files'
+                    : 'Choose files'}
               </label>
               <input
                 id="proof"
                 type="file"
                 accept="image/*,application/pdf"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                multiple
+                onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
                 className="sr-only"
               />
             </div>
@@ -200,8 +210,8 @@ export function RegistrationWizard({
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button disabled={!file} loading={isSubmitting} onClick={handleSubmitPayment}>
-                {registration.proofOfPaymentUrl ? 'Replace Payment Proof' : 'Submit Payment Proof'}
+              <Button disabled={files.length === 0} loading={isSubmitting} onClick={handleSubmitPayment}>
+                {registration.proofOfPaymentUrls.length > 0 ? 'Replace Payment Proof' : 'Submit Payment Proof'}
               </Button>
             </DialogFooter>
           </div>

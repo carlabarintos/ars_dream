@@ -58,7 +58,7 @@ export async function joinQueue(userId: string, marathonId: string, selectedPack
     status: 'queued' satisfies Registration['status'],
     queuePosition: null,
     termsAcceptedAt: null,
-    proofOfPaymentUrl: null,
+    proofOfPaymentUrls: [],
     proofSubmittedAt: null,
     adminNote: null,
     createdAt: serverTimestamp(),
@@ -75,14 +75,18 @@ export async function submitTermsAndConditions(registrationId: string, answers: 
   })
 }
 
-export async function submitProofOfPayment(registrationId: string, file: File) {
-  const storageRef = ref(storage, `proof-of-payment/${registrationId}/${file.name}`)
-  await uploadBytes(storageRef, file)
-  const url = await getDownloadURL(storageRef)
+export async function submitProofOfPayment(registrationId: string, files: File[]) {
+  const urls = await Promise.all(
+    files.map(async (file, index) => {
+      const storageRef = ref(storage, `proof-of-payment/${registrationId}/${Date.now()}-${index}-${file.name}`)
+      await uploadBytes(storageRef, file)
+      return getDownloadURL(storageRef)
+    }),
+  )
 
   await updateDoc(doc(db, 'registrations', registrationId), {
     status: 'payment_submitted' satisfies Registration['status'],
-    proofOfPaymentUrl: url,
+    proofOfPaymentUrls: urls,
     proofSubmittedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
@@ -125,7 +129,7 @@ export async function countConfirmedRegistrations(marathonId: string): Promise<n
  * Restore-from-backup only: a raw admin update of an *existing* registration doc,
  * bypassing the acceptRegistration/confirmPayment callables' capacity checks
  * (this reconstructs a prior state rather than processing a new decision).
- * Deliberately never touches proofOfPaymentUrl — proof-of-payment references are
+ * Deliberately never touches proofOfPaymentUrls — proof-of-payment references are
  * excluded from export entirely, so a restore must never null out a live one.
  */
 export async function restoreRegistrationFields(registrationId: string, patch: RegistrationRestorePatch) {

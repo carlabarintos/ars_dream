@@ -113,7 +113,7 @@ export interface Registration {
   termsAcceptedAt: Timestamp | null
   /** Answers to the marathon's registration questions, submitted together with acceptance. Absent until submitted. */
   answers?: QuestionAnswer[]
-  proofOfPaymentUrl: string | null
+  proofOfPaymentUrls: string[]
   proofSubmittedAt: Timestamp | null
   adminNote: string | null
   createdAt: Timestamp
