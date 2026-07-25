@@ -133,6 +133,7 @@ export function ProfilePage() {
           </form>
         </CardContent>
       </Card>
+      <p className="text-muted-foreground mt-4 text-center text-xs">Version {__APP_VERSION__}</p>
     </div>
   )
 }
