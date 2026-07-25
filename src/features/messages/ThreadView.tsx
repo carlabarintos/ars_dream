@@ -99,7 +99,7 @@ export function ThreadView<TMessage extends ThreadMessage>({
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex items-end gap-2">
+      <form onSubmit={handleSubmit} className="flex items-center gap-2">
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}

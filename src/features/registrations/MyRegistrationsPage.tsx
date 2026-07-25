@@ -98,7 +98,6 @@ export function MyRegistrationsPage() {
                 </CardHeader>
 
                 <CardContent className="flex flex-col gap-3 pb-5">
-                  <StatusBadge status={registration.status} />
                   <div className="text-muted-foreground text-sm">
                     {registration.packageName} · {registration.packagePriceCurrency}{' '}
                     {registration.packagePriceAmount.toLocaleString()}
@@ -109,13 +108,14 @@ export function MyRegistrationsPage() {
                   </div>
                 </CardContent>
 
-                {canReopenWizard(registration) && (
-                  <CardFooter className="border-border border-t pt-4 pb-5">
+                <CardFooter className="border-border flex flex-col items-center gap-3 border-t pt-4 pb-5">
+                  <StatusBadge status={registration.status} />
+                  {canReopenWizard(registration) && (
                     <Button className="w-full" onClick={() => setActiveRegistration(registration)}>
                       {getWizardButtonLabel(pendingStep)}
                     </Button>
-                  </CardFooter>
-                )}
+                  )}
+                </CardFooter>
               </Card>
             )
           })}

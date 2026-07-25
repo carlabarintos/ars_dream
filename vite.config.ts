@@ -30,7 +30,7 @@ export default defineConfig({
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
       },
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.png', 'favicon-64.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'ARS Dream',
         short_name: 'ARS Dream',
@@ -39,7 +39,10 @@ export default defineConfig({
         background_color: '#fbfcff',
         display: 'standalone',
         start_url: '/',
-        icons: [{ src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
+        icons: [
+          { src: '/pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+        ],
       },
     }),
   ],

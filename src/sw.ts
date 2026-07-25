@@ -24,7 +24,7 @@ onBackgroundMessage(messaging, (payload) => {
   const body = payload.notification?.body
   self.registration.showNotification(title, {
     body,
-    icon: '/favicon.svg',
+    icon: '/pwa-192.png',
     data: { url: payload.fcmOptions?.link ?? '/' },
   })
 })
