@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -187,12 +188,32 @@ export function RegistrationWizard({
                   ))}
                 </div>
               )}
+              {files.length > 0 && (
+                <ul className="flex flex-col gap-1">
+                  {files.map((file, index) => (
+                    <li
+                      key={`${file.name}-${file.lastModified}-${index}`}
+                      className="bg-muted/50 flex items-center justify-between gap-2 rounded-md border border-border px-3 py-1.5 text-sm"
+                    >
+                      <span className="truncate">{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setFiles((prev) => prev.filter((_, i) => i !== index))}
+                        className="text-muted-foreground hover:text-foreground shrink-0"
+                        aria-label={`Remove ${file.name}`}
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <label
                 htmlFor="proof"
                 className="border-input hover:bg-accent flex h-10 w-fit cursor-pointer items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors"
               >
                 {files.length > 0
-                  ? `${files.length} file${files.length > 1 ? 's' : ''} selected`
+                  ? 'Add more files'
                   : registration.proofOfPaymentUrls.length > 0
                     ? 'Choose replacement files'
                     : 'Choose files'}
@@ -202,7 +223,10 @@ export function RegistrationWizard({
                 type="file"
                 accept="image/*,application/pdf"
                 multiple
-                onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+                onChange={(e) => {
+                  setFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])])
+                  e.target.value = ''
+                }}
                 className="sr-only"
               />
             </div>
