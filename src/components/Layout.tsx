@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { LogOutIcon, MoonIcon, SunIcon, UserPenIcon } from 'lucide-react'
 
 import { BottomNav } from '@/components/BottomNav'
+import { InstallAppButton } from '@/components/InstallAppButton'
 import { Logo } from '@/components/Logo'
 import { NotificationBell } from '@/components/NotificationBell'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -48,6 +49,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
           {isLoading ? null : firebaseUser ? (
             <div className="flex items-center gap-1">
+              <InstallAppButton />
               <ThemeToggle />
               <NotificationBell />
               <DropdownMenu>
@@ -75,6 +77,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </div>
           ) : (
             <div className="flex items-center gap-1">
+              <InstallAppButton />
               <ThemeToggle />
               <Button size="sm" asChild>
                 <Link to="/sign-in">Sign in</Link>
