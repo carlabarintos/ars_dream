@@ -63,7 +63,7 @@ export function ProfilePage() {
           <CardTitle className="text-2xl">Personal information</CardTitle>
           <CardDescription>Keep your details up to date.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-5">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="firstName">First name</Label>
