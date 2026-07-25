@@ -2,7 +2,24 @@ export function Logo({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 460 150" className={className}>
       <title>ARS Dream</title>
-      <image href="/logo-icon.png" x="0" y="33" width="146" height="84" preserveAspectRatio="xMidYMid meet" />
+      <image
+        href="/logo-icon.png"
+        x="0"
+        y="33"
+        width="146"
+        height="84"
+        preserveAspectRatio="xMidYMid meet"
+        className="dark:hidden"
+      />
+      <image
+        href="/logo-icon-dark.png"
+        x="0"
+        y="33"
+        width="146"
+        height="84"
+        preserveAspectRatio="xMidYMid meet"
+        className="hidden dark:block"
+      />
       <text
         x="158"
         y="88"
