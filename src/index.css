@@ -129,4 +129,10 @@
   #root {
     min-height: 100svh;
   }
+
+  input[type='date']::-webkit-calendar-picker-indicator {
+    margin-inline-start: 0.5rem;
+    padding: 0.25rem;
+    box-sizing: content-box;
+  }
 }
