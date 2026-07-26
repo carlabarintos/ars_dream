@@ -130,6 +130,14 @@
     min-height: 100svh;
   }
 
+  /* iOS renders type=date as a picker-style control; the shared Input's `flex`
+     display makes iOS compute an oversized height for it, stranding the value
+     text at the top instead of centering it. Block layout sizes it like the
+     other text inputs. */
+  input[type='date'] {
+    display: block !important;
+  }
+
   input[type='date']::-webkit-calendar-picker-indicator {
     margin-inline-start: 0.5rem;
     padding: 0.25rem;
