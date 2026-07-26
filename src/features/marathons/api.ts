@@ -54,6 +54,13 @@ export async function uploadMarathonBanner(file: File): Promise<string> {
   return getDownloadURL(storageRef)
 }
 
+/** Uploads an admin-selected package photo and returns its public download URL, for use in `MarathonPackage.photoUrls`. */
+export async function uploadMarathonPackagePhoto(file: File): Promise<string> {
+  const storageRef = ref(storage, `marathon-packages/${crypto.randomUUID()}-${file.name}`)
+  await uploadBytes(storageRef, file)
+  return getDownloadURL(storageRef)
+}
+
 export interface MarathonInput {
   title: string
   description: string

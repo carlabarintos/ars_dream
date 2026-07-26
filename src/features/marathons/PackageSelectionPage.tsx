@@ -23,8 +23,10 @@ import {
 import { RegistrationWizard } from '@/features/registrations/RegistrationWizard'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
+import { cn } from '@/lib/utils'
 import type { MarathonPackage } from '@/types'
 
+import { PackagePhotoCarousel } from './PackagePhotoCarousel'
 import { useMarathon } from './use-marathons'
 
 function formatPrice(pkg: MarathonPackage) {
@@ -130,12 +132,18 @@ export function PackageSelectionPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {marathon.packages!.map((pkg) => (
-            <Card key={pkg.id} className="flex flex-col">
+            <Card
+              key={pkg.id}
+              className={cn('flex flex-col', pkg.photoUrls?.length && 'gap-0 overflow-hidden py-0')}
+            >
+              {pkg.photoUrls && pkg.photoUrls.length > 0 && (
+                <PackagePhotoCarousel photoUrls={pkg.photoUrls} />
+              )}
               <CardHeader>
                 <CardTitle>{pkg.name}</CardTitle>
                 <p className="text-lg font-medium">{formatPrice(pkg)}</p>
               </CardHeader>
-              <CardContent className="flex-1">
+              <CardContent className={cn('flex-1', pkg.photoUrls?.length && 'pt-5')}>
                 {pkg.details.length > 0 && (
                   <dl className="flex flex-col gap-1.5 text-sm">
                     {pkg.details.map((detail, index) => (
@@ -147,7 +155,7 @@ export function PackageSelectionPage() {
                   </dl>
                 )}
               </CardContent>
-              <CardFooter>
+              <CardFooter className={cn(pkg.photoUrls?.length && 'mt-4 border-t border-border pt-4')}>
                 <Button
                   className="w-full"
                   disabled={isFull || isClosed || joiningPackageId !== null}

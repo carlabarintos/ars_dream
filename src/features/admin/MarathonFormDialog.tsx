@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { PlusIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -18,10 +18,16 @@ import { Textarea } from '@/components/ui/textarea'
 import { useAuthStore } from '@/features/auth/auth-store'
 import type { Marathon, MarathonPackage, MarathonQuestion, QuestionType } from '@/types'
 
-import { createMarathon, updateMarathon, uploadMarathonBanner } from '@/features/marathons/api'
+import {
+  createMarathon,
+  updateMarathon,
+  uploadMarathonBanner,
+  uploadMarathonPackagePhoto,
+} from '@/features/marathons/api'
 import { useQuestionnaireTemplates } from '@/features/questionnaire-templates/use-questionnaire-templates'
 
 const LOAD_TEMPLATE_PLACEHOLDER = ''
+const MAX_PACKAGE_PHOTOS = 6
 
 let nextRowId = 0
 
@@ -31,12 +37,21 @@ interface DetailRow {
   value: string
 }
 
+interface PackagePhotoRow {
+  id: number
+  /** Real download URL if already uploaded, object-URL preview if pending. */
+  url: string
+  /** Set for a pending local selection not yet uploaded; null for an already-uploaded photo. */
+  file: File | null
+}
+
 interface PackageRow {
   id: number
   name: string
   priceAmount: string
   priceCurrency: string
   details: DetailRow[]
+  photos: PackagePhotoRow[]
 }
 
 interface QuestionRow {
@@ -71,6 +86,7 @@ function toPackageRows(packages: MarathonPackage[] | undefined): PackageRow[] {
     priceAmount: pkg.priceAmount.toString(),
     priceCurrency: pkg.priceCurrency,
     details: pkg.details.map((detail) => ({ id: nextRowId++, ...detail })),
+    photos: (pkg.photoUrls ?? []).map((url) => ({ id: nextRowId++, url, file: null })),
   }))
 }
 
@@ -106,6 +122,20 @@ export function MarathonFormDialog({
   )
   const uid = useAuthStore((state) => state.firebaseUser?.uid)
   const { templates: questionnaireTemplates } = useQuestionnaireTemplates()
+
+  const packageRowsRef = useRef(packageRows)
+  packageRowsRef.current = packageRows
+
+  // Revoke any pending photo-preview object URLs left over if the dialog is closed without submitting.
+  useEffect(() => {
+    return () => {
+      for (const row of packageRowsRef.current) {
+        for (const photo of row.photos) {
+          if (photo.file) URL.revokeObjectURL(photo.url)
+        }
+      }
+    }
+  }, [])
 
   function handleBannerFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -144,7 +174,7 @@ export function MarathonFormDialog({
   function addPackage() {
     setPackageRows((rows) => [
       ...rows,
-      { id: nextRowId++, name: '', priceAmount: '', priceCurrency: 'PHP', details: [] },
+      { id: nextRowId++, name: '', priceAmount: '', priceCurrency: 'PHP', details: [], photos: [] },
     ])
   }
 
@@ -193,23 +223,42 @@ export function MarathonFormDialog({
     )
   }
 
+  function addPackagePhotos(packageId: number, fileList: FileList | null) {
+    if (!fileList) return
+    const files = Array.from(fileList)
+    setPackageRows((rows) =>
+      rows.map((row) => {
+        if (row.id !== packageId) return row
+        const remaining = MAX_PACKAGE_PHOTOS - row.photos.length
+        if (remaining <= 0) return row
+        const newPhotos = files.slice(0, remaining).map((file) => ({
+          id: nextRowId++,
+          url: URL.createObjectURL(file),
+          file,
+        }))
+        return { ...row, photos: [...row.photos, ...newPhotos] }
+      }),
+    )
+  }
+
+  function removePackagePhoto(packageId: number, photoId: number) {
+    setPackageRows((rows) =>
+      rows.map((row) => {
+        if (row.id !== packageId) return row
+        const photo = row.photos.find((p) => p.id === photoId)
+        if (photo?.file) URL.revokeObjectURL(photo.url)
+        return { ...row, photos: row.photos.filter((p) => p.id !== photoId) }
+      }),
+    )
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!uid) return
 
-    const packages: MarathonPackage[] = packageRows
-      .filter((row) => row.name.trim())
-      .map((row) => ({
-        id: crypto.randomUUID(),
-        name: row.name.trim(),
-        priceAmount: Number(row.priceAmount) || 0,
-        priceCurrency: row.priceCurrency.trim() || 'PHP',
-        details: row.details
-          .map((detail) => ({ label: detail.label.trim(), value: detail.value.trim() }))
-          .filter((detail) => detail.label && detail.value),
-      }))
+    const validPackageRows = packageRows.filter((row) => row.name.trim())
 
-    if (packages.length === 0) {
+    if (validPackageRows.length === 0) {
       toast.error('Add at least one package.')
       return
     }
@@ -235,6 +284,26 @@ export function MarathonFormDialog({
     setIsSubmitting(true)
     try {
       const bannerImageUrl = bannerFile ? await uploadMarathonBanner(bannerFile) : marathon!.bannerImageUrl
+
+      const photoUrlsByPackage = await Promise.all(
+        validPackageRows.map((row) =>
+          Promise.all(
+            row.photos.map((photo) => (photo.file ? uploadMarathonPackagePhoto(photo.file) : photo.url)),
+          ),
+        ),
+      )
+
+      const packages: MarathonPackage[] = validPackageRows.map((row, index) => ({
+        id: crypto.randomUUID(),
+        name: row.name.trim(),
+        priceAmount: Number(row.priceAmount) || 0,
+        priceCurrency: row.priceCurrency.trim() || 'PHP',
+        details: row.details
+          .map((detail) => ({ label: detail.label.trim(), value: detail.value.trim() }))
+          .filter((detail) => detail.label && detail.value),
+        photoUrls: photoUrlsByPackage[index],
+      }))
+
       const input = {
         title: String(form.get('title')),
         description: String(form.get('description')),
@@ -447,6 +516,44 @@ export function MarathonFormDialog({
                     <PlusIcon className="size-3.5" />
                     Add detail
                   </Button>
+                </div>
+
+                <div className="flex flex-col gap-1.5 pl-3">
+                  <Label className="text-muted-foreground text-xs">
+                    Photos (optional, shown as a carousel to registrants)
+                  </Label>
+                  {pkg.photos.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {pkg.photos.map((photo) => (
+                        <div key={photo.id} className="relative">
+                          <img
+                            src={photo.url}
+                            alt=""
+                            className="h-16 w-16 rounded-md border border-border object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removePackagePhoto(pkg.id, photo.id)}
+                            aria-label="Remove photo"
+                            className="bg-background absolute -top-1.5 -right-1.5 rounded-full border border-border p-0.5"
+                          >
+                            <XIcon className="size-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {pkg.photos.length < MAX_PACKAGE_PHOTOS && (
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        addPackagePhotos(pkg.id, e.target.files)
+                        e.target.value = ''
+                      }}
+                    />
+                  )}
                 </div>
               </div>
             ))}

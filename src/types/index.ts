@@ -36,6 +36,8 @@ export interface MarathonPackage {
   priceAmount: number
   priceCurrency: string
   details: MarathonDetail[]
+  /** Optional photos shown as a carousel on the package selection page. Absent/empty means no carousel is shown. */
+  photoUrls?: string[]
 }
 
 export type QuestionType = 'text' | 'bool' | 'int' | 'dropdown'

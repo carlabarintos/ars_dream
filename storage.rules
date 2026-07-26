@@ -39,5 +39,14 @@ service firebase.storage {
         request.resource.size < 10 * 1024 * 1024 &&
         request.resource.contentType.matches('image/.*');
     }
+
+    // Per-package photos (e.g. room photos for a "Standard" package) shown as a
+    // carousel on the package selection page — public-facing like the banners above.
+    match /marathon-packages/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
   }
 }
