@@ -4,10 +4,18 @@ import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { setMarathonStatus } from '@/features/marathons/api'
+import { reopenMarathon, setMarathonStatus } from '@/features/marathons/api'
 import { useAllMarathons } from '@/features/marathons/use-marathons'
-import type { MarathonStatus } from '@/types'
+import type { Marathon, MarathonStatus } from '@/types'
 
 import { ExportImportControls } from './export-import/ExportImportControls'
 import { MarathonFormDialog } from './MarathonFormDialog'
@@ -21,6 +29,8 @@ const STATUS_VARIANT: Record<MarathonStatus, 'secondary' | 'success' | 'destruct
 export function AdminDashboard() {
   const { marathons, isLoading } = useAllMarathons()
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [reopening, setReopening] = useState<Marathon | null>(null)
+  const [isReopening, setIsReopening] = useState(false)
 
   async function handleStatusChange(id: string, status: MarathonStatus) {
     setUpdatingId(id)
@@ -31,6 +41,24 @@ export function AdminDashboard() {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
     } finally {
       setUpdatingId(null)
+    }
+  }
+
+  async function handleReopen() {
+    if (!reopening) return
+    setIsReopening(true)
+    try {
+      const { carriedForward } = await reopenMarathon(reopening.id)
+      toast.success(
+        carriedForward > 0
+          ? `Reopened — ${carriedForward} ${carriedForward === 1 ? 'person' : 'people'} moved into the new queue.`
+          : 'Reopened for a new round.',
+      )
+      setReopening(null)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setIsReopening(false)
     }
   }
 
@@ -85,13 +113,18 @@ export function AdminDashboard() {
                   <Button variant="outline" size="sm" asChild>
                     <Link to={`/admin/marathons/${marathon.id}/payments`}>Payments</Link>
                   </Button>
-                  {marathon.status !== 'published' && (
+                  {marathon.status === 'draft' && (
                     <Button
                       size="sm"
                       loading={updatingId === marathon.id}
                       onClick={() => handleStatusChange(marathon.id, 'published')}
                     >
                       Publish
+                    </Button>
+                  )}
+                  {marathon.status === 'closed' && (
+                    <Button size="sm" onClick={() => setReopening(marathon)}>
+                      Reopen
                     </Button>
                   )}
                   {marathon.status === 'published' && (
@@ -110,6 +143,28 @@ export function AdminDashboard() {
           </TableBody>
         </Table>
       )}
+
+      <Dialog open={!!reopening} onOpenChange={(open) => !open && setReopening(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reopen "{reopening?.title}"?</DialogTitle>
+            <DialogDescription>
+              This starts a fresh registration round with full capacity available again. Everyone still
+              waiting in the queue, or mid-review (accepted, terms accepted, or payment submitted), moves
+              into a new queue in their original order. Registrants who already completed their trip, or
+              were previously rejected, are left untouched as history.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReopening(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleReopen} loading={isReopening}>
+              Reopen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

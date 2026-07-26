@@ -47,7 +47,12 @@ export async function getAllRegistrationsOnce(): Promise<Registration[]> {
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Registration)
 }
 
-export async function joinQueue(userId: string, marathonId: string, selectedPackage: MarathonPackage) {
+export async function joinQueue(
+  userId: string,
+  marathonId: string,
+  selectedPackage: MarathonPackage,
+  cycle: number,
+) {
   await addDoc(registrationsRef, {
     userId,
     marathonId,
@@ -61,6 +66,7 @@ export async function joinQueue(userId: string, marathonId: string, selectedPack
     proofOfPaymentUrls: [],
     proofSubmittedAt: null,
     adminNote: null,
+    cycle,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })

@@ -12,13 +12,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { useMarathon } from '@/features/marathons/use-marathons'
 import { confirmPayment, rejectPayment } from '@/features/registrations/api'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
 import type { Registration } from '@/types'
 
 export function PaymentReviewPage() {
   const { marathonId } = useParams<{ marathonId: string }>()
-  const { registrations, isLoading } = useMarathonRegistrations(marathonId, 'payment_submitted')
+  const { marathon } = useMarathon(marathonId)
+  const { registrations, isLoading } = useMarathonRegistrations(marathonId, marathon?.cycle ?? 1, 'payment_submitted')
   const [rejecting, setRejecting] = useState<Registration | null>(null)
   const [note, setNote] = useState('')
   const [confirmingId, setConfirmingId] = useState<string | null>(null)

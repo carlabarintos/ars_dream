@@ -19,6 +19,11 @@ export const onRegistrationQueueChange = onDocumentWritten(
     const marathonId = (after?.marathonId ?? before?.marathonId) as string | undefined
     if (!marathonId) return
 
+    // Scoped to this doc's own cycle so a previous round's still-'queued'
+    // registrations (kept as history after a reopen, never touched) don't
+    // get mixed into the current round's position numbering.
+    const cycle = ((after ?? before)?.cycle as number | undefined) ?? 1
+
     const queueSnap = await db
       .collection('registrations')
       .where('marathonId', '==', marathonId)
@@ -26,9 +31,11 @@ export const onRegistrationQueueChange = onDocumentWritten(
       .orderBy('createdAt', 'asc')
       .get()
 
+    const docsInCycle = queueSnap.docs.filter((doc) => ((doc.data().cycle as number | undefined) ?? 1) === cycle)
+
     const batch = db.batch()
     let pendingWrites = 0
-    queueSnap.docs.forEach((doc, index) => {
+    docsInCycle.forEach((doc, index) => {
       const position = index + 1
       if (doc.data().queuePosition !== position) {
         batch.update(doc.ref, { queuePosition: position })

@@ -77,6 +77,8 @@ export interface Marathon {
   questions?: MarathonQuestion[]
   /** Once passed, this stops appearing in the Home/Timeline feed — independent of `status`/`registrationClosesAt`, and doesn't affect any other view (e.g. a registrant's My Registrations still shows it). Absent means always shown while published. */
   feedDeadline?: Timestamp
+  /** Which registration round this is, starting at 1. Incremented by reopenMarathon each time a closed marathon is reopened for a fresh round — confirmedCount resets to 0 and everyone still active in the old round gets a new cycle-scoped registration in the queue. Absent means cycle 1 (predates this field). */
+  cycle?: number
   status: MarathonStatus
   createdBy: string
   createdAt: Timestamp
@@ -116,6 +118,8 @@ export interface Registration {
   proofOfPaymentUrls: string[]
   proofSubmittedAt: Timestamp | null
   adminNote: string | null
+  /** Which of the marathon's registration rounds this belongs to (see Marathon.cycle). Absent means cycle 1 (predates this field). */
+  cycle?: number
   createdAt: Timestamp
   updatedAt: Timestamp
 }

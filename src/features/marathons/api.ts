@@ -13,8 +13,9 @@ import {
   where,
 } from 'firebase/firestore'
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
+import { httpsCallable } from 'firebase/functions'
 
-import { db, storage } from '@/firebase/config'
+import { db, functions, storage } from '@/firebase/config'
 import type { Marathon, MarathonPackage, MarathonQuestion, MarathonStatus } from '@/types'
 import type { MarathonRestoreInput } from '@/features/admin/export-import/serialize'
 
@@ -75,6 +76,7 @@ export async function createMarathon(input: MarathonInput, createdBy: string) {
     ...rest,
     ...(feedDeadline ? { feedDeadline } : {}),
     confirmedCount: 0,
+    cycle: 1,
     status: 'draft' satisfies MarathonStatus,
     createdBy,
     createdAt: serverTimestamp(),
@@ -88,6 +90,23 @@ export async function updateMarathon(marathonId: string, input: MarathonInput) {
 
 export async function setMarathonStatus(marathonId: string, status: MarathonStatus) {
   await updateDoc(doc(db, 'marathons', marathonId), { status })
+}
+
+const reopenMarathonCallable = httpsCallable<{ marathonId: string }, { newCycle: number; carriedForward: number }>(
+  functions,
+  'reopenMarathon',
+)
+
+/**
+ * Starts a fresh registration round on a closed marathon: everyone still queued or
+ * mid-pipeline (accepted/terms_accepted/payment_submitted) gets a new queue-scoped
+ * registration for the new cycle, in their original order; confirmed/rejected/
+ * payment_rejected registrations are left untouched as history. confirmedCount resets
+ * to 0 since the new round gets the marathon's full capacity again.
+ */
+export async function reopenMarathon(marathonId: string) {
+  const result = await reopenMarathonCallable({ marathonId })
+  return result.data
 }
 
 /**

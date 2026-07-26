@@ -52,16 +52,23 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
         throw new HttpsError('failed-precondition', 'Registration is not in the queue.')
       }
       const capacity = marathonSnap.data()!.capacity as number
+      const cycle = (registration.cycle as number | undefined) ?? 1
 
-      const pipelineCount = await transaction.get(
+      // Fetched and filtered in-app rather than a .count() aggregation so a
+      // registration from a previous cycle (never resolved before the
+      // marathon was reopened) can't inflate the current round's count —
+      // Firestore can't express "cycle == 1 or missing" as a single filter.
+      const pipelineSnap = await transaction.get(
         db
           .collection('registrations')
           .where('marathonId', '==', registration.marathonId)
-          .where('status', 'in', PIPELINE_STATUSES)
-          .count(),
+          .where('status', 'in', PIPELINE_STATUSES),
       )
+      const pipelineCount = pipelineSnap.docs.filter(
+        (doc) => ((doc.data().cycle as number | undefined) ?? 1) === cycle,
+      ).length
 
-      if (pipelineCount.data().count >= capacity) {
+      if (pipelineCount >= capacity) {
         throw new HttpsError('resource-exhausted', 'This marathon has no remaining capacity.')
       }
 

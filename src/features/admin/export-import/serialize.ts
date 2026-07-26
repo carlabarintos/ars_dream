@@ -88,6 +88,7 @@ export const MARATHON_COLUMNS = [
   'packagesJson',
   'questionsJson',
   'status',
+  'cycle',
   'createdBy',
   'createdAt',
 ] as const
@@ -108,6 +109,7 @@ export interface MarathonRestoreInput {
   packages: MarathonPackage[]
   questions: MarathonQuestion[]
   status: MarathonStatus
+  cycle: number
   createdBy: string
   createdAt: Timestamp
 }
@@ -128,6 +130,7 @@ export function marathonToRow(marathon: Marathon): MarathonRow {
     packagesJson: JSON.stringify(marathon.packages ?? []),
     questionsJson: JSON.stringify(marathon.questions ?? []),
     status: marathon.status,
+    cycle: String(marathon.cycle ?? 1),
     createdBy: marathon.createdBy,
     createdAt: isoOf(marathon.createdAt),
   }
@@ -148,6 +151,7 @@ export function rowToMarathonRestoreInput(row: MarathonRow): RowResult<MarathonR
     packages: parseJsonArray<MarathonPackage>(row.packagesJson, 'packagesJson'),
     questions: parseJsonArray<MarathonQuestion>(row.questionsJson, 'questionsJson'),
     status: row.status as MarathonStatus,
+    cycle: row.cycle.trim() === '' ? 1 : Number(row.cycle),
     createdBy: row.createdBy,
     createdAt: parseIso(row.createdAt, 'createdAt'),
   }))
@@ -169,6 +173,7 @@ export const REGISTRATION_COLUMNS = [
   'answersJson',
   'proofSubmittedAt',
   'adminNote',
+  'cycle',
   'createdAt',
   'updatedAt',
 ] as const
@@ -188,6 +193,7 @@ export interface RegistrationRestorePatch {
   answers: QuestionAnswer[]
   proofSubmittedAt: Timestamp | null
   adminNote: string | null
+  cycle: number
   createdAt: Timestamp
   updatedAt: Timestamp
 }
@@ -207,6 +213,7 @@ export function registrationToRow(registration: Registration): RegistrationRow {
     answersJson: JSON.stringify(registration.answers ?? []),
     proofSubmittedAt: isoOfNullable(registration.proofSubmittedAt),
     adminNote: registration.adminNote ?? '',
+    cycle: String(registration.cycle ?? 1),
     createdAt: isoOf(registration.createdAt),
     updatedAt: isoOf(registration.updatedAt),
   }
@@ -226,6 +233,7 @@ export function rowToRegistrationRestorePatch(row: RegistrationRow): RowResult<R
     answers: parseJsonArray<QuestionAnswer>(row.answersJson, 'answersJson'),
     proofSubmittedAt: parseIsoNullable(row.proofSubmittedAt, 'proofSubmittedAt'),
     adminNote: row.adminNote.trim() === '' ? null : row.adminNote,
+    cycle: row.cycle.trim() === '' ? 1 : Number(row.cycle),
     createdAt: parseIso(row.createdAt, 'createdAt'),
     updatedAt: parseIso(row.updatedAt, 'updatedAt'),
   }))

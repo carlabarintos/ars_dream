@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
+import { useMarathon } from '@/features/marathons/use-marathons'
 import { decideQueueRegistration } from '@/features/registrations/api'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
 import type { Registration } from '@/types'
@@ -45,7 +46,8 @@ const ALL_DECIDED_STATUSES: Registration['status'][] = [
 
 export function QueueReviewPage() {
   const { marathonId } = useParams<{ marathonId: string }>()
-  const { registrations, isLoading } = useMarathonRegistrations(marathonId, ALL_DECIDED_STATUSES)
+  const { marathon } = useMarathon(marathonId)
+  const { registrations, isLoading } = useMarathonRegistrations(marathonId, marathon?.cycle ?? 1, ALL_DECIDED_STATUSES)
   const orderedRegistrations = [...registrations].sort(
     (a, b) => (a.queuePosition ?? Infinity) - (b.queuePosition ?? Infinity),
   )

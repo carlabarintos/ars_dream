@@ -40,7 +40,9 @@ export function PackageSelectionPage() {
   const [joiningPackageId, setJoiningPackageId] = useState<string | null>(null)
   const [showWizard, setShowWizard] = useState(false)
 
-  const myRegistration = registrations.find((r) => r.marathonId === marathonId)
+  const myRegistration = registrations.find(
+    (r) => r.marathonId === marathonId && (r.cycle ?? 1) === (marathon?.cycle ?? 1),
+  )
   const pendingStep = myRegistration ? getPendingActionStep(myRegistration, marathon ?? undefined) : null
 
   const spotsLeft = marathon ? Math.max(marathon.capacity - marathon.confirmedCount, 0) : 0
@@ -51,7 +53,7 @@ export function PackageSelectionPage() {
     if (!uid || !marathon) return
     setJoiningPackageId(pkg.id)
     try {
-      await joinQueue(uid, marathon.id, pkg)
+      await joinQueue(uid, marathon.id, pkg, marathon.cycle ?? 1)
       toast.success("You're in the queue! We'll notify you once an admin reviews your request.")
       navigate('/')
     } catch (error) {
