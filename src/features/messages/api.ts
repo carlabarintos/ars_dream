@@ -12,7 +12,8 @@ import {
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 
 import { db, storage } from '@/firebase/config'
-import type { Announcement, GroupMessage, MessageSenderRole, PersonalMessage, PersonalThread, Registration } from '@/types'
+import { isConfirmedAndQuestionnaireComplete } from '@/features/registrations/registration-flow'
+import type { Announcement, GroupMessage, Marathon, MessageSenderRole, PersonalMessage, PersonalThread, Registration } from '@/types'
 
 const personalThreadsRef = collection(db, 'personalThreads')
 const announcementsRef = collection(db, 'announcements')
@@ -109,14 +110,22 @@ export async function deleteAnnouncement(announcementId: string) {
   await deleteDoc(doc(announcementsRef, announcementId))
 }
 
-/** Whether `announcement` should be shown/pushed to a given user, based on its audience targeting. */
+/** Whether `announcement` should be shown/pushed to a given user, based on its audience targeting. `marathonById` only needs to cover the marathons in `registrations` and is only consulted for `audience === 'marathon_confirmed'`. */
 export function isAnnouncementVisibleTo(
   announcement: Announcement,
   uid: string | undefined,
   registrations: Registration[],
+  marathonById: Record<string, Marathon> = {},
 ) {
   if (announcement.audience === 'marathon') {
     return registrations.some((r) => r.marathonId === announcement.targetMarathonId)
+  }
+  if (announcement.audience === 'marathon_confirmed') {
+    return registrations.some(
+      (r) =>
+        r.marathonId === announcement.targetMarathonId &&
+        isConfirmedAndQuestionnaireComplete(r, marathonById[r.marathonId]),
+    )
   }
   if (announcement.audience === 'users') {
     return !!uid && !!announcement.targetUserIds?.includes(uid)

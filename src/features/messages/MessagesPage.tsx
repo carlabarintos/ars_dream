@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
+import { useMarathonsByIds } from '@/features/marathons/use-marathons'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
 
 import { isAnnouncementVisibleTo, markPersonalThreadRead, sendGroupMessage, sendPersonalMessage } from './api'
@@ -39,8 +40,9 @@ function SupportTab({ uid }: { uid: string }) {
 function AnnouncementsTab({ uid }: { uid: string }) {
   const { announcements, isLoading } = useAnnouncements()
   const { registrations } = useUserRegistrations(uid)
+  const marathonById = useMarathonsByIds(registrations.map((r) => r.marathonId))
 
-  const visibleAnnouncements = announcements.filter((a) => isAnnouncementVisibleTo(a, uid, registrations))
+  const visibleAnnouncements = announcements.filter((a) => isAnnouncementVisibleTo(a, uid, registrations, marathonById))
 
   if (isLoading) return <p className="text-muted-foreground text-sm">Loading…</p>
   if (visibleAnnouncements.length === 0) {

@@ -147,7 +147,7 @@ export interface PersonalMessage {
   createdAt: Timestamp
 }
 
-export type AnnouncementAudience = 'all' | 'marathon' | 'users'
+export type AnnouncementAudience = 'all' | 'marathon' | 'marathon_confirmed' | 'users'
 
 /** Admin-authored broadcast. Visibility to a given user is determined by `audience`. */
 export interface Announcement {
@@ -156,7 +156,7 @@ export interface Announcement {
   body: string
   bannerImageUrl?: string
   audience: AnnouncementAudience
-  /** Present when audience === 'marathon': registrants of this marathon see it. */
+  /** Present when audience === 'marathon' or 'marathon_confirmed': registrants of this marathon see it (for 'marathon_confirmed', only those with a 'confirmed' registration whose questionnaire, if any, is fully answered). */
   targetMarathonId?: string
   /** Present when audience === 'users': exactly these uids see it. */
   targetUserIds?: string[]

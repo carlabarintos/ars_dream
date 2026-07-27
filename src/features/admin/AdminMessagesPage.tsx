@@ -116,6 +116,7 @@ function SupportInboxTab() {
 const AUDIENCE_OPTIONS: { value: AnnouncementAudience; label: string }[] = [
   { value: 'all', label: 'All users' },
   { value: 'marathon', label: 'Registrants of a marathon' },
+  { value: 'marathon_confirmed', label: 'Confirmed registrants of a marathon' },
   { value: 'users', label: 'Specific users' },
 ]
 
@@ -227,7 +228,7 @@ function AnnouncementsTab() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!adminUid) return
-    if (audience === 'marathon' && !targetMarathonId) {
+    if ((audience === 'marathon' || audience === 'marathon_confirmed') && !targetMarathonId) {
       toast.error('Choose a marathon to target.')
       return
     }
@@ -245,7 +246,7 @@ function AnnouncementsTab() {
         audience,
         ...(bannerImageUrl ? { bannerImageUrl } : {}),
         ...(feedDeadline ? { feedDeadline: new Date(feedDeadline) } : {}),
-        ...(audience === 'marathon' ? { targetMarathonId } : {}),
+        ...(audience === 'marathon' || audience === 'marathon_confirmed' ? { targetMarathonId } : {}),
         ...(audience === 'users' ? { targetUserIds } : {}),
       }
       await createAnnouncement(input, adminUid)
@@ -323,7 +324,7 @@ function AnnouncementsTab() {
           </Select>
         </div>
 
-        {audience === 'marathon' && (
+        {(audience === 'marathon' || audience === 'marathon_confirmed') && (
           <div className="flex flex-col gap-1.5">
             <Label>Marathon</Label>
             <Select value={targetMarathonId} onValueChange={setTargetMarathonId}>
@@ -338,6 +339,12 @@ function AnnouncementsTab() {
                 ))}
               </SelectContent>
             </Select>
+            {audience === 'marathon_confirmed' && (
+              <p className="text-muted-foreground text-xs">
+                Only sent to registrants with a confirmed (payment-accepted) registration who have also answered
+                every required questionnaire item, if this marathon has one.
+              </p>
+            )}
           </div>
         )}
 
@@ -377,7 +384,9 @@ function AnnouncementsTab() {
                         ? 'All users'
                         : announcement.audience === 'marathon'
                           ? `Marathon: ${marathonById.get(announcement.targetMarathonId ?? '')?.title ?? 'Unknown'}`
-                          : `${announcement.targetUserIds?.length ?? 0} ${announcement.targetUserIds?.length === 1 ? 'user' : 'users'}`}
+                          : announcement.audience === 'marathon_confirmed'
+                            ? `Confirmed: ${marathonById.get(announcement.targetMarathonId ?? '')?.title ?? 'Unknown'}`
+                            : `${announcement.targetUserIds?.length ?? 0} ${announcement.targetUserIds?.length === 1 ? 'user' : 'users'}`}
                     </Badge>
                   </div>
                   <p className="text-muted-foreground mt-1 text-sm whitespace-pre-wrap">{announcement.body}</p>

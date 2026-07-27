@@ -37,6 +37,13 @@ export function areRequiredItemsAnswered(marathon: Marathon | undefined, answerV
   return items.filter((item) => item.required).every((item) => isQuestionAnswered(item, answerValues[item.id]))
 }
 
+/** Whether this registration has payment confirmed and, if the marathon defines a questionnaire, has answered every required question. */
+export function isConfirmedAndQuestionnaireComplete(registration: Registration, marathon: Marathon | undefined) {
+  if (registration.status !== 'confirmed') return false
+  const answerValues = Object.fromEntries((registration.answers ?? []).map((a) => [a.questionId, a.value]))
+  return areRequiredItemsAnswered(marathon, answerValues)
+}
+
 export type PendingActionStep = 'terms' | 'payment'
 
 export const PENDING_ACTION_LABEL: Record<PendingActionStep, string> = {

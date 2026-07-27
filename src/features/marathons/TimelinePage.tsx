@@ -5,7 +5,7 @@ import { useAnnouncements } from '@/features/messages/use-messages'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
 
 import { MarathonCard } from './MarathonCard'
-import { usePublishedMarathons } from './use-marathons'
+import { useMarathonsByIds, usePublishedMarathons } from './use-marathons'
 
 /** Whether a feed item's optional `feedDeadline` hasn't passed yet — gates Home/Timeline visibility only, not any other view. */
 function isBeforeFeedDeadline(item: { feedDeadline?: { toDate: () => Date } }) {
@@ -17,6 +17,7 @@ export function TimelinePage() {
   const { announcements, isLoading: isLoadingAnnouncements } = useAnnouncements()
   const uid = useAuthStore((state) => state.firebaseUser?.uid)
   const { registrations } = useUserRegistrations(uid)
+  const marathonById = useMarathonsByIds(registrations.map((r) => r.marathonId))
 
   const isLoading = isLoadingMarathons || isLoadingAnnouncements
   const registrationByMarathon = new Map(registrations.map((r) => [r.marathonId, r]))
@@ -25,7 +26,7 @@ export function TimelinePage() {
     .filter(isBeforeFeedDeadline)
     .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime())
   const visibleAnnouncements = announcements
-    .filter((a) => isAnnouncementVisibleTo(a, uid, registrations))
+    .filter((a) => isAnnouncementVisibleTo(a, uid, registrations, marathonById))
     .filter(isBeforeFeedDeadline)
     .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime())
 
