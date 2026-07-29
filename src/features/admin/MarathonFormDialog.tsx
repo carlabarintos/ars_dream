@@ -26,6 +26,8 @@ import {
 } from '@/features/marathons/api'
 import { useQuestionnaireTemplates } from '@/features/questionnaire-templates/use-questionnaire-templates'
 
+import { MarathonPreviewDialog, type MarathonPreviewData } from './MarathonPreviewDialog'
+
 const LOAD_TEMPLATE_PLACEHOLDER = ''
 const MAX_PACKAGE_PHOTOS = 6
 
@@ -120,9 +122,12 @@ export function MarathonFormDialog({
   const [feedDeadline, setFeedDeadline] = useState(
     marathon?.feedDeadline ? toDateInputValue(marathon.feedDeadline.toDate()) : '',
   )
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewData, setPreviewData] = useState<MarathonPreviewData | null>(null)
   const uid = useAuthStore((state) => state.firebaseUser?.uid)
   const { templates: questionnaireTemplates } = useQuestionnaireTemplates()
 
+  const formRef = useRef<HTMLFormElement>(null)
   const packageRowsRef = useRef(packageRows)
   packageRowsRef.current = packageRows
 
@@ -252,6 +257,53 @@ export function MarathonFormDialog({
     )
   }
 
+  function handlePreview() {
+    const form = formRef.current
+    if (!form) return
+    const formData = new FormData(form)
+
+    function dateFromField(name: string) {
+      const value = String(formData.get(name) ?? '')
+      return value ? new Date(value) : null
+    }
+
+    setPreviewData({
+      title: String(formData.get('title') ?? ''),
+      description: String(formData.get('description') ?? ''),
+      location: String(formData.get('location') ?? ''),
+      bannerImageUrl: bannerPreviewUrl ?? '',
+      eventDate: dateFromField('eventDate'),
+      registrationClosesAt: dateFromField('registrationClosesAt'),
+      capacity: Number(formData.get('capacity')) || 0,
+      confirmedCount: marathon?.confirmedCount ?? 0,
+      paymentInstructions: String(formData.get('paymentInstructions') ?? ''),
+      packages: packageRows
+        .filter((row) => row.name.trim())
+        .map((row) => ({
+          id: String(row.id),
+          name: row.name.trim(),
+          priceAmount: Number(row.priceAmount) || 0,
+          priceCurrency: row.priceCurrency.trim() || 'PHP',
+          details: row.details
+            .map((detail) => ({ label: detail.label.trim(), value: detail.value.trim() }))
+            .filter((detail) => detail.label && detail.value),
+          photoUrls: row.photos.map((photo) => photo.url),
+        })),
+      questions: questionRows
+        .filter((row) => row.label.trim())
+        .map((row) => ({
+          id: row.id,
+          label: row.label.trim(),
+          type: row.type,
+          required: row.required,
+          ...(row.type === 'dropdown'
+            ? { options: row.options.split(',').map((option) => option.trim()).filter(Boolean) }
+            : {}),
+        })),
+    })
+    setPreviewOpen(true)
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!uid) return
@@ -351,7 +403,7 @@ export function MarathonFormDialog({
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Marathon' : 'New Marathon'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-3">
           <Field label="Title" name="title" required defaultValue={marathon?.title} />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="description">Description</Label>
@@ -651,12 +703,16 @@ export function MarathonFormDialog({
           </div>
 
           <DialogFooter>
+            <Button type="button" variant="outline" onClick={handlePreview}>
+              Preview
+            </Button>
             <Button type="submit" loading={isSubmitting}>
               {isEditing ? 'Save Changes' : 'Create Draft'}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
+      <MarathonPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} data={previewData} />
     </Dialog>
   )
 }
