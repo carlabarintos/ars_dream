@@ -14,8 +14,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { joinQueue } from '@/features/registrations/api'
+import { CancelRegistrationButton } from '@/features/registrations/CancelRegistrationButton'
 import {
+  canCancelRegistration,
+  canChangePackage,
   canReopenWizard,
+  canReRegister,
   getPendingActionStep,
   getRegistrationStatusMessage,
   getWizardButtonLabel,
@@ -46,6 +50,8 @@ export function PackageSelectionPage() {
     (r) => r.marathonId === marathonId && (r.cycle ?? 1) === (marathon?.cycle ?? 1),
   )
   const pendingStep = myRegistration ? getPendingActionStep(myRegistration, marathon ?? undefined) : null
+  const canSwapPackage = myRegistration ? canChangePackage(myRegistration) : false
+  const canReRegisterNow = myRegistration ? canReRegister(myRegistration) : false
 
   const spotsLeft = marathon ? Math.max(marathon.capacity - marathon.confirmedCount, 0) : 0
   const isFull = spotsLeft <= 0
@@ -53,11 +59,16 @@ export function PackageSelectionPage() {
 
   async function handleSelectPackage(pkg: MarathonPackage) {
     if (!uid || !marathon) return
+    const isSwap = myRegistration != null && !canReRegisterNow
     setJoiningPackageId(pkg.id)
     try {
       await joinQueue(uid, marathon.id, pkg, marathon.cycle ?? 1)
-      toast.success("You're in the queue! We'll notify you once an admin reviews your request.")
-      navigate('/')
+      if (isSwap) {
+        toast.success('Your package has been updated.')
+      } else {
+        toast.success("You're in the queue! We'll notify you once an admin reviews your request.")
+        navigate('/')
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not join the queue')
     } finally {
@@ -104,7 +115,7 @@ export function PackageSelectionPage() {
         <p className="text-muted-foreground mt-1">{marathon.location}</p>
       </div>
 
-      {myRegistration ? (
+      {myRegistration && (
         <Card>
           <CardHeader>
             <div className="flex items-start justify-between gap-3">
@@ -118,61 +129,95 @@ export function PackageSelectionPage() {
               {myRegistration.packagePriceAmount.toLocaleString()})
             </p>
             <p className="text-muted-foreground">{getRegistrationStatusMessage(myRegistration)}</p>
+            {canSwapPackage && (
+              <p className="text-muted-foreground">
+                You can still switch to a different package below while your registration is pending.
+              </p>
+            )}
+            {canReRegisterNow && (
+              <p className="text-muted-foreground">Pick a package below to register again.</p>
+            )}
           </CardContent>
-          {myRegistration && canReopenWizard(myRegistration) && (
-            <CardFooter className="border-border border-t pt-4">
-              <Button className="w-full" onClick={() => setShowWizard(true)}>
-                {getWizardButtonLabel(pendingStep)}
-              </Button>
+          {(canReopenWizard(myRegistration) || canCancelRegistration(myRegistration)) && (
+            <CardFooter className="border-border flex flex-col gap-2 border-t pt-4">
+              {canReopenWizard(myRegistration) && (
+                <Button className="w-full" onClick={() => setShowWizard(true)}>
+                  {getWizardButtonLabel(pendingStep)}
+                </Button>
+              )}
+              <CancelRegistrationButton registration={myRegistration} />
             </CardFooter>
           )}
         </Card>
-      ) : (marathon.packages ?? []).length === 0 ? (
-        <p className="text-muted-foreground">No packages are available for this event yet.</p>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {marathon.packages!.map((pkg) => (
-            <Card
-              key={pkg.id}
-              className={cn('flex flex-col', pkg.photoUrls?.length && 'gap-0 overflow-hidden py-0')}
-            >
-              {pkg.photoUrls && pkg.photoUrls.length > 0 && (
-                <PackagePhotoCarousel photoUrls={pkg.photoUrls} />
-              )}
-              <CardHeader>
-                <CardTitle>{pkg.name}</CardTitle>
-                <p className="text-lg font-medium">{formatPrice(pkg)}</p>
-              </CardHeader>
-              <CardContent className={cn('flex-1', pkg.photoUrls?.length && 'pt-5')}>
-                {pkg.details.length > 0 && (
-                  <dl className="flex flex-col gap-1.5 text-sm">
-                    {pkg.details.map((detail, index) => (
-                      <div key={index} className="flex justify-between gap-3">
-                        <dt className="text-muted-foreground shrink-0 font-medium">{detail.label}</dt>
-                        <dd className="text-right">{detail.value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                )}
-              </CardContent>
-              <CardFooter className={cn(pkg.photoUrls?.length && 'mt-4 border-t border-border pt-4')}>
-                <Button
-                  className="w-full"
-                  disabled={isFull || isClosed || joiningPackageId !== null}
-                  loading={joiningPackageId === pkg.id}
-                  onClick={() => handleSelectPackage(pkg)}
-                >
-                  {isFull || isClosed
-                    ? 'Registration Closed'
-                    : joiningPackageId === pkg.id
-                      ? 'Joining…'
-                      : 'Select & Join Queue'}
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
       )}
+
+      {!myRegistration || canSwapPackage || canReRegisterNow ? (
+        (marathon.packages ?? []).length === 0 ? (
+          !myRegistration && <p className="text-muted-foreground">No packages are available for this event yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {marathon.packages!.map((pkg) => {
+              // Swap mode = editing the package on a still-pending registration.
+              // Re-register/fresh-join both start a new queue attempt, so they
+              // share the same capacity/closed gating a first-time join uses.
+              const isSwapMode = myRegistration != null && !canReRegisterNow
+              const isCurrentPackage = isSwapMode && myRegistration!.packageId === pkg.id
+              const isBlockedByCapacity = !isSwapMode && (isFull || isClosed)
+              const disabled = isCurrentPackage || isBlockedByCapacity || joiningPackageId !== null
+              const label = isCurrentPackage
+                ? 'Current Package'
+                : isBlockedByCapacity
+                  ? 'Registration Closed'
+                  : joiningPackageId === pkg.id
+                    ? isSwapMode
+                      ? 'Switching…'
+                      : 'Joining…'
+                    : isSwapMode
+                      ? 'Switch to This Package'
+                      : canReRegisterNow
+                        ? 'Register Again'
+                        : 'Select & Join Queue'
+
+              return (
+                <Card
+                  key={pkg.id}
+                  className={cn('flex flex-col', pkg.photoUrls?.length && 'gap-0 overflow-hidden py-0')}
+                >
+                  {pkg.photoUrls && pkg.photoUrls.length > 0 && (
+                    <PackagePhotoCarousel photoUrls={pkg.photoUrls} />
+                  )}
+                  <CardHeader>
+                    <CardTitle>{pkg.name}</CardTitle>
+                    <p className="text-lg font-medium">{formatPrice(pkg)}</p>
+                  </CardHeader>
+                  <CardContent className={cn('flex-1', pkg.photoUrls?.length && 'pt-5')}>
+                    {pkg.details.length > 0 && (
+                      <dl className="flex flex-col gap-1.5 text-sm">
+                        {pkg.details.map((detail, index) => (
+                          <div key={index} className="flex justify-between gap-3">
+                            <dt className="text-muted-foreground shrink-0 font-medium">{detail.label}</dt>
+                            <dd className="text-right">{detail.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                  </CardContent>
+                  <CardFooter className={cn(pkg.photoUrls?.length && 'mt-4 border-t border-border pt-4')}>
+                    <Button
+                      className="w-full"
+                      disabled={disabled}
+                      loading={joiningPackageId === pkg.id}
+                      onClick={() => handleSelectPackage(pkg)}
+                    >
+                      {label}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              )
+            })}
+          </div>
+        )
+      ) : null}
 
       {showWizard && myRegistration && (
         <RegistrationWizard

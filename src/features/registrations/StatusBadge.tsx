@@ -9,6 +9,7 @@ const STATUS_CONFIG: Record<RegistrationStatus, { label: string; variant: 'defau
   payment_submitted: { label: 'Payment Under Review', variant: 'secondary' },
   confirmed: { label: 'Confirmed', variant: 'success' },
   payment_rejected: { label: 'Payment Rejected — Resubmit', variant: 'destructive' },
+  cancelled: { label: 'Cancelled', variant: 'secondary' },
 }
 
 export function StatusBadge({ status }: { status: RegistrationStatus }) {

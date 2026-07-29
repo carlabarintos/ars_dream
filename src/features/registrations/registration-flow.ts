@@ -1,4 +1,4 @@
-import type { Marathon, MarathonQuestion, Registration } from '@/types'
+import type { Marathon, MarathonQuestion, Registration, RegistrationStatus } from '@/types'
 
 export function getRegistrationStatusMessage(registration: Registration) {
   switch (registration.status) {
@@ -20,8 +20,10 @@ export function getRegistrationStatusMessage(registration: Registration) {
       return "You're all set for this event — see you at the starting line."
     case 'rejected':
       return registration.adminNote
-        ? `Your registration wasn't accepted: ${registration.adminNote}`
-        : "Unfortunately, your registration wasn't accepted this time."
+        ? `Your registration wasn't accepted: ${registration.adminNote} You can register again below.`
+        : "Unfortunately, your registration wasn't accepted this time. You can register again below."
+    case 'cancelled':
+      return "You've cancelled this registration. You can register again below if you've changed your mind."
   }
 }
 
@@ -42,6 +44,41 @@ export function isConfirmedAndQuestionnaireComplete(registration: Registration, 
   if (registration.status !== 'confirmed') return false
   const answerValues = Object.fromEntries((registration.answers ?? []).map((a) => [a.questionId, a.value]))
   return areRequiredItemsAnswered(marathon, answerValues)
+}
+
+// Mirrors the package-swap update rule in firestore.rules: a registrant may
+// still change their selected package on their existing queue entry up
+// through a rejected payment, but not once a payment is submitted/confirmed
+// — from there, changing packages goes through an admin instead.
+const PACKAGE_EDITABLE_STATUSES: RegistrationStatus[] = ['queued', 'accepted', 'terms_accepted', 'payment_rejected']
+
+export function canChangePackage(registration: Registration) {
+  return PACKAGE_EDITABLE_STATUSES.includes(registration.status)
+}
+
+// Mirrors CANCELLABLE_STATUSES in functions/src/cancel-registration.ts — every
+// non-terminal status a registrant can still back out of. 'rejected' and
+// 'cancelled' are themselves terminal (nothing left to cancel).
+const CANCELLABLE_STATUSES: RegistrationStatus[] = [
+  'queued',
+  'accepted',
+  'terms_accepted',
+  'payment_submitted',
+  'payment_rejected',
+  'confirmed',
+]
+
+export function canCancelRegistration(registration: Registration) {
+  return CANCELLABLE_STATUSES.includes(registration.status)
+}
+
+// Mirrors the re-registration update rule in firestore.rules: only a
+// rejected or self-cancelled registration can be turned back into a fresh
+// queue entry via joinQueue() (see features/registrations/api.ts).
+const REREGISTERABLE_STATUSES: RegistrationStatus[] = ['rejected', 'cancelled']
+
+export function canReRegister(registration: Registration) {
+  return REREGISTERABLE_STATUSES.includes(registration.status)
 }
 
 export type PendingActionStep = 'terms' | 'payment'

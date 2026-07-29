@@ -65,7 +65,10 @@ export const reopenMarathon = onCall<ReopenMarathonInput>(
 
     for (const [index, doc] of carryForward.entries()) {
       const data = doc.data()
-      const newRef = db.collection('registrations').doc()
+      // Deterministic id — see firestore.rules and features/registrations/api.ts
+      // — so a subsequent joinQueue call for this user/marathon/cycle updates
+      // this same carried-forward entry instead of creating a duplicate.
+      const newRef = db.collection('registrations').doc(`${data.userId}_${marathonId}_${newCycle}`)
       batch.set(newRef, {
         userId: data.userId,
         marathonId,

@@ -94,6 +94,7 @@ export type RegistrationStatus =
   | 'payment_submitted'
   | 'confirmed'
   | 'payment_rejected'
+  | 'cancelled'
 
 /** One answer to a marathon's registration question, snapshotting the question's label at submission time. */
 export interface QuestionAnswer {
@@ -120,6 +121,8 @@ export interface Registration {
   proofOfPaymentUrls: string[]
   proofSubmittedAt: Timestamp | null
   adminNote: string | null
+  /** Set when the registrant self-cancels (see 'cancelled' status). Absent/null otherwise. */
+  cancelledAt?: Timestamp | null
   /** Which of the marathon's registration rounds this belongs to (see Marathon.cycle). Absent means cycle 1 (predates this field). */
   cycle?: number
   createdAt: Timestamp

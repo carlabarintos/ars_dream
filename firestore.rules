@@ -38,17 +38,71 @@ service cloud.firestore {
       allow read: if isSignedIn() &&
         (resource.data.userId == request.auth.uid || isAdmin());
 
+      // One registration per (user, marathon, cycle): the doc id is required
+      // to be that exact composite key, so a second "join" attempt against
+      // the same marathon/cycle always lands on the update rule below
+      // instead of being able to create a sibling queue entry. Also gated on
+      // the marathon actually being published, so a user can't queue against
+      // a draft event before it's announced.
       allow create: if isSignedIn() &&
         request.resource.data.userId == request.auth.uid &&
-        request.resource.data.status == 'queued';
+        request.resource.data.status == 'queued' &&
+        registrationId == request.auth.uid + '_' + request.resource.data.marathonId + '_' + string(request.resource.data.cycle) &&
+        get(/databases/$(database)/documents/marathons/$(request.resource.data.marathonId)).data.status == 'published';
 
-      // User may only progress their own registration through the
-      // acceptance wizard (terms -> payment submission), never set
-      // admin-controlled outcomes (accepted/rejected/confirmed).
+      // While still pending (not yet submitted for payment), the registrant
+      // may swap their selected package on their existing queue entry rather
+      // than opening a second one. Once payment has been submitted or
+      // confirmed, package changes go through an admin instead.
       allow update: if isSignedIn() &&
         resource.data.userId == request.auth.uid &&
         request.resource.data.userId == resource.data.userId &&
-        request.resource.data.status in ['terms_accepted', 'payment_submitted'];
+        request.resource.data.status == resource.data.status &&
+        resource.data.status in ['queued', 'accepted', 'terms_accepted', 'payment_rejected'] &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['packageId', 'packageName', 'packagePriceAmount', 'packagePriceCurrency', 'updatedAt']);
+
+      // A rejected or self-cancelled registration may be re-registered by its
+      // owner — reset back to a fresh queue entry on the SAME doc rather than
+      // ever creating a second one for this marathon/cycle (see the
+      // deterministic doc id on the create rule above). Only while the
+      // marathon is still published, mirroring the create rule, and every
+      // pipeline field a fresh joinQueue() write would set is reset together.
+      allow update: if isSignedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId &&
+        resource.data.status in ['rejected', 'cancelled'] &&
+        request.resource.data.status == 'queued' &&
+        get(/databases/$(database)/documents/marathons/$(resource.data.marathonId)).data.status == 'published' &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            'packageId', 'packageName', 'packagePriceAmount', 'packagePriceCurrency',
+            'status', 'queuePosition', 'termsAcceptedAt', 'answers',
+            'proofOfPaymentUrls', 'proofSubmittedAt', 'adminNote', 'cancelledAt',
+            'createdAt', 'updatedAt',
+          ]);
+
+      // User may only progress their own registration through the
+      // acceptance wizard one step at a time — from the exact prior status
+      // that step expects, touching only the fields that step's client code
+      // actually writes (see submitTermsAndConditions/submitProofOfPayment
+      // in features/registrations/api.ts). Never set admin-controlled
+      // outcomes (accepted/rejected/confirmed), and never forge unrelated
+      // fields (price snapshot, marathonId, adminNote, queuePosition, ...)
+      // while making a step's legitimate write.
+      allow update: if isSignedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId &&
+        (
+          (resource.data.status == 'accepted' &&
+            request.resource.data.status == 'terms_accepted' &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'termsAcceptedAt', 'answers', 'updatedAt'])) ||
+          (resource.data.status in ['terms_accepted', 'payment_rejected'] &&
+            request.resource.data.status == 'payment_submitted' &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'proofOfPaymentUrls', 'proofSubmittedAt', 'updatedAt']))
+        );
 
       allow update: if isAdmin();
     }

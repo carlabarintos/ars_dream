@@ -1,11 +1,13 @@
 import {
-  addDoc,
   collection,
+  deleteField,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
 } from 'firebase/firestore'
@@ -15,6 +17,7 @@ import { httpsCallable } from 'firebase/functions'
 import { db, functions, storage } from '@/firebase/config'
 import type { MarathonPackage, QuestionAnswer, Registration } from '@/types'
 import type { RegistrationRestorePatch } from '@/features/admin/export-import/serialize'
+import { canChangePackage, canReRegister } from '@/features/registrations/registration-flow'
 
 const registrationsRef = collection(db, 'registrations')
 
@@ -47,13 +50,69 @@ export async function getAllRegistrationsOnce(): Promise<Registration[]> {
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Registration)
 }
 
+/**
+ * A registration's id is deterministic — `${userId}_${marathonId}_${cycle}` — so a
+ * repeat join against the same marathon/cycle always resolves to the same doc
+ * (see firestore.rules) instead of ever being able to create a duplicate one.
+ */
+function registrationId(userId: string, marathonId: string, cycle: number) {
+  return `${userId}_${marathonId}_${cycle}`
+}
+
 export async function joinQueue(
   userId: string,
   marathonId: string,
   selectedPackage: MarathonPackage,
   cycle: number,
 ) {
-  await addDoc(registrationsRef, {
+  const registrationRef = doc(db, 'registrations', registrationId(userId, marathonId, cycle))
+  const existingSnap = await getDoc(registrationRef)
+
+  if (existingSnap.exists()) {
+    const existing = existingSnap.data() as Registration
+
+    if (canReRegister(existing)) {
+      // Re-registering after a rejection/cancellation resets this same doc
+      // back to a fresh queue entry — see the re-registration rule in
+      // firestore.rules. createdAt is reset to now so onRegistrationQueueChange
+      // (which orders the queue by createdAt asc) places them at the BACK of
+      // the queue, not wherever their original, already-resolved join time
+      // would have put them.
+      await updateDoc(registrationRef, {
+        packageId: selectedPackage.id,
+        packageName: selectedPackage.name,
+        packagePriceAmount: selectedPackage.priceAmount,
+        packagePriceCurrency: selectedPackage.priceCurrency,
+        status: 'queued' satisfies Registration['status'],
+        queuePosition: null,
+        termsAcceptedAt: null,
+        answers: deleteField(),
+        proofOfPaymentUrls: [],
+        proofSubmittedAt: null,
+        adminNote: null,
+        cancelledAt: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+      return
+    }
+
+    if (!canChangePackage(existing)) {
+      throw new Error(
+        'Your registration has already moved on to payment — contact an admin to change your package.',
+      )
+    }
+    await updateDoc(registrationRef, {
+      packageId: selectedPackage.id,
+      packageName: selectedPackage.name,
+      packagePriceAmount: selectedPackage.priceAmount,
+      packagePriceCurrency: selectedPackage.priceCurrency,
+      updatedAt: serverTimestamp(),
+    })
+    return
+  }
+
+  await setDoc(registrationRef, {
     userId,
     marathonId,
     packageId: selectedPackage.id,
@@ -66,6 +125,7 @@ export async function joinQueue(
     proofOfPaymentUrls: [],
     proofSubmittedAt: null,
     adminNote: null,
+    cancelledAt: null,
     cycle,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -122,6 +182,19 @@ export async function confirmPayment(registrationId: string) {
 
 export async function rejectPayment(registrationId: string, adminNote: string) {
   await confirmPaymentCallable({ registrationId, decision: 'rejected', adminNote })
+}
+
+// Also runs through a callable rather than a client-side rule: cancelling a
+// 'confirmed' registration must release its counted seat in
+// marathons.confirmedCount atomically with the status change (see
+// functions/src/cancel-registration.ts), same reasoning as the callables above.
+const cancelRegistrationCallable = httpsCallable<{ registrationId: string }, { status: string }>(
+  functions,
+  'cancelRegistration',
+)
+
+export async function cancelRegistration(registrationId: string) {
+  await cancelRegistrationCallable({ registrationId })
 }
 
 /** Recomputes a marathon's confirmedCount from its actual confirmed registrations — used after a restore, since the counter must never be trusted verbatim from a CSV snapshot (see restore-plan.ts). */

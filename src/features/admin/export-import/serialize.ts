@@ -173,6 +173,7 @@ export const REGISTRATION_COLUMNS = [
   'answersJson',
   'proofSubmittedAt',
   'adminNote',
+  'cancelledAt',
   'cycle',
   'createdAt',
   'updatedAt',
@@ -193,6 +194,7 @@ export interface RegistrationRestorePatch {
   answers: QuestionAnswer[]
   proofSubmittedAt: Timestamp | null
   adminNote: string | null
+  cancelledAt: Timestamp | null
   cycle: number
   createdAt: Timestamp
   updatedAt: Timestamp
@@ -213,6 +215,7 @@ export function registrationToRow(registration: Registration): RegistrationRow {
     answersJson: JSON.stringify(registration.answers ?? []),
     proofSubmittedAt: isoOfNullable(registration.proofSubmittedAt),
     adminNote: registration.adminNote ?? '',
+    cancelledAt: isoOfNullable(registration.cancelledAt ?? null),
     cycle: String(registration.cycle ?? 1),
     createdAt: isoOf(registration.createdAt),
     updatedAt: isoOf(registration.updatedAt),
@@ -233,6 +236,7 @@ export function rowToRegistrationRestorePatch(row: RegistrationRow): RowResult<R
     answers: parseJsonArray<QuestionAnswer>(row.answersJson, 'answersJson'),
     proofSubmittedAt: parseIsoNullable(row.proofSubmittedAt, 'proofSubmittedAt'),
     adminNote: row.adminNote.trim() === '' ? null : row.adminNote,
+    cancelledAt: parseIsoNullable(row.cancelledAt, 'cancelledAt'),
     cycle: row.cycle.trim() === '' ? 1 : Number(row.cycle),
     createdAt: parseIso(row.createdAt, 'createdAt'),
     updatedAt: parseIso(row.updatedAt, 'updatedAt'),

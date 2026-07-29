@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertCircleIcon,
+  BanIcon,
   CalendarIcon,
   CheckCircle2Icon,
   ClockIcon,
@@ -16,7 +17,14 @@ import { useAuthStore } from '@/features/auth/auth-store'
 import { useMarathonsByIds } from '@/features/marathons/use-marathons'
 import type { Registration } from '@/types'
 
-import { canReopenWizard, getPendingActionStep, getRegistrationStatusMessage, getWizardButtonLabel } from './registration-flow'
+import { CancelRegistrationButton } from './CancelRegistrationButton'
+import {
+  canReopenWizard,
+  canReRegister,
+  getPendingActionStep,
+  getRegistrationStatusMessage,
+  getWizardButtonLabel,
+} from './registration-flow'
 import { RegistrationWizard } from './RegistrationWizard'
 import { StatusBadge } from './StatusBadge'
 import { useUserRegistrations } from './use-registrations'
@@ -33,6 +41,7 @@ const STATUS_ICON: Record<Registration['status'], LucideIcon> = {
   payment_rejected: AlertCircleIcon,
   confirmed: CheckCircle2Icon,
   rejected: XCircleIcon,
+  cancelled: BanIcon,
 }
 
 export function MyRegistrationsPage() {
@@ -115,6 +124,12 @@ export function MyRegistrationsPage() {
                       {getWizardButtonLabel(pendingStep)}
                     </Button>
                   )}
+                  {canReRegister(registration) && (
+                    <Button className="w-full" asChild>
+                      <Link to={`/marathons/${registration.marathonId}/packages`}>Register Again</Link>
+                    </Button>
+                  )}
+                  <CancelRegistrationButton registration={registration} />
                 </CardFooter>
               </Card>
             )

@@ -14,13 +14,14 @@ import type { Registration } from '@/types'
 import { exportQueueCsv } from './export-import/full-export'
 import { ImportDialog } from './export-import/ImportDialog'
 
-const STATUS_BADGE_VARIANT: Record<Exclude<Registration['status'], 'queued'>, 'success' | 'destructive'> = {
+const STATUS_BADGE_VARIANT: Record<Exclude<Registration['status'], 'queued'>, 'success' | 'destructive' | 'secondary'> = {
   accepted: 'success',
   rejected: 'destructive',
   terms_accepted: 'success',
   payment_submitted: 'success',
   confirmed: 'success',
   payment_rejected: 'destructive',
+  cancelled: 'secondary',
 }
 
 const STATUS_BADGE_LABEL: Record<Exclude<Registration['status'], 'queued'>, string> = {
@@ -30,10 +31,12 @@ const STATUS_BADGE_LABEL: Record<Exclude<Registration['status'], 'queued'>, stri
   payment_submitted: 'Accepted',
   confirmed: 'Accepted',
   payment_rejected: 'Rejected',
+  cancelled: 'Cancelled',
 }
 
-// A registration only ever reaches these statuses by first being accepted out of the queue,
-// so they still belong on this page even though they've since moved past the 'accepted' step.
+// A registration only ever reaches these statuses by first being accepted out of the queue
+// (or, for 'cancelled', by being withdrawn by the registrant themselves at any step), so they
+// still belong on this page even though they've since moved past the 'accepted' step.
 const ALL_DECIDED_STATUSES: Registration['status'][] = [
   'queued',
   'accepted',
@@ -42,6 +45,7 @@ const ALL_DECIDED_STATUSES: Registration['status'][] = [
   'payment_submitted',
   'confirmed',
   'payment_rejected',
+  'cancelled',
 ]
 
 export function QueueReviewPage() {
