@@ -55,7 +55,15 @@ export function PackageSelectionPage() {
 
   const spotsLeft = marathon ? Math.max(marathon.capacity - marathon.confirmedCount, 0) : 0
   const isFull = spotsLeft <= 0
-  const isClosed = marathon ? new Date() > marathon.registrationClosesAt.toDate() : false
+  // A fresh join and a cancelled/rejected re-registration both require the
+  // marathon to still be 'published' (see firestore.rules) — an admin can
+  // manually close it independent of capacity or registrationClosesAt, so
+  // that must be checked here too or a stale "Register Again" link (e.g.
+  // from MyRegistrationsPage, which doesn't filter by marathon status)
+  // reaches a write the rules silently reject as permission-denied.
+  const isClosed =
+    (marathon ? new Date() > marathon.registrationClosesAt.toDate() : false) ||
+    marathon?.status !== 'published'
 
   async function handleSelectPackage(pkg: MarathonPackage) {
     if (!uid || !marathon) return
