@@ -18,7 +18,6 @@ import { useAllPersonalThreads, usePersonalThread } from '@/features/messages/us
 import { RegistrationWizard } from '@/features/registrations/RegistrationWizard'
 import { getPendingActionStep, type PendingActionStep } from '@/features/registrations/registration-flow'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
-import type { Registration } from '@/types'
 
 const ACTION_LABEL: Record<PendingActionStep, string> = {
   terms: 'Accept Terms & Conditions',
@@ -29,7 +28,14 @@ export function NotificationBell() {
   const uid = useAuthStore((state) => state.firebaseUser?.uid)
   const isAdmin = useAuthStore((state) => state.profile?.role === 'admin')
   const { registrations } = useUserRegistrations(uid)
-  const [activeRegistration, setActiveRegistration] = useState<Registration | null>(null)
+  const [activeRegistrationId, setActiveRegistrationId] = useState<string | null>(null)
+  // Re-derived live from the subscription every render (not captured once
+  // into state) so the wizard always acts on the current server-side status —
+  // a frozen copy would let a status change while the dialog is open (e.g.
+  // an admin decision) lead to a write the security rules now reject.
+  const activeRegistration = activeRegistrationId
+    ? (registrations.find((r) => r.id === activeRegistrationId) ?? null)
+    : null
 
   const needsAction = registrations.filter((r) =>
     ['accepted', 'terms_accepted', 'payment_rejected'].includes(r.status),
@@ -75,7 +81,7 @@ export function NotificationBell() {
                   return (
                     <DropdownMenuItem
                       key={registration.id}
-                      onSelect={() => setActiveRegistration(registration)}
+                      onSelect={() => setActiveRegistrationId(registration.id)}
                       className="flex-col items-start gap-0.5 whitespace-normal"
                     >
                       <span className="font-medium">{marathon?.title ?? 'Marathon'}</span>
@@ -133,7 +139,7 @@ export function NotificationBell() {
         <RegistrationWizard
           registration={activeRegistration}
           marathon={marathons[activeRegistration.marathonId]}
-          onClose={() => setActiveRegistration(null)}
+          onClose={() => setActiveRegistrationId(null)}
         />
       )}
     </>

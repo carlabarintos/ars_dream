@@ -49,7 +49,14 @@ export function MyRegistrationsPage() {
   const { registrations, isLoading } = useUserRegistrations(uid)
   const marathonIds = registrations.map((r) => r.marathonId)
   const marathons = useMarathonsByIds(marathonIds)
-  const [activeRegistration, setActiveRegistration] = useState<Registration | null>(null)
+  const [activeRegistrationId, setActiveRegistrationId] = useState<string | null>(null)
+  // Re-derived live from the subscription every render (not captured once into
+  // state) so the wizard always acts on the current server-side status — a
+  // frozen copy would let a status change while the dialog is open (e.g. an
+  // admin decision) lead to a write the security rules now reject.
+  const activeRegistration = activeRegistrationId
+    ? (registrations.find((r) => r.id === activeRegistrationId) ?? null)
+    : null
 
   const sorted = registrations
     .slice()
@@ -120,7 +127,7 @@ export function MyRegistrationsPage() {
                 <CardFooter className="border-border flex flex-col items-center gap-3 border-t pt-4 pb-5">
                   <StatusBadge status={registration.status} />
                   {canReopenWizard(registration) && (
-                    <Button className="w-full" onClick={() => setActiveRegistration(registration)}>
+                    <Button className="w-full" onClick={() => setActiveRegistrationId(registration.id)}>
                       {getWizardButtonLabel(pendingStep)}
                     </Button>
                   )}
@@ -141,7 +148,7 @@ export function MyRegistrationsPage() {
         <RegistrationWizard
           registration={activeRegistration}
           marathon={marathons[activeRegistration.marathonId]}
-          onClose={() => setActiveRegistration(null)}
+          onClose={() => setActiveRegistrationId(null)}
         />
       )}
     </div>
