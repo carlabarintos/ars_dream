@@ -21,6 +21,7 @@ obj/
 
 # Cloud Functions build output
 functions/lib
+functions/tsconfig.tsbuildinfo
 
 # Firebase local state
 .firebase
