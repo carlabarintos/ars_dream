@@ -17,6 +17,7 @@ import { reopenMarathon, setMarathonStatus } from '@/features/marathons/api'
 import { useAllMarathons } from '@/features/marathons/use-marathons'
 import type { Marathon, MarathonStatus } from '@/types'
 
+import { ClearDataDialog } from './danger-zone/ClearDataDialog'
 import { ExportImportControls } from './export-import/ExportImportControls'
 import { MarathonFormDialog } from './MarathonFormDialog'
 
@@ -77,6 +78,7 @@ export function AdminDashboard() {
             <Link to="/admin/questionnaire-templates">Manage Questionnaire Templates</Link>
           </Button>
           <ExportImportControls />
+          <ClearDataDialog />
           <MarathonFormDialog />
         </div>
       </div>
