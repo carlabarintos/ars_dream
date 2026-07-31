@@ -35,8 +35,13 @@ service cloud.firestore {
     }
 
     match /registrations/{registrationId} {
+      // `resource` is null for a registration id that doesn't exist yet — e.g.
+      // joinQueue()'s existence check (getDoc at the deterministic id) before
+      // ever creating a doc there. resource.data would throw on a null
+      // resource instead of just reporting "not found", so that has to
+      // short-circuit via `resource == null` before it's referenced.
       allow read: if isSignedIn() &&
-        (resource.data.userId == request.auth.uid || isAdmin());
+        (resource == null || resource.data.userId == request.auth.uid || isAdmin());
 
       // One registration per (user, marathon, cycle): the doc id is required
       // to be that exact composite key, so a second "join" attempt against
