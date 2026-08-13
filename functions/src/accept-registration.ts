@@ -13,13 +13,15 @@ const enforceAppCheck = process.env.FUNCTIONS_EMULATOR !== 'true'
 interface AcceptRegistrationInput {
   registrationId: string
   decision: 'accepted' | 'rejected'
+  /** The offer image the admin previewed/attached in OfferChatDialog, if any — snapshotted onto the registration so onRegistrationStatusChange can include it in the acceptance email. */
+  offerImageUrl?: string
 }
 
 export const acceptRegistration = onCall<AcceptRegistrationInput>(
   { enforceAppCheck },
   async (request: CallableRequest<AcceptRegistrationInput>) => {
     await requireAdmin(request)
-    const { registrationId, decision } = request.data
+    const { registrationId, decision, offerImageUrl } = request.data
 
     const registrationRef = db.collection('registrations').doc(registrationId)
     const registrationSnap = await registrationRef.get()
@@ -72,7 +74,11 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
         throw new HttpsError('resource-exhausted', 'This marathon has no remaining capacity.')
       }
 
-      transaction.update(registrationRef, { status: 'accepted', updatedAt: new Date() })
+      transaction.update(registrationRef, {
+        status: 'accepted',
+        updatedAt: new Date(),
+        ...(offerImageUrl ? { offerImageUrl } : {}),
+      })
     })
 
     return { status: 'accepted' }

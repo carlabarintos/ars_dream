@@ -55,11 +55,14 @@ export function renderEmailHtml({
   body,
   ctaLabel,
   ctaUrl,
+  imageUrl,
 }: {
   title: string
   body: string
   ctaLabel: string
   ctaUrl: string
+  /** Optional image (e.g. a package's standard offer image) shown above the CTA button. Embedded by public URL rather than a real attachment — offer images are already stored at a publicly-readable Storage path (see storage.rules), so this avoids fetching/base64-encoding the file just to inline it. */
+  imageUrl?: string
 }): string {
   return `
     <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; color: #1a1a1a;">
@@ -69,6 +72,7 @@ export function renderEmailHtml({
       <div style="border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; padding: 24px;">
         <h1 style="font-size: 20px; margin: 0 0 12px;">${title}</h1>
         <p style="font-size: 14px; line-height: 1.6; margin: 0 0 20px; color: #374151;">${body}</p>
+        ${imageUrl ? `<img src="${imageUrl}" alt="" style="max-width: 100%; border-radius: 8px; margin: 0 0 20px; display: block;" />` : ''}
         <a
           href="${ctaUrl}"
           style="display: inline-block; background: ${BRAND_COLOR}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: bold; padding: 10px 20px; border-radius: 6px;"

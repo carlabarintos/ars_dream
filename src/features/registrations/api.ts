@@ -163,7 +163,7 @@ export async function submitProofOfPayment(registrationId: string, files: File[]
 // slots) are enforced server-side rather than trusted from the client.
 
 const acceptRegistrationCallable = httpsCallable<
-  { registrationId: string; decision: 'accepted' | 'rejected' },
+  { registrationId: string; decision: 'accepted' | 'rejected'; offerImageUrl?: string },
   { status: string }
 >(functions, 'acceptRegistration')
 
@@ -172,8 +172,12 @@ const confirmPaymentCallable = httpsCallable<
   { status: string }
 >(functions, 'confirmPayment')
 
-export async function decideQueueRegistration(registrationId: string, decision: 'accepted' | 'rejected') {
-  await acceptRegistrationCallable({ registrationId, decision })
+export async function decideQueueRegistration(
+  registrationId: string,
+  decision: 'accepted' | 'rejected',
+  offerImageUrl?: string,
+) {
+  await acceptRegistrationCallable({ registrationId, decision, ...(offerImageUrl ? { offerImageUrl } : {}) })
 }
 
 export async function confirmPayment(registrationId: string) {

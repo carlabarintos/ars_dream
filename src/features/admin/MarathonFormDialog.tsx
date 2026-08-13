@@ -56,6 +56,8 @@ interface PackageOfferRow {
 
 interface PackageRow {
   id: number
+  /** The package's persisted id — kept stable across edits so existing registrants' `packageId` stays matched to the right package (e.g. for the offer image lookup in OfferChatDialog). */
+  packageId: string
   name: string
   priceAmount: string
   priceCurrency: string
@@ -92,6 +94,7 @@ function toDateInputValue(date: Date) {
 function toPackageRows(packages: MarathonPackage[] | undefined): PackageRow[] {
   return (packages ?? []).map((pkg) => ({
     id: nextRowId++,
+    packageId: pkg.id,
     name: pkg.name,
     priceAmount: pkg.priceAmount.toString(),
     priceCurrency: pkg.priceCurrency,
@@ -189,7 +192,16 @@ export function MarathonFormDialog({
   function addPackage() {
     setPackageRows((rows) => [
       ...rows,
-      { id: nextRowId++, name: '', priceAmount: '', priceCurrency: 'PHP', details: [], photos: [], offer: null },
+      {
+        id: nextRowId++,
+        packageId: crypto.randomUUID(),
+        name: '',
+        priceAmount: '',
+        priceCurrency: 'PHP',
+        details: [],
+        photos: [],
+        offer: null,
+      },
     ])
   }
 
@@ -373,7 +385,7 @@ export function MarathonFormDialog({
       )
 
       const packages: MarathonPackage[] = validPackageRows.map((row, index) => ({
-        id: crypto.randomUUID(),
+        id: row.packageId,
         name: row.name.trim(),
         priceAmount: Number(row.priceAmount) || 0,
         priceCurrency: row.priceCurrency.trim() || 'PHP',

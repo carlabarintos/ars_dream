@@ -71,7 +71,7 @@ export function OfferChatDialog({
     setIsSubmitting(true)
     try {
       const finalImageUrl = imageFile ? await uploadMarathonPackageOffer(imageFile) : pkg?.offerImageUrl
-      await decideQueueRegistration(registration.id, 'accepted')
+      await decideQueueRegistration(registration.id, 'accepted', finalImageUrl)
       try {
         await sendPersonalMessage(registration.userId, adminUid, 'admin', text.trim(), finalImageUrl)
         toast.success('Registration accepted and offer sent.')

@@ -67,11 +67,13 @@ export const onRegistrationStatusChange = onDocumentUpdated(
         ? `Your registration for the ${marathonTitle} tour: ${copy.body}`
         : copy.body
 
+      const imageUrl: string | undefined = after.status === 'accepted' ? after.offerImageUrl : undefined
+
       await sendEmail({
         to: email,
         cc: ccEmails,
         subject,
-        html: renderEmailHtml({ title: copy.title, body, ctaLabel: 'Open ARS Dream', ctaUrl: APP_URL }),
+        html: renderEmailHtml({ title: copy.title, body, ctaLabel: 'Open ARS Dream', ctaUrl: APP_URL, imageUrl }),
       })
     }
   },

@@ -123,6 +123,8 @@ export interface Registration {
   proofOfPaymentUrls: string[]
   proofSubmittedAt: Timestamp | null
   adminNote: string | null
+  /** The package's standard offer image, snapshotted at accept time (see OfferChatDialog) — included in the acceptance email and chat message. Absent if no offer image was set/attached. */
+  offerImageUrl?: string
   /** Set when the registrant self-cancels (see 'cancelled' status). Absent/null otherwise. */
   cancelledAt?: Timestamp | null
   /** Which of the marathon's registration rounds this belongs to (see Marathon.cycle). Absent means cycle 1 (predates this field). */
