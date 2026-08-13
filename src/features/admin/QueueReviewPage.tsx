@@ -13,6 +13,7 @@ import type { Registration } from '@/types'
 
 import { exportQueueCsv } from './export-import/full-export'
 import { ImportDialog } from './export-import/ImportDialog'
+import { OfferChatDialog } from './OfferChatDialog'
 
 const STATUS_BADGE_VARIANT: Record<Exclude<Registration['status'], 'queued'>, 'success' | 'destructive' | 'secondary'> = {
   accepted: 'success',
@@ -57,6 +58,7 @@ export function QueueReviewPage() {
   )
   const profiles = useUserProfilesByIds(orderedRegistrations.map((registration) => registration.userId))
   const [decidingKey, setDecidingKey] = useState<string | null>(null)
+  const [reviewingOffer, setReviewingOffer] = useState<Registration | null>(null)
 
   async function handleDecision(id: string, decision: 'accepted' | 'rejected') {
     setDecidingKey(`${id}-${decision}`)
@@ -125,11 +127,7 @@ export function QueueReviewPage() {
                 <TableCell className="flex justify-end gap-2">
                   {registration.status === 'queued' ? (
                     <>
-                      <Button
-                        size="sm"
-                        loading={decidingKey === `${registration.id}-accepted`}
-                        onClick={() => handleDecision(registration.id, 'accepted')}
-                      >
+                      <Button size="sm" onClick={() => setReviewingOffer(registration)}>
                         Accept
                       </Button>
                       <Button
@@ -156,6 +154,11 @@ export function QueueReviewPage() {
           </TableBody>
         </Table>
       )}
+      <OfferChatDialog
+        registration={reviewingOffer}
+        marathon={marathon ?? null}
+        onClose={() => setReviewingOffer(null)}
+      />
     </div>
   )
 }

@@ -38,6 +38,8 @@ export interface MarathonPackage {
   details: MarathonDetail[]
   /** Optional photos shown as a carousel on the package selection page. Absent/empty means no carousel is shown. */
   photoUrls?: string[]
+  /** Default "standard offer" image shown to an admin (and sendable to the registrant via chat) when accepting a registrant into this package. Absent means no default has been uploaded yet. */
+  offerImageUrl?: string
 }
 
 export type QuestionType = 'text' | 'bool' | 'int' | 'dropdown'
@@ -147,6 +149,8 @@ export interface PersonalMessage {
   senderId: string
   senderRole: MessageSenderRole
   text: string
+  /** Optional image attached to this message, e.g. a package's standard offer sent alongside registration acceptance. */
+  imageUrl?: string
   createdAt: Timestamp
 }
 

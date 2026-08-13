@@ -13,6 +13,7 @@ interface ThreadMessage {
   senderId: string
   senderRole: MessageSenderRole
   text: string
+  imageUrl?: string
   createdAt: Timestamp | null
 }
 
@@ -84,10 +85,17 @@ export function ThreadView<TMessage extends ThreadMessage>({
               <div key={message.id} className={cn('flex flex-col gap-1', isOwn ? 'items-end' : 'items-start')}>
                 <div
                   className={cn(
-                    'max-w-[75%] rounded-lg px-3 py-2 text-sm break-words',
+                    'flex max-w-[75%] flex-col gap-2 rounded-lg px-3 py-2 text-sm break-words',
                     isOwn ? 'bg-primary text-primary-foreground' : 'bg-muted',
                   )}
                 >
+                  {message.imageUrl && (
+                    <img
+                      src={message.imageUrl}
+                      alt=""
+                      className="max-h-64 w-full rounded-md object-contain"
+                    />
+                  )}
                   {message.text}
                 </div>
                 <span className="text-muted-foreground text-xs">

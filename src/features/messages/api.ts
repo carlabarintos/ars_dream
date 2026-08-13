@@ -30,11 +30,18 @@ export function subscribeToPersonalThreadMessages(userId: string, onData: (messa
   })
 }
 
-export async function sendPersonalMessage(userId: string, senderId: string, senderRole: MessageSenderRole, text: string) {
+export async function sendPersonalMessage(
+  userId: string,
+  senderId: string,
+  senderRole: MessageSenderRole,
+  text: string,
+  imageUrl?: string,
+) {
   await addDoc(personalMessagesRef(userId), {
     senderId,
     senderRole,
     text,
+    ...(imageUrl ? { imageUrl } : {}),
     createdAt: serverTimestamp(),
   })
 

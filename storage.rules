@@ -48,5 +48,14 @@ service firebase.storage {
         request.resource.size < 10 * 1024 * 1024 &&
         request.resource.contentType.matches('image/.*');
     }
+
+    // Each package's "standard offer" image, previewed by an admin and sendable to a
+    // registrant via chat when accepting them — public-facing like the photos above.
+    match /marathon-package-offers/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
   }
 }

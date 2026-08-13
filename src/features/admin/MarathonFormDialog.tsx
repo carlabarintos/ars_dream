@@ -22,6 +22,7 @@ import {
   createMarathon,
   updateMarathon,
   uploadMarathonBanner,
+  uploadMarathonPackageOffer,
   uploadMarathonPackagePhoto,
 } from '@/features/marathons/api'
 import { useQuestionnaireTemplates } from '@/features/questionnaire-templates/use-questionnaire-templates'
@@ -47,6 +48,12 @@ interface PackagePhotoRow {
   file: File | null
 }
 
+/** A package's single standard offer image — same url/file shape as PackagePhotoRow, but only one is kept. */
+interface PackageOfferRow {
+  url: string
+  file: File | null
+}
+
 interface PackageRow {
   id: number
   name: string
@@ -54,6 +61,7 @@ interface PackageRow {
   priceCurrency: string
   details: DetailRow[]
   photos: PackagePhotoRow[]
+  offer: PackageOfferRow | null
 }
 
 interface QuestionRow {
@@ -89,6 +97,7 @@ function toPackageRows(packages: MarathonPackage[] | undefined): PackageRow[] {
     priceCurrency: pkg.priceCurrency,
     details: pkg.details.map((detail) => ({ id: nextRowId++, ...detail })),
     photos: (pkg.photoUrls ?? []).map((url) => ({ id: nextRowId++, url, file: null })),
+    offer: pkg.offerImageUrl ? { url: pkg.offerImageUrl, file: null } : null,
   }))
 }
 
@@ -131,13 +140,14 @@ export function MarathonFormDialog({
   const packageRowsRef = useRef(packageRows)
   packageRowsRef.current = packageRows
 
-  // Revoke any pending photo-preview object URLs left over if the dialog is closed without submitting.
+  // Revoke any pending photo/offer-preview object URLs left over if the dialog is closed without submitting.
   useEffect(() => {
     return () => {
       for (const row of packageRowsRef.current) {
         for (const photo of row.photos) {
           if (photo.file) URL.revokeObjectURL(photo.url)
         }
+        if (row.offer?.file) URL.revokeObjectURL(row.offer.url)
       }
     }
   }, [])
@@ -179,7 +189,7 @@ export function MarathonFormDialog({
   function addPackage() {
     setPackageRows((rows) => [
       ...rows,
-      { id: nextRowId++, name: '', priceAmount: '', priceCurrency: 'PHP', details: [], photos: [] },
+      { id: nextRowId++, name: '', priceAmount: '', priceCurrency: 'PHP', details: [], photos: [], offer: null },
     ])
   }
 
@@ -253,6 +263,16 @@ export function MarathonFormDialog({
         const photo = row.photos.find((p) => p.id === photoId)
         if (photo?.file) URL.revokeObjectURL(photo.url)
         return { ...row, photos: row.photos.filter((p) => p.id !== photoId) }
+      }),
+    )
+  }
+
+  function setPackageOffer(packageId: number, file: File | null) {
+    setPackageRows((rows) =>
+      rows.map((row) => {
+        if (row.id !== packageId) return row
+        if (row.offer?.file) URL.revokeObjectURL(row.offer.url)
+        return { ...row, offer: file ? { url: URL.createObjectURL(file), file } : null }
       }),
     )
   }
@@ -345,6 +365,13 @@ export function MarathonFormDialog({
         ),
       )
 
+      const offerUrlByPackage = await Promise.all(
+        validPackageRows.map((row) => {
+          if (!row.offer) return null
+          return row.offer.file ? uploadMarathonPackageOffer(row.offer.file) : row.offer.url
+        }),
+      )
+
       const packages: MarathonPackage[] = validPackageRows.map((row, index) => ({
         id: crypto.randomUUID(),
         name: row.name.trim(),
@@ -354,6 +381,7 @@ export function MarathonFormDialog({
           .map((detail) => ({ label: detail.label.trim(), value: detail.value.trim() }))
           .filter((detail) => detail.label && detail.value),
         photoUrls: photoUrlsByPackage[index],
+        ...(offerUrlByPackage[index] ? { offerImageUrl: offerUrlByPackage[index]! } : {}),
       }))
 
       const input = {
@@ -602,6 +630,39 @@ export function MarathonFormDialog({
                       multiple
                       onChange={(e) => {
                         addPackagePhotos(pkg.id, e.target.files)
+                        e.target.value = ''
+                      }}
+                    />
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1.5 pl-3">
+                  <Label className="text-muted-foreground text-xs">
+                    Standard offer image (optional — previewed and sendable to a registrant when accepting them)
+                  </Label>
+                  {pkg.offer && (
+                    <div className="relative w-fit">
+                      <img
+                        src={pkg.offer.url}
+                        alt=""
+                        className="h-24 w-24 rounded-md border border-border object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setPackageOffer(pkg.id, null)}
+                        aria-label="Remove offer image"
+                        className="bg-background absolute -top-1.5 -right-1.5 rounded-full border border-border p-0.5"
+                      >
+                        <XIcon className="size-3" />
+                      </button>
+                    </div>
+                  )}
+                  {!pkg.offer && (
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        setPackageOffer(pkg.id, e.target.files?.[0] ?? null)
                         e.target.value = ''
                       }}
                     />
