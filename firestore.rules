@@ -34,6 +34,10 @@ service cloud.firestore {
       allow read, create, update, delete: if isAdmin();
     }
 
+    match /settings/{docId} {
+      allow read, write: if isAdmin();
+    }
+
     match /registrations/{registrationId} {
       // `resource` is null for a registration id that doesn't exist yet — e.g.
       // joinQueue()'s existence check (getDoc at the deterministic id) before

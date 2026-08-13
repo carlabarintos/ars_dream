@@ -75,5 +75,10 @@ jobs:
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      # Keeps Secret Manager's RESEND_API_KEY in sync with the GitHub secret of the same
+      # name on every deploy. --data-file - reads the value from stdin (non-interactive);
+      # --force skips the "grant access to this secret?" prompt and repoints any function
+      # already using it at the new version automatically.
+      - run: echo -n "${{ secrets.RESEND_API_KEY }}" | npx firebase functions:secrets:set RESEND_API_KEY --project ${{ env.FIREBASE_PROJECT_ID }} --data-file - --force --non-interactive
       # functions/ is built automatically by firebase.json's predeploy hooks
       - run: npx firebase deploy --only functions,firestore:rules,firestore:indexes,storage --project ${{ env.FIREBASE_PROJECT_ID }} --non-interactive --force

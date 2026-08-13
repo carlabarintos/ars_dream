@@ -20,6 +20,7 @@ import type { Marathon, MarathonStatus } from '@/types'
 import { ClearDataDialog } from './danger-zone/ClearDataDialog'
 import { ExportImportControls } from './export-import/ExportImportControls'
 import { MarathonFormDialog } from './MarathonFormDialog'
+import { NotificationSettingsDialog } from './NotificationSettingsDialog'
 
 const STATUS_VARIANT: Record<MarathonStatus, 'secondary' | 'success' | 'destructive'> = {
   draft: 'secondary',
@@ -78,6 +79,7 @@ export function AdminDashboard() {
             <Link to="/admin/questionnaire-templates">Manage Questionnaire Templates</Link>
           </Button>
           <ExportImportControls />
+          <NotificationSettingsDialog />
           <ClearDataDialog />
           <MarathonFormDialog />
         </div>
