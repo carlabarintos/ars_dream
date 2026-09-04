@@ -4,6 +4,8 @@ import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
 import { useMarathon } from '@/features/marathons/use-marathons'
@@ -14,6 +16,7 @@ import type { Registration } from '@/types'
 import { exportQueueCsv } from './export-import/full-export'
 import { ImportDialog } from './export-import/ImportDialog'
 import { OfferChatDialog } from './OfferChatDialog'
+import { usePaginatedSearch } from './use-list-filter'
 
 const STATUS_BADGE_VARIANT: Record<Exclude<Registration['status'], 'queued'>, 'success' | 'destructive' | 'secondary'> = {
   accepted: 'success',
@@ -49,6 +52,31 @@ const ALL_DECIDED_STATUSES: Registration['status'][] = [
   'cancelled',
 ]
 
+type StatusFilter = 'all' | 'queued' | 'accepted' | 'rejected' | 'cancelled'
+
+const STATUS_FILTER_LABEL: Record<StatusFilter, string> = {
+  all: 'All statuses',
+  queued: 'Queued',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+  cancelled: 'Cancelled',
+}
+
+function matchesStatusFilter(registration: Registration, filter: StatusFilter) {
+  switch (filter) {
+    case 'all':
+      return true
+    case 'queued':
+      return registration.status === 'queued'
+    case 'accepted':
+      return ['accepted', 'terms_accepted', 'payment_submitted', 'confirmed'].includes(registration.status)
+    case 'rejected':
+      return ['rejected', 'payment_rejected'].includes(registration.status)
+    case 'cancelled':
+      return registration.status === 'cancelled'
+  }
+}
+
 export function QueueReviewPage() {
   const { marathonId } = useParams<{ marathonId: string }>()
   const { marathon } = useMarathon(marathonId)
@@ -59,6 +87,17 @@ export function QueueReviewPage() {
   const profiles = useUserProfilesByIds(orderedRegistrations.map((registration) => registration.userId))
   const [decidingKey, setDecidingKey] = useState<string | null>(null)
   const [reviewingOffer, setReviewingOffer] = useState<Registration | null>(null)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const statusFilteredRegistrations = orderedRegistrations.filter((registration) =>
+    matchesStatusFilter(registration, statusFilter),
+  )
+  const { query, setQuery, filtered, visible, hasMore, loadMore } = usePaginatedSearch(
+    statusFilteredRegistrations,
+    (registration, q) => {
+      const profile = profiles[registration.userId]
+      return formatUserName(profile).toLowerCase().includes(q) || (profile?.email ?? '').toLowerCase().includes(q)
+    },
+  )
 
   async function handleDecision(id: string, decision: 'accepted' | 'rejected') {
     setDecidingKey(`${id}-${decision}`)
@@ -100,10 +139,36 @@ export function QueueReviewPage() {
           </div>
         )}
       </div>
+
+      {registrations.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <Input
+            placeholder="Search by name or email…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="max-w-sm"
+          />
+          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(STATUS_FILTER_LABEL) as StatusFilter[]).map((value) => (
+                <SelectItem key={value} value={value}>
+                  {STATUS_FILTER_LABEL[value]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       {isLoading ? (
         <p className="text-muted-foreground">Loading…</p>
       ) : registrations.length === 0 ? (
         <p className="text-muted-foreground">No one is waiting in the queue right now.</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-muted-foreground">No registrations match your search.</p>
       ) : (
         <Table>
           <TableHeader>
@@ -116,7 +181,7 @@ export function QueueReviewPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orderedRegistrations.map((registration) => (
+            {visible.map((registration) => (
               <TableRow key={registration.id}>
                 <TableCell className="text-muted-foreground">{registration.queuePosition ?? '—'}</TableCell>
                 <TableCell>{formatUserName(profiles[registration.userId])}</TableCell>
@@ -153,6 +218,11 @@ export function QueueReviewPage() {
             ))}
           </TableBody>
         </Table>
+      )}
+      {hasMore && (
+        <Button variant="outline" onClick={loadMore} className="self-center">
+          Load more ({filtered.length - visible.length} remaining)
+        </Button>
       )}
       <OfferChatDialog
         registration={reviewingOffer}
