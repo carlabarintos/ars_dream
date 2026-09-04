@@ -23,7 +23,9 @@ import {
   canReRegister,
   getPendingActionStep,
   getRegistrationStatusMessage,
+  getRegistrationTotalAmount,
   getWizardButtonLabel,
+  needsPackageUpdate,
 } from './registration-flow'
 import { RegistrationWizard } from './RegistrationWizard'
 import { StatusBadge } from './StatusBadge'
@@ -116,7 +118,10 @@ export function MyRegistrationsPage() {
                 <CardContent className="flex flex-col gap-3 pb-5">
                   <div className="text-muted-foreground text-sm">
                     {registration.packageName} · {registration.packagePriceCurrency}{' '}
-                    {registration.packagePriceAmount.toLocaleString()}
+                    {getRegistrationTotalAmount(registration).toLocaleString()}
+                    {registration.selectedAddOns && registration.selectedAddOns.length > 0 && (
+                      <> (incl. {registration.selectedAddOns.map((addOn) => addOn.name).join(', ')})</>
+                    )}
                   </div>
                   <div className="bg-muted/50 flex items-start gap-2 rounded-md p-3 text-sm">
                     <StatusIcon className="mt-0.5 size-4 shrink-0" />
@@ -126,6 +131,11 @@ export function MyRegistrationsPage() {
 
                 <CardFooter className="border-border flex flex-col items-center gap-3 border-t pt-4 pb-5">
                   <StatusBadge status={registration.status} />
+                  {needsPackageUpdate(registration) && (
+                    <Button className="w-full" asChild>
+                      <Link to={`/marathons/${registration.marathonId}/packages`}>Choose a New Package</Link>
+                    </Button>
+                  )}
                   {canReopenWizard(registration) && (
                     <Button className="w-full" onClick={() => setActiveRegistrationId(registration.id)}>
                       {getWizardButtonLabel(pendingStep)}

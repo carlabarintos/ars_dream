@@ -1,8 +1,24 @@
 import type { Marathon, MarathonQuestion, Registration, RegistrationStatus } from '@/types'
 
+/** Whether the registrant's previously-selected package no longer exists for this round and they need to pick a new one to keep their queue spot (see reopenMarathon). */
+export function needsPackageUpdate(registration: Registration) {
+  return registration.packageUpdateRequired === true
+}
+
+/** Package base price plus any selected add-ons — the actual amount the registrant owes. */
+export function getRegistrationTotalAmount(registration: Registration) {
+  const addOnsTotal = (registration.selectedAddOns ?? []).reduce((sum, addOn) => sum + addOn.priceAmount, 0)
+  return registration.packagePriceAmount + addOnsTotal
+}
+
 export function getRegistrationStatusMessage(registration: Registration) {
   switch (registration.status) {
     case 'queued':
+      if (needsPackageUpdate(registration)) {
+        return registration.queuePosition != null
+          ? `The package you previously selected is no longer offered for this round. Choose a new package below to keep your spot (#${registration.queuePosition}).`
+          : 'The package you previously selected is no longer offered for this round. Choose a new package below to keep your spot in the queue.'
+      }
       return registration.queuePosition != null
         ? `You're #${registration.queuePosition} in the waiting list. We'll notify you once a spot opens up.`
         : "You're in the waiting list. We'll notify you once a spot opens up."

@@ -15,7 +15,7 @@ import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 import { httpsCallable } from 'firebase/functions'
 
 import { db, functions, storage } from '@/firebase/config'
-import type { MarathonPackage, QuestionAnswer, Registration } from '@/types'
+import type { MarathonPackage, MarathonPackageAddOn, QuestionAnswer, Registration, SelectedAddOn } from '@/types'
 import type { RegistrationRestorePatch } from '@/features/admin/export-import/serialize'
 import { canChangePackage, canReRegister } from '@/features/registrations/registration-flow'
 
@@ -59,10 +59,15 @@ function registrationId(userId: string, marathonId: string, cycle: number) {
   return `${userId}_${marathonId}_${cycle}`
 }
 
+function toSelectedAddOns(addOns: MarathonPackageAddOn[]): SelectedAddOn[] {
+  return addOns.map((addOn) => ({ addOnId: addOn.id, name: addOn.name, priceAmount: addOn.priceAmount }))
+}
+
 export async function joinQueue(
   userId: string,
   marathonId: string,
   selectedPackage: MarathonPackage,
+  selectedAddOns: MarathonPackageAddOn[],
   cycle: number,
 ) {
   const registrationRef = doc(db, 'registrations', registrationId(userId, marathonId, cycle))
@@ -83,6 +88,7 @@ export async function joinQueue(
         packageName: selectedPackage.name,
         packagePriceAmount: selectedPackage.priceAmount,
         packagePriceCurrency: selectedPackage.priceCurrency,
+        selectedAddOns: toSelectedAddOns(selectedAddOns),
         status: 'queued' satisfies Registration['status'],
         queuePosition: null,
         termsAcceptedAt: null,
@@ -107,6 +113,8 @@ export async function joinQueue(
       packageName: selectedPackage.name,
       packagePriceAmount: selectedPackage.priceAmount,
       packagePriceCurrency: selectedPackage.priceCurrency,
+      selectedAddOns: toSelectedAddOns(selectedAddOns),
+      packageUpdateRequired: false,
       updatedAt: serverTimestamp(),
     })
     return
@@ -119,6 +127,7 @@ export async function joinQueue(
     packageName: selectedPackage.name,
     packagePriceAmount: selectedPackage.priceAmount,
     packagePriceCurrency: selectedPackage.priceCurrency,
+    selectedAddOns: toSelectedAddOns(selectedAddOns),
     status: 'queued' satisfies Registration['status'],
     queuePosition: null,
     termsAcceptedAt: null,

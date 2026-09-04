@@ -29,6 +29,13 @@ export interface MarathonDetail {
   value: string
 }
 
+/** An optional add-on a registrant can toggle on for a package, e.g. "Add Companion" — adds its price on top of the package's base price. Priced in the parent package's currency. */
+export interface MarathonPackageAddOn {
+  id: string
+  name: string
+  priceAmount: number
+}
+
 /** One selectable tour package within a marathon event, e.g. "Standard" vs "VIP". */
 export interface MarathonPackage {
   id: string
@@ -40,6 +47,8 @@ export interface MarathonPackage {
   photoUrls?: string[]
   /** Default "standard offer" image shown to an admin (and sendable to the registrant via chat) when accepting a registrant into this package. Absent means no default has been uploaded yet. */
   offerImageUrl?: string
+  /** Optional toggleable extras a registrant can add on top of this package, e.g. "Add Companion". Absent/empty means no add-ons are offered. */
+  addOns?: MarathonPackageAddOn[]
 }
 
 export type QuestionType = 'text' | 'bool' | 'int' | 'dropdown'
@@ -105,6 +114,13 @@ export interface QuestionAnswer {
   value: string
 }
 
+/** Snapshot of one add-on selected at registration time, so this stays accurate even if the package's add-on is later edited or removed. */
+export interface SelectedAddOn {
+  addOnId: string
+  name: string
+  priceAmount: number
+}
+
 export interface Registration {
   id: string
   userId: string
@@ -114,6 +130,8 @@ export interface Registration {
   packageName: string
   packagePriceAmount: number
   packagePriceCurrency: string
+  /** Add-ons selected alongside the package, if any. Absent/empty means none were selected. */
+  selectedAddOns?: SelectedAddOn[]
   status: RegistrationStatus
   /** 1-based position in the marathon's waiting list; null while queued but not yet assigned, or once past the queue. */
   queuePosition: number | null
@@ -129,6 +147,8 @@ export interface Registration {
   cancelledAt?: Timestamp | null
   /** Which of the marathon's registration rounds this belongs to (see Marathon.cycle). Absent means cycle 1 (predates this field). */
   cycle?: number
+  /** Set by reopenMarathon when this carried-forward registration's package no longer exists in the marathon's current packages list. Cleared (false/absent) once the registrant picks a new package via the existing swap flow. Only ever true while status is 'queued'. */
+  packageUpdateRequired?: boolean
   createdAt: Timestamp
   updatedAt: Timestamp
 }

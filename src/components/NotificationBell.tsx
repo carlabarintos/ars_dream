@@ -16,7 +16,11 @@ import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-p
 import { useMarathonsByIds } from '@/features/marathons/use-marathons'
 import { useAllPersonalThreads, usePersonalThread } from '@/features/messages/use-messages'
 import { RegistrationWizard } from '@/features/registrations/RegistrationWizard'
-import { getPendingActionStep, type PendingActionStep } from '@/features/registrations/registration-flow'
+import {
+  getPendingActionStep,
+  needsPackageUpdate,
+  type PendingActionStep,
+} from '@/features/registrations/registration-flow'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
 
 const ACTION_LABEL: Record<PendingActionStep, string> = {
@@ -37,8 +41,8 @@ export function NotificationBell() {
     ? (registrations.find((r) => r.id === activeRegistrationId) ?? null)
     : null
 
-  const needsAction = registrations.filter((r) =>
-    ['accepted', 'terms_accepted', 'payment_rejected'].includes(r.status),
+  const needsAction = registrations.filter(
+    (r) => ['accepted', 'terms_accepted', 'payment_rejected'].includes(r.status) || needsPackageUpdate(r),
   )
   const marathons = useMarathonsByIds(needsAction.map((r) => r.marathonId))
 
@@ -77,6 +81,20 @@ export function NotificationBell() {
               ) : (
                 needsAction.map((registration) => {
                   const marathon = marathons[registration.marathonId]
+                  if (needsPackageUpdate(registration)) {
+                    return (
+                      <DropdownMenuItem
+                        key={registration.id}
+                        asChild
+                        className="flex-col items-start gap-0.5 whitespace-normal"
+                      >
+                        <Link to={`/marathons/${registration.marathonId}/packages`}>
+                          <span className="font-medium">{marathon?.title ?? 'Marathon'}</span>
+                          <span className="text-muted-foreground text-xs">Choose a New Package</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )
+                  }
                   const step = getPendingActionStep(registration, marathon)
                   return (
                     <DropdownMenuItem

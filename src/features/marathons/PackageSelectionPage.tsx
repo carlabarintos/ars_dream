@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { joinQueue } from '@/features/registrations/api'
 import { CancelRegistrationButton } from '@/features/registrations/CancelRegistrationButton'
@@ -22,19 +24,26 @@ import {
   canReRegister,
   getPendingActionStep,
   getRegistrationStatusMessage,
+  getRegistrationTotalAmount,
   getWizardButtonLabel,
+  needsPackageUpdate,
 } from '@/features/registrations/registration-flow'
 import { RegistrationWizard } from '@/features/registrations/RegistrationWizard'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
 import { cn } from '@/lib/utils'
-import type { MarathonPackage } from '@/types'
+import type { MarathonPackage, MarathonPackageAddOn } from '@/types'
 
 import { PackagePhotoCarousel } from './PackagePhotoCarousel'
 import { useMarathon } from './use-marathons'
 
 function formatPrice(pkg: MarathonPackage) {
   return `${pkg.priceCurrency} ${pkg.priceAmount.toLocaleString()}`
+}
+
+function formatTotal(pkg: MarathonPackage, selectedAddOns: MarathonPackageAddOn[]) {
+  const total = pkg.priceAmount + selectedAddOns.reduce((sum, addOn) => sum + addOn.priceAmount, 0)
+  return `${pkg.priceCurrency} ${total.toLocaleString()}`
 }
 
 export function PackageSelectionPage() {
@@ -45,10 +54,32 @@ export function PackageSelectionPage() {
   const { registrations } = useUserRegistrations(uid)
   const [joiningPackageId, setJoiningPackageId] = useState<string | null>(null)
   const [showWizard, setShowWizard] = useState(false)
+  const [selectedAddOnIds, setSelectedAddOnIds] = useState<Record<string, Set<string>>>({})
 
   const myRegistration = registrations.find(
     (r) => r.marathonId === marathonId && (r.cycle ?? 1) === (marathon?.cycle ?? 1),
   )
+
+  // Once the registrant has touched a package's add-on checkboxes, that
+  // becomes the source of truth for it; until then, default to whatever
+  // they'd previously selected if this is the package on their existing
+  // registration, so re-opening the page doesn't silently drop their picks.
+  function getSelectedIdsForPackage(pkg: MarathonPackage): Set<string> {
+    if (selectedAddOnIds[pkg.id]) return selectedAddOnIds[pkg.id]
+    if (myRegistration && myRegistration.packageId === pkg.id) {
+      return new Set((myRegistration.selectedAddOns ?? []).map((a) => a.addOnId))
+    }
+    return new Set()
+  }
+
+  function toggleAddOn(pkg: MarathonPackage, addOnId: string) {
+    setSelectedAddOnIds((prev) => {
+      const current = new Set(prev[pkg.id] ?? getSelectedIdsForPackage(pkg))
+      if (current.has(addOnId)) current.delete(addOnId)
+      else current.add(addOnId)
+      return { ...prev, [pkg.id]: current }
+    })
+  }
   const pendingStep = myRegistration ? getPendingActionStep(myRegistration, marathon ?? undefined) : null
   const canSwapPackage = myRegistration ? canChangePackage(myRegistration) : false
   const canReRegisterNow = myRegistration ? canReRegister(myRegistration) : false
@@ -68,9 +99,11 @@ export function PackageSelectionPage() {
   async function handleSelectPackage(pkg: MarathonPackage) {
     if (!uid || !marathon) return
     const isSwap = myRegistration != null && !canReRegisterNow
+    const selectedIds = getSelectedIdsForPackage(pkg)
+    const selectedAddOns = (pkg.addOns ?? []).filter((addOn) => selectedIds.has(addOn.id))
     setJoiningPackageId(pkg.id)
     try {
-      await joinQueue(uid, marathon.id, pkg, marathon.cycle ?? 1)
+      await joinQueue(uid, marathon.id, pkg, selectedAddOns, marathon.cycle ?? 1)
       if (isSwap) {
         toast.success('Your package has been updated.')
       } else {
@@ -136,11 +169,28 @@ export function PackageSelectionPage() {
               Package: {myRegistration.packageName} ({myRegistration.packagePriceCurrency}{' '}
               {myRegistration.packagePriceAmount.toLocaleString()})
             </p>
-            <p className="text-muted-foreground">{getRegistrationStatusMessage(myRegistration)}</p>
-            {canSwapPackage && (
+            {myRegistration.selectedAddOns && myRegistration.selectedAddOns.length > 0 && (
               <p className="text-muted-foreground">
-                You can still switch to a different package below while your registration is pending.
+                Add-ons: {myRegistration.selectedAddOns.map((addOn) => addOn.name).join(', ')}
               </p>
+            )}
+            {myRegistration.selectedAddOns && myRegistration.selectedAddOns.length > 0 && (
+              <p className="font-medium">
+                Total: {myRegistration.packagePriceCurrency}{' '}
+                {getRegistrationTotalAmount(myRegistration).toLocaleString()}
+              </p>
+            )}
+            <p className="text-muted-foreground">{getRegistrationStatusMessage(myRegistration)}</p>
+            {needsPackageUpdate(myRegistration) ? (
+              <p className="text-muted-foreground">
+                Your previous package isn't available anymore — pick a new one below to keep your place in queue.
+              </p>
+            ) : (
+              canSwapPackage && (
+                <p className="text-muted-foreground">
+                  You can still switch to a different package below while your registration is pending.
+                </p>
+              )
             )}
             {canReRegisterNow && (
               <p className="text-muted-foreground">Pick a package below to register again.</p>
@@ -186,6 +236,9 @@ export function PackageSelectionPage() {
                         ? 'Register Again'
                         : 'Select & Join Queue'
 
+              const selectedIds = getSelectedIdsForPackage(pkg)
+              const selectedAddOns = (pkg.addOns ?? []).filter((addOn) => selectedIds.has(addOn.id))
+
               return (
                 <Card
                   key={pkg.id}
@@ -196,7 +249,10 @@ export function PackageSelectionPage() {
                   )}
                   <CardHeader>
                     <CardTitle>{pkg.name}</CardTitle>
-                    <p className="text-lg font-medium">{formatPrice(pkg)}</p>
+                    <p className="text-lg font-medium">{formatTotal(pkg, selectedAddOns)}</p>
+                    {selectedAddOns.length > 0 && (
+                      <p className="text-muted-foreground text-xs">Base price {formatPrice(pkg)}</p>
+                    )}
                   </CardHeader>
                   <CardContent className={cn('flex-1', pkg.photoUrls?.length && 'pt-5')}>
                     {pkg.details.length > 0 && (
@@ -208,6 +264,35 @@ export function PackageSelectionPage() {
                           </div>
                         ))}
                       </dl>
+                    )}
+                    {pkg.addOns && pkg.addOns.length > 0 && (
+                      <div
+                        className={cn(
+                          'flex flex-col gap-2',
+                          pkg.details.length > 0 && 'border-border mt-3 border-t pt-3',
+                        )}
+                      >
+                        <p className="text-muted-foreground text-xs font-medium">Add-ons</p>
+                        {pkg.addOns.map((addOn) => {
+                          const checkboxId = `addon-${pkg.id}-${addOn.id}`
+                          return (
+                            <div key={addOn.id} className="flex items-center gap-2">
+                              <Checkbox
+                                id={checkboxId}
+                                checked={selectedIds.has(addOn.id)}
+                                disabled={disabled}
+                                onCheckedChange={() => toggleAddOn(pkg, addOn.id)}
+                              />
+                              <Label htmlFor={checkboxId} className="flex-1 text-sm font-normal">
+                                {addOn.name}
+                              </Label>
+                              <span className="text-muted-foreground text-xs">
+                                +{pkg.priceCurrency} {addOn.priceAmount.toLocaleString()}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
                     )}
                   </CardContent>
                   <CardFooter className={cn(pkg.photoUrls?.length && 'mt-4 border-t border-border pt-4')}>

@@ -54,6 +54,14 @@ interface PackageOfferRow {
   file: File | null
 }
 
+interface AddOnRow {
+  id: number
+  /** The add-on's persisted id — kept stable across edits so existing registrants' `selectedAddOns` stay matched to the right add-on. */
+  addOnId: string
+  name: string
+  priceAmount: string
+}
+
 interface PackageRow {
   id: number
   /** The package's persisted id — kept stable across edits so existing registrants' `packageId` stays matched to the right package (e.g. for the offer image lookup in OfferChatDialog). */
@@ -64,6 +72,7 @@ interface PackageRow {
   details: DetailRow[]
   photos: PackagePhotoRow[]
   offer: PackageOfferRow | null
+  addOns: AddOnRow[]
 }
 
 interface QuestionRow {
@@ -101,6 +110,12 @@ function toPackageRows(packages: MarathonPackage[] | undefined): PackageRow[] {
     details: pkg.details.map((detail) => ({ id: nextRowId++, ...detail })),
     photos: (pkg.photoUrls ?? []).map((url) => ({ id: nextRowId++, url, file: null })),
     offer: pkg.offerImageUrl ? { url: pkg.offerImageUrl, file: null } : null,
+    addOns: (pkg.addOns ?? []).map((addOn) => ({
+      id: nextRowId++,
+      addOnId: addOn.id,
+      name: addOn.name,
+      priceAmount: addOn.priceAmount.toString(),
+    })),
   }))
 }
 
@@ -201,6 +216,7 @@ export function MarathonFormDialog({
         details: [],
         photos: [],
         offer: null,
+        addOns: [],
       },
     ])
   }
@@ -245,6 +261,41 @@ export function MarathonFormDialog({
       rows.map((row) =>
         row.id === packageId
           ? { ...row, details: row.details.filter((detail) => detail.id !== detailId) }
+          : row,
+      ),
+    )
+  }
+
+  function addAddOnRow(packageId: number) {
+    setPackageRows((rows) =>
+      rows.map((row) =>
+        row.id === packageId
+          ? { ...row, addOns: [...row.addOns, { id: nextRowId++, addOnId: crypto.randomUUID(), name: '', priceAmount: '' }] }
+          : row,
+      ),
+    )
+  }
+
+  function updateAddOnRow(packageId: number, addOnRowId: number, field: 'name' | 'priceAmount', text: string) {
+    setPackageRows((rows) =>
+      rows.map((row) =>
+        row.id === packageId
+          ? {
+              ...row,
+              addOns: row.addOns.map((addOn) =>
+                addOn.id === addOnRowId ? { ...addOn, [field]: text } : addOn,
+              ),
+            }
+          : row,
+      ),
+    )
+  }
+
+  function removeAddOnRow(packageId: number, addOnRowId: number) {
+    setPackageRows((rows) =>
+      rows.map((row) =>
+        row.id === packageId
+          ? { ...row, addOns: row.addOns.filter((addOn) => addOn.id !== addOnRowId) }
           : row,
       ),
     )
@@ -320,6 +371,13 @@ export function MarathonFormDialog({
             .map((detail) => ({ label: detail.label.trim(), value: detail.value.trim() }))
             .filter((detail) => detail.label && detail.value),
           photoUrls: row.photos.map((photo) => photo.url),
+          addOns: row.addOns
+            .filter((addOn) => addOn.name.trim())
+            .map((addOn) => ({
+              id: addOn.addOnId,
+              name: addOn.name.trim(),
+              priceAmount: Number(addOn.priceAmount) || 0,
+            })),
         })),
       questions: questionRows
         .filter((row) => row.label.trim())
@@ -394,6 +452,13 @@ export function MarathonFormDialog({
           .filter((detail) => detail.label && detail.value),
         photoUrls: photoUrlsByPackage[index],
         ...(offerUrlByPackage[index] ? { offerImageUrl: offerUrlByPackage[index]! } : {}),
+        addOns: row.addOns
+          .filter((addOn) => addOn.name.trim())
+          .map((addOn) => ({
+            id: addOn.addOnId,
+            name: addOn.name.trim(),
+            priceAmount: Number(addOn.priceAmount) || 0,
+          })),
       }))
 
       const input = {
@@ -607,6 +672,48 @@ export function MarathonFormDialog({
                   >
                     <PlusIcon className="size-3.5" />
                     Add detail
+                  </Button>
+                </div>
+
+                <div className="flex flex-col gap-1.5 pl-3">
+                  <Label className="text-muted-foreground text-xs">
+                    Add-ons (optional extras a registrant can toggle on, e.g. "Add Companion")
+                  </Label>
+                  {pkg.addOns.map((addOn) => (
+                    <div key={addOn.id} className="flex items-center gap-2">
+                      <Input
+                        placeholder="Add-on name (e.g. Add Companion)"
+                        value={addOn.name}
+                        onChange={(e) => updateAddOnRow(pkg.id, addOn.id, 'name', e.target.value)}
+                        className="flex-1"
+                      />
+                      <Input
+                        placeholder="Price"
+                        type="number"
+                        value={addOn.priceAmount}
+                        onChange={(e) => updateAddOnRow(pkg.id, addOn.id, 'priceAmount', e.target.value)}
+                        className="w-28"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeAddOnRow(pkg.id, addOn.id)}
+                        aria-label="Remove add-on"
+                      >
+                        <XIcon className="size-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="self-start"
+                    onClick={() => addAddOnRow(pkg.id)}
+                  >
+                    <PlusIcon className="size-3.5" />
+                    Add add-on
                   </Button>
                 </div>
 

@@ -15,6 +15,7 @@ export interface PreviewPackage {
   priceCurrency: string
   details: { label: string; value: string }[]
   photoUrls: string[]
+  addOns: { id: string; name: string; priceAmount: number }[]
 }
 
 export interface PreviewQuestion {
@@ -146,16 +147,31 @@ export function MarathonPreviewDialog({
                       <CardTitle>{pkg.name || 'Untitled package'}</CardTitle>
                       <p className="text-lg font-medium">{formatPrice(pkg)}</p>
                     </CardHeader>
-                    {pkg.details.length > 0 && (
+                    {(pkg.details.length > 0 || pkg.addOns.length > 0) && (
                       <CardContent className={cn('flex-1', pkg.photoUrls.length > 0 && 'pt-5')}>
-                        <dl className="flex flex-col gap-1.5 text-sm">
-                          {pkg.details.map((detail, index) => (
-                            <div key={index} className="flex justify-between gap-3">
-                              <dt className="text-muted-foreground shrink-0 font-medium">{detail.label}</dt>
-                              <dd className="text-right">{detail.value}</dd>
-                            </div>
-                          ))}
-                        </dl>
+                        {pkg.details.length > 0 && (
+                          <dl className="flex flex-col gap-1.5 text-sm">
+                            {pkg.details.map((detail, index) => (
+                              <div key={index} className="flex justify-between gap-3">
+                                <dt className="text-muted-foreground shrink-0 font-medium">{detail.label}</dt>
+                                <dd className="text-right">{detail.value}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                        )}
+                        {pkg.addOns.length > 0 && (
+                          <div className="mt-3 flex flex-col gap-1">
+                            <p className="text-muted-foreground text-xs font-medium">Available add-ons</p>
+                            {pkg.addOns.map((addOn) => (
+                              <div key={addOn.id} className="flex justify-between gap-3 text-sm">
+                                <span>{addOn.name}</span>
+                                <span className="text-muted-foreground">
+                                  +{pkg.priceCurrency || 'PHP'} {addOn.priceAmount.toLocaleString()}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </CardContent>
                     )}
                   </Card>

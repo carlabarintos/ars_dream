@@ -9,6 +9,7 @@ import type {
   QuestionAnswer,
   Registration,
   RegistrationStatus,
+  SelectedAddOn,
   UserProfile,
   UserRole,
 } from '@/types'
@@ -167,6 +168,7 @@ export const REGISTRATION_COLUMNS = [
   'packageName',
   'packagePriceAmount',
   'packagePriceCurrency',
+  'selectedAddOnsJson',
   'status',
   'queuePosition',
   'termsAcceptedAt',
@@ -188,6 +190,7 @@ export interface RegistrationRestorePatch {
   packageName: string
   packagePriceAmount: number
   packagePriceCurrency: string
+  selectedAddOns: SelectedAddOn[]
   status: RegistrationStatus
   queuePosition: number | null
   termsAcceptedAt: Timestamp | null
@@ -209,6 +212,7 @@ export function registrationToRow(registration: Registration): RegistrationRow {
     packageName: registration.packageName,
     packagePriceAmount: String(registration.packagePriceAmount),
     packagePriceCurrency: registration.packagePriceCurrency,
+    selectedAddOnsJson: JSON.stringify(registration.selectedAddOns ?? []),
     status: registration.status,
     queuePosition: registration.queuePosition == null ? '' : String(registration.queuePosition),
     termsAcceptedAt: isoOfNullable(registration.termsAcceptedAt),
@@ -230,6 +234,7 @@ export function rowToRegistrationRestorePatch(row: RegistrationRow): RowResult<R
     packageName: row.packageName,
     packagePriceAmount: Number(row.packagePriceAmount),
     packagePriceCurrency: row.packagePriceCurrency,
+    selectedAddOns: parseJsonArray<SelectedAddOn>(row.selectedAddOnsJson, 'selectedAddOnsJson'),
     status: row.status as RegistrationStatus,
     queuePosition: row.queuePosition.trim() === '' ? null : Number(row.queuePosition),
     termsAcceptedAt: parseIsoNullable(row.termsAcceptedAt, 'termsAcceptedAt'),
