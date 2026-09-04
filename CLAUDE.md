@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-ARS Dream is a Firebase-backed React PWA for a real Manila marathon-tourism company (arsdreamph.com) — it's the digital registration/queue system for their international marathon tour packages (New York, Berlin, London, Tokyo, Sydney), not a generic fun-run app. Copy and flows should reflect an actual travel-agency booking process: limited-capacity tour packages, a queue → acceptance → payment pipeline, not instant signup.
+ARS Dream is a Firebase-backed React PWA for a real Manila marathon-tourism company (arsdreamsports.com) — it's the digital registration/queue system for their international marathon tour packages (New York, Berlin, London, Tokyo, Sydney), not a generic fun-run app. Copy and flows should reflect an actual travel-agency booking process: limited-capacity tour packages, a queue → acceptance → payment pipeline, not instant signup.
 
 The frontend (`src/`) is the actual application. `AppHost/` is a .NET Aspire project used **only** for local dev orchestration — it has no runtime role; it just launches the Vite dev server and the Firebase emulator suite together under one dashboard (see `AppHost/AppHost.cs`). Do not treat this as a .NET app.
 
@@ -48,7 +48,7 @@ Running the emulators requires a JDK on PATH (Firestore/Auth emulators are JVM-b
 
 `.firebaserc` only defines the local `demo-ars-dream` project — there is no real production Firebase project wired into this repo yet. Standing one up requires, in addition to setting the real `VITE_FIREBASE_*` values (and leaving `VITE_USE_FIREBASE_EMULATORS` unset/`false`) wherever the frontend is deployed:
 
-- **Google sign-in is currently removed from the app** (as of 2026-07-24) — `signInWithGoogle`/`GoogleAuthProvider` (formerly in `src/features/auth/auth-actions.ts`) and the "Continue with Google" button (formerly in `SignInPage.tsx`) were pulled; email/password is the only sign-in method right now. Re-adding it later needs: Firebase Console → Authentication → Sign-in method → enable "Google" with a support email; Authentication → Settings → Authorized domains including `arsdreamph.com`/`www.arsdreamph.com`; the OAuth consent screen (Google Cloud Console) out of "Testing" mode; and the auto-created "Web client" OAuth credential listing `https://arsdreamph.com` under Authorized JavaScript origins.
+- **Google sign-in is currently removed from the app** (as of 2026-07-24) — `signInWithGoogle`/`GoogleAuthProvider` (formerly in `src/features/auth/auth-actions.ts`) and the "Continue with Google" button (formerly in `SignInPage.tsx`) were pulled; email/password is the only sign-in method right now. Re-adding it later needs: Firebase Console → Authentication → Sign-in method → enable "Google" with a support email; Authentication → Settings → Authorized domains including `arsdreamsports.com`/`www.arsdreamsports.com`; the OAuth consent screen (Google Cloud Console) out of "Testing" mode; and the auto-created "Web client" OAuth credential listing `https://arsdreamsports.com` under Authorized JavaScript origins.
 
 #### Deploying via GitHub Actions
 

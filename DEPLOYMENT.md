@@ -6,7 +6,7 @@ backend host; `firebase.json` at the repo root already defines all four targets.
 
 Deploys are **manual CLI deploys** (no CI/CD) — run by hand from a dev machine once logged in
 via `firebase login`. This doc also assumes the default `*.web.app` / `*.firebaseapp.com` URL;
-a custom domain (e.g. `arsdreamph.com`) can be attached later via Hosting → Add custom domain,
+a custom domain (e.g. `arsdreamsports.com`) can be attached later via Hosting → Add custom domain,
 which is a DNS change and isn't covered here.
 
 ## One-time project setup
@@ -120,4 +120,4 @@ pipeline against production:
   first require putting this directory under git and pushing it to a remote, which hasn't
   happened yet.
 - **No custom domain yet** — shipping on the default Firebase Hosting URL first; attaching
-  `arsdreamph.com` (or a subdomain) is a separate DNS-dependent step for later.
+  `arsdreamsports.com` (or a subdomain) is a separate DNS-dependent step for later.

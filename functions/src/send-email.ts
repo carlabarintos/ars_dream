@@ -4,15 +4,7 @@ import { Resend } from 'resend'
 
 export const resendApiKey = defineSecret('RESEND_API_KEY')
 
-// TEMPORARY: mail.arsdreamph.com isn't verified in Resend yet, so sending
-// from it is rejected outright (403 validation_error), regardless of
-// recipient. Until DNS verification is done (see CLAUDE.md / plan notes),
-// use Resend's shared sandbox address instead — this works with zero setup,
-// but Resend restricts it to delivering only to the email address the
-// Resend account itself was signed up with. Once mail.arsdreamph.com shows
-// "Verified" in the Resend dashboard, swap this back to
-// 'ARS Dream <no-reply@mail.arsdreamph.com>' and redeploy.
-const FROM_ADDRESS = 'ARS Dream <onboarding@resend.dev>'
+const FROM_ADDRESS = 'ARS Dream <no-reply@mail.arsdreamsports.com>'
 const BRAND_COLOR = '#1D67CD'
 
 /**

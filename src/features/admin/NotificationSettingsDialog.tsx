@@ -77,7 +77,7 @@ export function NotificationSettingsDialog() {
           <Label htmlFor="ccEmails">CC addresses</Label>
           <Textarea
             id="ccEmails"
-            placeholder="ops@arsdreamph.com, staff2@arsdreamph.com"
+            placeholder="ops@arsdreamsports.com, staff2@arsdreamsports.com"
             value={ccText}
             onChange={(e) => setCcText(e.target.value)}
             disabled={isLoading || isSaving}

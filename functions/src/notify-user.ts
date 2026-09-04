@@ -3,7 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore'
 import { db, messaging } from './admin.js'
 import { renderEmailHtml, sendEmail } from './send-email.js'
 
-export const APP_URL = 'https://arsdreamph.com'
+export const APP_URL = 'https://arsdreamsports.com'
 
 /**
  * Best-effort push + email notification to one user, extracted from
