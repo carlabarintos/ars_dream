@@ -14,6 +14,7 @@ import {
   ZapIcon,
 } from 'lucide-react'
 
+import { BibCountdown } from '@/components/BibCountdown'
 import { RouteLines } from '@/components/RouteLines'
 import { TicketSeam } from '@/components/TicketSeam'
 import { Button } from '@/components/ui/button'
@@ -63,6 +64,9 @@ const STATUS_ICON_BG: Record<RegistrationStatus, string> = {
   rejected: 'bg-destructive text-destructive-foreground',
   cancelled: 'bg-secondary text-secondary-foreground',
 }
+
+// Statuses off the happy path where a "race day in..." countdown no longer makes sense.
+const COUNTDOWN_HIDDEN_STATUSES: RegistrationStatus[] = ['rejected', 'cancelled', 'payment_rejected']
 
 // Mirrors the registrations.status pipeline documented in CLAUDE.md — the
 // happy-path progression a booking moves through from queue to confirmation.
@@ -276,6 +280,11 @@ export function MyRegistrationsPage() {
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-brand-navy/25 to-transparent" />
                   <StatusBadge status={registration.status} className="absolute top-3 right-3" />
+                  {marathon &&
+                    marathon.eventDate.toDate().getTime() > Date.now() &&
+                    !COUNTDOWN_HIDDEN_STATUSES.includes(registration.status) && (
+                      <BibCountdown target={marathon.eventDate.toDate()} className="absolute top-3 left-3" />
+                    )}
                   <div className="absolute right-4 bottom-4 left-4 flex flex-col gap-1">
                     <h2 className="font-display text-2xl leading-none tracking-wide text-white drop-shadow">
                       {marathon?.title ?? 'Marathon'}
