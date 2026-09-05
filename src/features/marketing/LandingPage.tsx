@@ -126,7 +126,7 @@ export function LandingPage() {
         </svg>
 
         <div
-          className="animate-fade-up-in pointer-events-none absolute top-[58%] left-[-4%] hidden xl:block"
+          className="animate-fade-up-in pointer-events-none absolute top-[58%] left-4 hidden xl:block 2xl:left-12"
           style={{ animationDelay: '700ms' }}
           aria-hidden="true"
         >

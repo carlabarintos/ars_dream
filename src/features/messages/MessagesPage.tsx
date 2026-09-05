@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 
 import { RouteLines } from '@/components/RouteLines'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Spinner } from '@/components/ui/spinner'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
 import { useMarathonsByIds } from '@/features/marathons/use-marathons'
@@ -45,7 +46,11 @@ function AnnouncementsTab({ uid }: { uid: string }) {
 
   const visibleAnnouncements = announcements.filter((a) => isAnnouncementVisibleTo(a, uid, registrations, marathonById))
 
-  if (isLoading) return <p className="text-muted-foreground text-sm">Loading…</p>
+  if (isLoading) return (
+    <div className="flex justify-center py-8">
+      <Spinner />
+    </div>
+  )
   if (visibleAnnouncements.length === 0) {
     return <p className="text-muted-foreground text-sm">No announcements yet.</p>
   }

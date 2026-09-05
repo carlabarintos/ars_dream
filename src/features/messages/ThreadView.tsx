@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import type { Timestamp } from 'firebase/firestore'
 
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import type { MessageSenderRole } from '@/types'
@@ -78,7 +79,9 @@ export function ThreadView<TMessage extends ThreadMessage>({
         className="border-border bg-card flex flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border p-3 shadow-sm"
       >
         {isLoading ? (
-          <p className="text-muted-foreground text-sm">Loading…</p>
+          <div className="flex flex-1 items-center justify-center py-8">
+            <Spinner />
+          </div>
         ) : messages.length === 0 ? (
           <p className="text-muted-foreground text-sm">{emptyMessage}</p>
         ) : (

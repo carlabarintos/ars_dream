@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Spinner } from '@/components/ui/spinner'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { AnnouncementsBoard } from '@/features/messages/AnnouncementsBoard'
 import { isAnnouncementVisibleTo } from '@/features/messages/api'
@@ -148,7 +149,9 @@ export function TimelinePage() {
         )}
 
         {isLoading ? (
-          <p className="text-muted-foreground">Loading…</p>
+          <div className="flex justify-center py-12">
+            <Spinner size="lg" />
+          </div>
         ) : visibleMarathons.length === 0 ? (
           <p className="text-muted-foreground">No marathons published yet. Check back soon.</p>
         ) : availableMarathons.length === 0 ? (

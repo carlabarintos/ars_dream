@@ -18,6 +18,7 @@ import { RouteLines } from '@/components/RouteLines'
 import { TicketSeam } from '@/components/TicketSeam'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
+import { Spinner } from '@/components/ui/spinner'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { useMarathonsByIds } from '@/features/marathons/use-marathons'
 import { cn } from '@/lib/utils'
@@ -237,7 +238,9 @@ export function MyRegistrationsPage() {
 
       <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 pt-8 pb-8">
         {isLoading ? (
-          <p className="text-muted-foreground">Loading…</p>
+          <div className="flex justify-center py-12">
+            <Spinner size="lg" />
+          </div>
         ) : sorted.length === 0 ? (
           <div className="border-border flex flex-col items-center gap-3 rounded-2xl border border-dashed p-12 text-center">
             <span className="bg-primary/10 text-primary flex size-12 items-center justify-center rounded-full">
