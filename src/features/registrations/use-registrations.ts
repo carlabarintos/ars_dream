@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 
 import type { Registration } from '@/types'
 
-import { subscribeToMarathonRegistrations, subscribeToUserRegistrations } from './api'
+import { subscribeToConfirmedRegistrations, subscribeToMarathonRegistrations, subscribeToUserRegistrations } from './api'
 
 export function useUserRegistrations(userId: string | undefined) {
   const [registrations, setRegistrations] = useState<Registration[]>([])
@@ -20,6 +20,22 @@ export function useUserRegistrations(userId: string | undefined) {
     })
     return unsubscribe
   }, [userId])
+
+  return { registrations, isLoading }
+}
+
+/** Every confirmed registration across every marathon, for the revenue report. */
+export function useConfirmedRegistrations() {
+  const [registrations, setRegistrations] = useState<Registration[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const unsubscribe = subscribeToConfirmedRegistrations((data) => {
+      setRegistrations(data)
+      setIsLoading(false)
+    })
+    return unsubscribe
+  }, [])
 
   return { registrations, isLoading }
 }

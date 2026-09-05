@@ -4,14 +4,16 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
 import { Toaster } from '@/components/ui/sonner'
 import { ProfilePage } from '@/features/auth/ProfilePage'
-import { RequireAdmin, RequireAuth } from '@/features/auth/RequireAuth'
+import { RequireAdmin, RequireAuth, RequireFinanceAccess } from '@/features/auth/RequireAuth'
 import { SignInPage } from '@/features/auth/SignInPage'
 import { useAuthListener } from '@/features/auth/use-auth-listener'
 import { AdminDashboard } from '@/features/admin/AdminDashboard'
 import { AdminMessagesPage } from '@/features/admin/AdminMessagesPage'
+import { AuditLogPage } from '@/features/admin/AuditLogPage'
 import { PaymentReviewPage } from '@/features/admin/PaymentReviewPage'
 import { QueueReviewPage } from '@/features/admin/QueueReviewPage'
 import { QuestionnaireTemplatesPage } from '@/features/admin/QuestionnaireTemplatesPage'
+import { RevenuePage } from '@/features/admin/RevenuePage'
 import { UsersPage } from '@/features/admin/UsersPage'
 import { MessagesPage } from '@/features/messages/MessagesPage'
 import { PackageSelectionPage } from '@/features/marathons/PackageSelectionPage'
@@ -124,6 +126,26 @@ function AppRoutes() {
               <RequireAdmin>
                 <UsersPage />
               </RequireAdmin>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/audit-log"
+          element={
+            <RequireAuth>
+              <RequireAdmin>
+                <AuditLogPage />
+              </RequireAdmin>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/revenue"
+          element={
+            <RequireAuth>
+              <RequireFinanceAccess>
+                <RevenuePage />
+              </RequireFinanceAccess>
             </RequireAuth>
           }
         />

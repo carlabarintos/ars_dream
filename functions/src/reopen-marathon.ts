@@ -1,6 +1,7 @@
 import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https'
 
 import { db } from './admin.js'
+import { logAuditEntry } from './audit-log.js'
 import { notifyUser } from './notify-user.js'
 import { requireAdmin } from './require-admin.js'
 import { resendApiKey } from './send-email.js'
@@ -26,7 +27,7 @@ interface ReopenMarathonInput {
 export const reopenMarathon = onCall<ReopenMarathonInput>(
   { enforceAppCheck, secrets: [resendApiKey] },
   async (request: CallableRequest<ReopenMarathonInput>) => {
-    await requireAdmin(request)
+    const uid = await requireAdmin(request)
     const { marathonId } = request.data
 
     const marathonRef = db.collection('marathons').doc(marathonId)
@@ -109,6 +110,15 @@ export const reopenMarathon = onCall<ReopenMarathonInput>(
     await Promise.all(pendingCommits)
 
     await marathonRef.update({ cycle: newCycle, status: 'published', confirmedCount: 0 })
+
+    await logAuditEntry({
+      actorId: uid,
+      action: 'marathon_reopened',
+      targetType: 'marathon',
+      targetId: marathonId,
+      targetLabel: marathon.title as string | undefined,
+      metadata: { newCycle, carriedForward: carryForward.length },
+    })
 
     if (flaggedUserIds.size > 0) {
       const marathonTitle = marathon.title as string | undefined

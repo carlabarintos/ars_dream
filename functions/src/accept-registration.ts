@@ -1,6 +1,7 @@
 import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https'
 
 import { db } from './admin.js'
+import { logAuditEntry } from './audit-log.js'
 import { requireAdmin } from './require-admin.js'
 
 const PIPELINE_STATUSES = ['accepted', 'terms_accepted', 'payment_submitted', 'confirmed']
@@ -20,7 +21,7 @@ interface AcceptRegistrationInput {
 export const acceptRegistration = onCall<AcceptRegistrationInput>(
   { enforceAppCheck },
   async (request: CallableRequest<AcceptRegistrationInput>) => {
-    await requireAdmin(request)
+    const uid = await requireAdmin(request)
     const { registrationId, decision, offerImageUrl } = request.data
 
     const registrationRef = db.collection('registrations').doc(registrationId)
@@ -35,6 +36,13 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
 
     if (decision === 'rejected') {
       await registrationRef.update({ status: 'rejected', updatedAt: new Date() })
+      await logAuditEntry({
+        actorId: uid,
+        action: 'registration_rejected',
+        targetType: 'registration',
+        targetId: registrationId,
+        metadata: { marathonId: registration.marathonId as string, userId: registration.userId as string },
+      })
       return { status: 'rejected' }
     }
 
@@ -79,6 +87,14 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
         updatedAt: new Date(),
         ...(offerImageUrl ? { offerImageUrl } : {}),
       })
+    })
+
+    await logAuditEntry({
+      actorId: uid,
+      action: 'registration_accepted',
+      targetType: 'registration',
+      targetId: registrationId,
+      metadata: { marathonId: registration.marathonId as string, userId: registration.userId as string },
     })
 
     return { status: 'accepted' }

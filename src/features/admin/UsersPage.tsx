@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatUserName, useAllUsers } from '@/features/auth/use-user-profiles'
+import { usePaginatedSearch } from '@/lib/use-paginated-search'
 
-import { UserManagementDialog } from './UserManagementDialog'
-import { usePaginatedSearch } from './use-list-filter'
+import { ROLE_BADGE_VARIANT, UserManagementDialog } from './UserManagementDialog'
 
 export function UsersPage() {
   const { profiles, isLoading } = useAllUsers()
@@ -53,7 +53,7 @@ export function UsersPage() {
                   <TableCell className="font-medium">{formatUserName(profile)}</TableCell>
                   <TableCell className="text-muted-foreground">{profile.email ?? '—'}</TableCell>
                   <TableCell>
-                    <Badge variant={profile.role === 'admin' ? 'success' : 'secondary'}>{profile.role}</Badge>
+                    <Badge variant={ROLE_BADGE_VARIANT[profile.role]}>{profile.role}</Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     <UserManagementDialog profile={profile} />

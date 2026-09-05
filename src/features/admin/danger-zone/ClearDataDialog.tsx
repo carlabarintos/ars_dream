@@ -64,12 +64,12 @@ export function ClearDataDialog() {
               <li>All marathons, plus their banner and package images</li>
               <li>All announcements and their banner images</li>
               <li>All questionnaire templates</li>
-              <li>Every non-admin user, their Firebase Auth account, and their personal support thread</li>
+              <li>Every non-staff user, their Firebase Auth account, and their personal support thread</li>
               <li>Every registration belonging to a cleared marathon or a cleared user — proof-of-payment images included</li>
             </ul>
             <div className="text-muted-foreground rounded-md border border-dashed border-border p-3 text-xs">
-              Group chat messages are never touched. Admin accounts, and any registration that somehow
-              belongs to neither a cleared marathon nor a cleared user, are left exactly as they are.
+              Group chat messages are never touched. Admin and finance accounts, and any registration that
+              somehow belongs to neither a cleared marathon nor a cleared user, are left exactly as they are.
             </div>
             <label className="flex flex-col gap-1.5 text-sm">
               Type <span className="font-mono font-semibold">{CONFIRM_PHRASE}</span> to confirm

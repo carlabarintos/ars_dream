@@ -13,10 +13,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { useAuthStore } from '@/features/auth/auth-store'
 import { reopenMarathon, setMarathonStatus } from '@/features/marathons/api'
 import { useAllMarathons } from '@/features/marathons/use-marathons'
 import type { Marathon, MarathonStatus } from '@/types'
 
+import { logAdminAction } from './audit-log/api'
 import { ClearDataDialog } from './danger-zone/ClearDataDialog'
 import { ExportImportControls } from './export-import/ExportImportControls'
 import { MarathonFormDialog } from './MarathonFormDialog'
@@ -30,14 +32,27 @@ const STATUS_VARIANT: Record<MarathonStatus, 'secondary' | 'success' | 'destruct
 
 export function AdminDashboard() {
   const { marathons, isLoading } = useAllMarathons()
+  const actorId = useAuthStore((state) => state.firebaseUser?.uid)
+  const actorProfile = useAuthStore((state) => state.profile)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [reopening, setReopening] = useState<Marathon | null>(null)
   const [isReopening, setIsReopening] = useState(false)
 
-  async function handleStatusChange(id: string, status: MarathonStatus) {
-    setUpdatingId(id)
+  async function handleStatusChange(marathon: Marathon, status: MarathonStatus) {
+    setUpdatingId(marathon.id)
     try {
-      await setMarathonStatus(id, status)
+      await setMarathonStatus(marathon.id, status)
+      if (actorId) {
+        await logAdminAction({
+          actorId,
+          actorName: actorProfile?.displayName ?? null,
+          actorEmail: actorProfile?.email ?? null,
+          action: status === 'published' ? 'marathon_published' : 'marathon_closed',
+          targetType: 'marathon',
+          targetId: marathon.id,
+          targetLabel: marathon.title,
+        })
+      }
       toast.success(`Marathon marked as ${status}.`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
@@ -77,6 +92,12 @@ export function AdminDashboard() {
           </Button>
           <Button variant="outline" asChild>
             <Link to="/admin/questionnaire-templates">Manage Questionnaire Templates</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/admin/audit-log">Audit Log</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/admin/revenue">Revenue</Link>
           </Button>
           <ExportImportControls />
           <NotificationSettingsDialog />
@@ -121,7 +142,7 @@ export function AdminDashboard() {
                     <Button
                       size="sm"
                       loading={updatingId === marathon.id}
-                      onClick={() => handleStatusChange(marathon.id, 'published')}
+                      onClick={() => handleStatusChange(marathon, 'published')}
                     >
                       Publish
                     </Button>
@@ -136,7 +157,7 @@ export function AdminDashboard() {
                       variant="destructive"
                       size="sm"
                       loading={updatingId === marathon.id}
-                      onClick={() => handleStatusChange(marathon.id, 'closed')}
+                      onClick={() => handleStatusChange(marathon, 'closed')}
                     >
                       Close
                     </Button>

@@ -1,6 +1,7 @@
 import type { Timestamp } from 'firebase/firestore'
 
-export type UserRole = 'user' | 'admin'
+/** 'finance' can only see the revenue report (RequireFinanceAccess) — no other admin capability. */
+export type UserRole = 'user' | 'admin' | 'finance'
 
 export type Gender = 'male' | 'female' | 'other' | 'prefer_not_to_say'
 
@@ -201,5 +202,36 @@ export interface GroupMessage {
   senderId: string
   senderRole: MessageSenderRole
   text: string
+  createdAt: Timestamp
+}
+
+/**
+ * Kept in sync by hand with functions/src/audit-log.ts (a separate package that can't
+ * import from src/) — the two action lists must match.
+ */
+export type AuditAction =
+  | 'registration_accepted'
+  | 'registration_rejected'
+  | 'payment_confirmed'
+  | 'payment_rejected'
+  | 'marathon_published'
+  | 'marathon_closed'
+  | 'marathon_reopened'
+  | 'user_role_changed'
+  | 'operational_data_cleared'
+
+export type AuditTargetType = 'registration' | 'marathon' | 'user' | 'system'
+
+/** Immutable record of a sensitive admin action, for accountability once more than one person has admin access. Never updated or deleted once written. */
+export interface AuditLogEntry {
+  id: string
+  actorId: string
+  actorName: string | null
+  actorEmail: string | null
+  action: AuditAction
+  targetType: AuditTargetType
+  targetId: string
+  targetLabel: string | null
+  metadata: Record<string, string | number> | null
   createdAt: Timestamp
 }

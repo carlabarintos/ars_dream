@@ -1,7 +1,17 @@
-import { ClipboardListIcon, HomeIcon, MessageCircleIcon, TicketIcon, TrophyIcon, UserIcon, UsersIcon } from 'lucide-react'
+import {
+  BanknoteIcon,
+  ClipboardListIcon,
+  FileClockIcon,
+  HomeIcon,
+  MessageCircleIcon,
+  TicketIcon,
+  TrophyIcon,
+  UserIcon,
+  UsersIcon,
+} from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 
-import { useIsAdmin } from '@/features/auth/auth-store'
+import { useIsAdmin, useIsFinance } from '@/features/auth/auth-store'
 import { cn } from '@/lib/utils'
 
 const USER_ITEMS = [
@@ -32,12 +42,29 @@ const ADMIN_ITEMS = [
     icon: TrophyIcon,
     match: (p: string) => p === '/admin' || p.startsWith('/admin/marathons'),
   },
+  {
+    to: '/admin/audit-log',
+    label: 'Audit Log',
+    icon: FileClockIcon,
+    match: (p: string) => p.startsWith('/admin/audit-log'),
+  },
+]
+
+const FINANCE_ITEMS = [
+  { to: '/', label: 'Home', icon: HomeIcon, match: (p: string) => p === '/' },
+  {
+    to: '/admin/revenue',
+    label: 'Revenue',
+    icon: BanknoteIcon,
+    match: (p: string) => p.startsWith('/admin/revenue'),
+  },
 ]
 
 export function BottomNav() {
   const location = useLocation()
   const isAdmin = useIsAdmin()
-  const items = isAdmin ? ADMIN_ITEMS : USER_ITEMS
+  const isFinance = useIsFinance()
+  const items = isAdmin ? ADMIN_ITEMS : isFinance ? FINANCE_ITEMS : USER_ITEMS
 
   return (
     <nav

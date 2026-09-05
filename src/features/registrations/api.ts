@@ -44,6 +44,19 @@ export function subscribeToMarathonRegistrations(
   })
 }
 
+/**
+ * Every confirmed registration across every marathon, for the revenue report. Safe as
+ * an unfiltered query for 'finance' role too — firestore.rules grants that role read
+ * access to registrations exactly when status == 'confirmed', matching this query's
+ * own filter (see subscribeToAllMarathons for the same admin-query pattern).
+ */
+export function subscribeToConfirmedRegistrations(onData: (regs: Registration[]) => void) {
+  const q = query(registrationsRef, where('status', '==', 'confirmed'))
+  return onSnapshot(q, (snapshot) => {
+    onData(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Registration))
+  })
+}
+
 /** One-shot read of every registration across every marathon, for admin data export — no equivalent live-query exists elsewhere since every other read here is scoped by marathonId or userId. Safe as an unfiltered admin query for the same reason subscribeToAllMarathons is (see that function's comment). */
 export async function getAllRegistrationsOnce(): Promise<Registration[]> {
   const snapshot = await getDocs(registrationsRef)

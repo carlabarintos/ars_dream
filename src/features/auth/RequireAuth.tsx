@@ -22,3 +22,13 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
   if (profile?.role !== 'admin') return <Navigate to="/" replace />
   return <>{children}</>
 }
+
+/** Gates the revenue report — unlike RequireAdmin, also lets the lighter 'finance' role through. */
+export function RequireFinanceAccess({ children }: { children: ReactNode }) {
+  const profile = useAuthStore((state) => state.profile)
+  const isLoading = useAuthStore((state) => state.isLoading)
+
+  if (isLoading) return <PageSpinner />
+  if (profile?.role !== 'admin' && profile?.role !== 'finance') return <Navigate to="/" replace />
+  return <>{children}</>
+}

@@ -17,9 +17,8 @@ import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-p
 import { useMarathon } from '@/features/marathons/use-marathons'
 import { confirmPayment, rejectPayment } from '@/features/registrations/api'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
+import { usePaginatedSearch } from '@/lib/use-paginated-search'
 import type { Registration } from '@/types'
-
-import { usePaginatedSearch } from './use-list-filter'
 
 function totalDue(registration: Registration) {
   const addOnsTotal = (registration.selectedAddOns ?? []).reduce((sum, addOn) => sum + addOn.priceAmount, 0)

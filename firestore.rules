@@ -12,6 +12,14 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // 'finance' is a lighter role than admin — it can only read confirmed
+    // registrations (for the revenue report) and the audit log stays
+    // admin-only, so this is deliberately not granted anywhere else below.
+    function isFinance() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'finance';
+    }
+
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow create: if isSignedIn() && request.auth.uid == userId &&
@@ -44,8 +52,14 @@ service cloud.firestore {
       // ever creating a doc there. resource.data would throw on a null
       // resource instead of just reporting "not found", so that has to
       // short-circuit via `resource == null` before it's referenced.
+      // The finance branch only ever matches 'confirmed' docs, which lines up
+      // exactly with the revenue report's own query filter (status ==
+      // 'confirmed') — required for Firestore to prove an unfiltered-by-user
+      // collection query is safe (see subscribeToAllMarathons for the same
+      // pattern).
       allow read: if isSignedIn() &&
-        (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+        (resource == null || resource.data.userId == request.auth.uid || isAdmin() ||
+          (isFinance() && resource.data.status == 'confirmed'));
 
       // One registration per (user, marathon, cycle): the doc id is required
       // to be that exact composite key, so a second "join" attempt against
@@ -136,6 +150,13 @@ service cloud.firestore {
     match /announcements/{announcementId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();
+    }
+
+    match /auditLogs/{logId} {
+      // Admin-only, and immutable once written — no update/delete rule, so
+      // even an admin can't edit or erase an existing entry, only add new ones.
+      allow read: if isAdmin();
+      allow create: if isAdmin() && request.resource.data.actorId == request.auth.uid;
     }
 
     match /groupMessages/{messageId} {

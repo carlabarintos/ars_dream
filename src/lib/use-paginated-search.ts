@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 /**
- * Client-side search + "load more" pagination for an admin list that's already fully
+ * Client-side search + "load more" pagination for a list that's already fully
  * loaded via a realtime subscription (no server-side query to paginate against).
  * Resets the visible page back to `pageSize` whenever the search query changes.
  */
@@ -18,7 +18,8 @@ export function usePaginatedSearch<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query])
 
-  const filtered = query.trim() ? items.filter((item) => matches(item, query.trim().toLowerCase())) : items
+  const normalizedQuery = query.trim().toLowerCase()
+  const filtered = normalizedQuery ? items.filter((item) => matches(item, normalizedQuery)) : items
   const visible = filtered.slice(0, visibleCount)
 
   return {

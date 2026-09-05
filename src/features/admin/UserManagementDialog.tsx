@@ -23,7 +23,9 @@ import { formatUserName } from '@/features/auth/use-user-profiles'
 import { useMarathonsByIds } from '@/features/marathons/use-marathons'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
-import type { Gender, UserProfile } from '@/types'
+import type { Gender, UserProfile, UserRole } from '@/types'
+
+import { logAdminAction } from './audit-log/api'
 
 const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: 'male', label: 'Male' },
@@ -31,6 +33,18 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: 'other', label: 'Other' },
   { value: 'prefer_not_to_say', label: 'Prefer not to say' },
 ]
+
+const ROLE_OPTIONS: { value: UserRole; label: string; description: string }[] = [
+  { value: 'user', label: 'User', description: 'Standard registrant access only.' },
+  { value: 'finance', label: 'Finance', description: 'Can only view the revenue report — no other admin access.' },
+  { value: 'admin', label: 'Admin', description: 'Full access to marathons, registrations, and users.' },
+]
+
+export const ROLE_BADGE_VARIANT: Record<UserRole, 'success' | 'warning' | 'secondary'> = {
+  admin: 'success',
+  finance: 'warning',
+  user: 'secondary',
+}
 
 function BookingsTab({ userId }: { userId: string }) {
   const { registrations, isLoading } = useUserRegistrations(userId)
@@ -69,6 +83,7 @@ function BookingsTab({ userId }: { userId: string }) {
 
 function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: () => void }) {
   const currentUid = useAuthStore((state) => state.firebaseUser?.uid)
+  const actorProfile = useAuthStore((state) => state.profile)
   const [firstName, setFirstName] = useState(profile.firstName ?? '')
   const [middleName, setMiddleName] = useState(profile.middleName ?? '')
   const [lastName, setLastName] = useState(profile.lastName ?? '')
@@ -121,15 +136,26 @@ function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: () =>
     }
   }
 
-  async function handleToggleRole() {
-    const nextRole = profile.role === 'admin' ? 'user' : 'admin'
-    const verb = nextRole === 'admin' ? 'grant admin access to' : 'revoke admin access from'
-    if (!window.confirm(`Are you sure you want to ${verb} ${formatUserName(profile)}?`)) return
+  async function handleRoleChange(nextRole: UserRole) {
+    if (nextRole === profile.role) return
+    if (!window.confirm(`Change ${formatUserName(profile)}'s role from "${profile.role}" to "${nextRole}"?`)) return
 
     setIsUpdatingRole(true)
     try {
       await updateUserRole(profile.uid, nextRole)
-      toast.success(nextRole === 'admin' ? `${formatUserName(profile)} is now an admin.` : `${formatUserName(profile)} is no longer an admin.`)
+      if (currentUid) {
+        await logAdminAction({
+          actorId: currentUid,
+          actorName: actorProfile?.displayName ?? null,
+          actorEmail: actorProfile?.email ?? null,
+          action: 'user_role_changed',
+          targetType: 'user',
+          targetId: profile.uid,
+          targetLabel: formatUserName(profile),
+          metadata: { from: profile.role, to: nextRole },
+        })
+      }
+      toast.success(`${formatUserName(profile)}'s role is now "${nextRole}".`)
       onSaved()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
@@ -213,25 +239,29 @@ function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: () =>
 
       <div className="flex items-center justify-between gap-2 border-t border-border pt-4">
         <div>
-          <p className="text-sm font-medium">Admin access</p>
+          <p className="text-sm font-medium">Role</p>
           <p className="text-muted-foreground text-xs">
             {isSelf
-              ? "You can't change your own admin access."
-              : profile.role === 'admin'
-                ? 'This user can manage marathons, registrations, and other users.'
-                : 'Grant this user full admin access to the dashboard.'}
+              ? "You can't change your own role."
+              : ROLE_OPTIONS.find((option) => option.value === profile.role)?.description}
           </p>
         </div>
-        <Button
-          type="button"
-          variant={profile.role === 'admin' ? 'destructive' : 'outline'}
-          size="sm"
-          disabled={isSelf}
-          loading={isUpdatingRole}
-          onClick={handleToggleRole}
+        <Select
+          value={profile.role}
+          onValueChange={(value) => handleRoleChange(value as UserRole)}
+          disabled={isSelf || isUpdatingRole}
         >
-          {profile.role === 'admin' ? 'Revoke admin' : 'Make admin'}
-        </Button>
+          <SelectTrigger className="w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ROLE_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <DialogFooter>
@@ -258,7 +288,7 @@ export function UserManagementDialog({ profile }: { profile: UserProfile }) {
           <DialogTitle>Manage user</DialogTitle>
           <DialogDescription className="flex items-center gap-2">
             {profile.email ?? 'No email on file'}
-            <Badge variant={profile.role === 'admin' ? 'success' : 'secondary'}>{profile.role}</Badge>
+            <Badge variant={ROLE_BADGE_VARIANT[profile.role]}>{profile.role}</Badge>
           </DialogDescription>
         </DialogHeader>
 

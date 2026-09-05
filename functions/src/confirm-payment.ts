@@ -2,6 +2,7 @@ import { FieldValue } from 'firebase-admin/firestore'
 import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https'
 
 import { db } from './admin.js'
+import { logAuditEntry } from './audit-log.js'
 import { requireAdmin } from './require-admin.js'
 
 // The Functions emulator has no real App Check backend to attest against
@@ -18,8 +19,9 @@ interface ConfirmPaymentInput {
 export const confirmPayment = onCall<ConfirmPaymentInput>(
   { enforceAppCheck },
   async (request: CallableRequest<ConfirmPaymentInput>) => {
-    await requireAdmin(request)
+    const uid = await requireAdmin(request)
     const { registrationId, decision, adminNote } = request.data
+    let loggedTarget: { marathonId: string; userId: string } | undefined
 
     await db.runTransaction(async (transaction) => {
       const registrationRef = db.collection('registrations').doc(registrationId)
@@ -31,6 +33,7 @@ export const confirmPayment = onCall<ConfirmPaymentInput>(
       if (registration.status !== 'payment_submitted') {
         throw new HttpsError('failed-precondition', 'No payment proof awaiting review.')
       }
+      loggedTarget = { marathonId: registration.marathonId as string, userId: registration.userId as string }
 
       if (decision === 'rejected') {
         transaction.update(registrationRef, {
@@ -58,6 +61,16 @@ export const confirmPayment = onCall<ConfirmPaymentInput>(
       })
       transaction.update(marathonRef, { confirmedCount: FieldValue.increment(1) })
     })
+
+    if (loggedTarget) {
+      await logAuditEntry({
+        actorId: uid,
+        action: decision === 'confirmed' ? 'payment_confirmed' : 'payment_rejected',
+        targetType: 'registration',
+        targetId: registrationId,
+        metadata: decision === 'rejected' && adminNote ? { ...loggedTarget, adminNote } : loggedTarget,
+      })
+    }
 
     return { status: decision === 'confirmed' ? 'confirmed' : 'payment_rejected' }
   },

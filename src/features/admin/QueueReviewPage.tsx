@@ -11,12 +11,12 @@ import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-p
 import { useMarathon } from '@/features/marathons/use-marathons'
 import { decideQueueRegistration } from '@/features/registrations/api'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
+import { usePaginatedSearch } from '@/lib/use-paginated-search'
 import type { Registration } from '@/types'
 
 import { exportQueueCsv } from './export-import/full-export'
 import { ImportDialog } from './export-import/ImportDialog'
 import { OfferChatDialog } from './OfferChatDialog'
-import { usePaginatedSearch } from './use-list-filter'
 
 const STATUS_BADGE_VARIANT: Record<Exclude<Registration['status'], 'queued'>, 'success' | 'destructive' | 'secondary'> = {
   accepted: 'success',

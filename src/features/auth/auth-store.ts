@@ -22,3 +22,4 @@ export const useAuthStore = create<AuthState>((set) => ({
 }))
 
 export const useIsAdmin = () => useAuthStore((state) => state.profile?.role === 'admin')
+export const useIsFinance = () => useAuthStore((state) => state.profile?.role === 'finance')
