@@ -1,14 +1,18 @@
+import { useState } from 'react'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/features/auth/auth-store'
-import { AnnouncementCarousel } from '@/features/messages/AnnouncementCarousel'
+import { AnnouncementsBoard } from '@/features/messages/AnnouncementsBoard'
 import { isAnnouncementVisibleTo } from '@/features/messages/api'
 import { useAnnouncements } from '@/features/messages/use-messages'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
+import { cn } from '@/lib/utils'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
 import type { Marathon } from '@/types'
 
 import { MarathonCard } from './MarathonCard'
+import { getMarathonAvailability, type MarathonAvailability } from './marathon-status'
 import { useMarathonsByIds, usePublishedMarathons } from './use-marathons'
 
 function matchesQuery(marathon: Marathon, query: string) {
@@ -20,12 +24,19 @@ function isBeforeFeedDeadline(item: { feedDeadline?: { toDate: () => Date } }) {
   return !item.feedDeadline || item.feedDeadline.toDate().getTime() >= Date.now()
 }
 
+const AVAILABILITY_FILTERS: { label: string; value: MarathonAvailability | 'all' }[] = [
+  { label: 'All', value: 'all' },
+  { label: 'Open', value: 'open' },
+  { label: 'Filling Up', value: 'filling' },
+]
+
 export function TimelinePage() {
   const { marathons, isLoading: isLoadingMarathons } = usePublishedMarathons()
   const { announcements, isLoading: isLoadingAnnouncements } = useAnnouncements()
   const uid = useAuthStore((state) => state.firebaseUser?.uid)
   const { registrations } = useUserRegistrations(uid)
   const marathonById = useMarathonsByIds(registrations.map((r) => r.marathonId))
+  const [availabilityFilter, setAvailabilityFilter] = useState<MarathonAvailability | 'all'>('all')
 
   const isLoading = isLoadingMarathons || isLoadingAnnouncements
   const registrationByMarathon = new Map(registrations.map((r) => [r.marathonId, r]))
@@ -38,11 +49,17 @@ export function TimelinePage() {
     .filter(isBeforeFeedDeadline)
     .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime())
 
-  const { query, setQuery, filtered, visible, hasMore, loadMore } = usePaginatedSearch(visibleMarathons, matchesQuery)
+  const openCount = visibleMarathons.filter((m) => getMarathonAvailability(m) === 'open').length
+  const fillingCount = visibleMarathons.filter((m) => getMarathonAvailability(m) === 'filling').length
+  const availableMarathons = visibleMarathons.filter(
+    (m) => availabilityFilter === 'all' || getMarathonAvailability(m) === availabilityFilter,
+  )
+
+  const { query, setQuery, filtered, visible, hasMore, loadMore } = usePaginatedSearch(availableMarathons, matchesQuery)
 
   return (
     <>
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary via-brand-navy to-[#041d3d] px-4 py-14 sm:py-20">
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary via-brand-navy to-[#041d3d] px-4 pt-14 pb-24 sm:pt-20 sm:pb-28">
         <svg
           className="pointer-events-none absolute inset-0 h-full w-full opacity-30"
           viewBox="0 0 1200 500"
@@ -65,38 +82,77 @@ export function TimelinePage() {
           <line x1="35" y1="95" x2="265" y2="95" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
           <line x1="35" y1="205" x2="265" y2="205" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
         </svg>
-        <div className="relative mx-auto max-w-5xl">
-          <span className="mb-4 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-white/70 uppercase before:h-px before:w-6 before:bg-white/70">
-            2026 World Tour
-          </span>
-          <h1 className="font-display max-w-[11ch] text-5xl leading-[0.95] tracking-wide text-white sm:text-6xl">
-            Run the world.
-            <br />
-            One queue at a time.
-          </h1>
-          <p className="mt-5 max-w-[46ch] text-white/80">
-            Reserve your spot on ARS Dream's next international marathon tour — limited slots per
-            package, reviewed and confirmed by our team.
-          </p>
+
+        <div className="relative mx-auto flex max-w-5xl flex-col gap-8">
+          <div>
+            <span className="mb-4 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-white/70 uppercase before:h-px before:w-6 before:bg-white/70">
+              2026 World Tour
+            </span>
+            <h1 className="font-display max-w-[11ch] text-5xl leading-[0.95] tracking-wide text-white sm:text-6xl">
+              Run the world.
+              <br />
+              One queue at a time.
+            </h1>
+            <p className="mt-5 max-w-[46ch] text-white/80">
+              Reserve your spot on ARS Dream's next international marathon tour — limited slots per
+              package, reviewed and confirmed by our team.
+            </p>
+          </div>
+
+          {!isLoadingAnnouncements && <AnnouncementsBoard announcements={visibleAnnouncements} />}
         </div>
       </section>
 
-      <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-8">
-        {!isLoadingAnnouncements && <AnnouncementCarousel announcements={visibleAnnouncements} />}
+      {!isLoading && visibleMarathons.length > 0 && (
+        <div className="relative z-10 mx-auto -mt-10 max-w-5xl px-4 sm:-mt-12">
+          <div className="border-border bg-card flex flex-wrap items-center gap-3 rounded-2xl border p-4 shadow-lg sm:p-5">
+            <Input
+              placeholder="Search by name or destination…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="min-w-[220px] flex-1 bg-transparent"
+            />
+            <div className="flex flex-wrap gap-2">
+              {AVAILABILITY_FILTERS.map((filter) => (
+                <button
+                  key={filter.value}
+                  type="button"
+                  aria-pressed={availabilityFilter === filter.value}
+                  onClick={() => setAvailabilityFilter(filter.value)}
+                  className={cn(
+                    'rounded-full border px-3.5 py-2 text-sm font-medium whitespace-nowrap transition-colors',
+                    availabilityFilter === filter.value
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 pt-8 pb-8">
         {!isLoading && visibleMarathons.length > 0 && (
-          <Input
-            placeholder="Search by name or destination…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="max-w-sm"
-          />
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <span className="text-primary text-xs font-semibold tracking-[0.2em] uppercase">Marathons</span>
+              <h2 className="font-display mt-1 text-3xl tracking-wide">Upcoming Marathons</h2>
+            </div>
+            <span className="text-muted-foreground font-mono text-xs">
+              {openCount} OPEN · {fillingCount} FILLING
+            </span>
+          </div>
         )}
 
         {isLoading ? (
           <p className="text-muted-foreground">Loading…</p>
         ) : visibleMarathons.length === 0 ? (
           <p className="text-muted-foreground">No marathons published yet. Check back soon.</p>
+        ) : availableMarathons.length === 0 ? (
+          <p className="text-muted-foreground">No marathons match this filter.</p>
         ) : filtered.length === 0 ? (
           <p className="text-muted-foreground">No marathons match your search.</p>
         ) : (

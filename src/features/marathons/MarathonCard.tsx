@@ -7,8 +7,16 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import type { Marathon, Registration } from '@/types'
 
+import { getMarathonAvailability } from './marathon-status'
+
 function formatDate(date: Date) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+const STATUS_PILL = {
+  open: { label: 'Open', variant: 'success' as const },
+  filling: { label: 'Filling Up', variant: 'warning' as const },
+  closed: { label: 'Closed', variant: 'secondary' as const },
 }
 
 export function MarathonCard({
@@ -21,15 +29,10 @@ export function MarathonCard({
   const eventDate = marathon.eventDate.toDate()
   const spotsLeft = Math.max(marathon.capacity - marathon.confirmedCount, 0)
   const percentFull = marathon.capacity > 0 ? (marathon.confirmedCount / marathon.capacity) * 100 : 0
-  const isFull = spotsLeft <= 0
   const closesAt = marathon.registrationClosesAt.toDate()
+  const isFull = spotsLeft <= 0
   const isClosed = new Date() > closesAt
-
-  const statusPill = isFull || isClosed
-    ? { label: 'Closed', variant: 'secondary' as const }
-    : percentFull >= 75
-      ? { label: 'Filling Up', variant: 'warning' as const }
-      : { label: 'Open', variant: 'success' as const }
+  const statusPill = STATUS_PILL[getMarathonAvailability(marathon)]
 
   return (
     <Card className="overflow-hidden py-0 gap-0">

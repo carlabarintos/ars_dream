@@ -1,6 +1,7 @@
 import {
   ArrowRightIcon,
   CheckCircle2Icon,
+  ChevronDownIcon,
   ClipboardListIcon,
   CreditCardIcon,
   FileTextIcon,
@@ -9,10 +10,13 @@ import {
   ShieldCheckIcon,
   TrophyIcon,
 } from 'lucide-react'
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/Logo'
+import { Reveal } from './Reveal'
+import { useParallax } from './use-parallax'
 
 const DESTINATIONS = [
   {
@@ -93,10 +97,17 @@ const VALUE_PROPS = [
   },
 ]
 
-function RouteLines({ className }: { className?: string }) {
+function RouteLines({
+  className,
+  style,
+}: {
+  className?: string
+  style?: CSSProperties
+}) {
   return (
     <svg
       className={className}
+      style={style}
       viewBox="0 0 1200 500"
       preserveAspectRatio="none"
       aria-hidden="true"
@@ -110,16 +121,22 @@ function RouteLines({ className }: { className?: string }) {
 
 export function LandingPage() {
   const year = new Date().getFullYear()
+  const heroParallax = useParallax(0.15)
+  const linesParallax = useParallax(0.06)
 
   return (
     <>
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary via-brand-navy to-[#041d3d] px-4 py-20 sm:py-28">
-        <RouteLines className="pointer-events-none absolute inset-0 h-full w-full opacity-30" />
+        <RouteLines
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-30"
+          style={{ transform: `translateY(${linesParallax}px)` }}
+        />
         <svg
           className="pointer-events-none absolute top-1/2 right-[-10%] h-[min(60vw,520px)] w-[min(60vw,520px)] -translate-y-1/2 opacity-70 max-lg:hidden"
           viewBox="0 0 300 300"
           aria-hidden="true"
+          style={{ transform: `translateY(calc(-50% + ${heroParallax}px))` }}
         >
           <circle cx="150" cy="150" r="130" fill="none" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
           <ellipse cx="150" cy="150" rx="52" ry="130" fill="none" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
@@ -130,7 +147,7 @@ export function LandingPage() {
         </svg>
 
         <div className="relative mx-auto flex max-w-5xl flex-col items-center text-center">
-          <div className="mb-8 inline-flex rounded-2xl bg-white/95 p-4 shadow-xl sm:p-5">
+          <div className="animate-fade-up-in mb-8 inline-flex rounded-2xl bg-white/95 p-4 shadow-xl sm:p-5">
             <img
               src="/ars-dream-logo-jp.avif"
               alt="ARS Dream Sports — アールス ドリーム"
@@ -138,19 +155,31 @@ export function LandingPage() {
             />
           </div>
 
-          <span className="mb-4 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-white/70 uppercase before:h-px before:w-6 before:bg-white/70 after:h-px after:w-6 after:bg-white/70">
+          <span
+            className="animate-fade-up-in mb-4 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-white/70 uppercase before:h-px before:w-6 before:bg-white/70 after:h-px after:w-6 after:bg-white/70"
+            style={{ animationDelay: '100ms' }}
+          >
             Manila's Marathon Travel Specialists
           </span>
-          <h1 className="font-display max-w-[16ch] text-6xl leading-[0.95] tracking-wide text-white sm:text-7xl md:text-8xl">
+          <h1
+            className="animate-fade-up-in font-display max-w-[16ch] text-6xl leading-[0.95] tracking-wide text-white sm:text-7xl md:text-8xl"
+            style={{ animationDelay: '180ms' }}
+          >
             Run the world's greatest marathons.
           </h1>
-          <p className="mt-6 max-w-[52ch] text-lg text-white/80">
+          <p
+            className="animate-fade-up-in mt-6 max-w-[52ch] text-lg text-white/80"
+            style={{ animationDelay: '320ms' }}
+          >
             From Tokyo to New York, Berlin to Sydney — we handle your tour package for the World
             Marathon Majors, one carefully managed queue at a time.
           </p>
 
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <Button size="lg" asChild className="text-base">
+          <div
+            className="animate-fade-up-in mt-9 flex flex-col gap-3 sm:flex-row"
+            style={{ animationDelay: '440ms' }}
+          >
+            <Button size="lg" asChild className="text-base transition-transform hover:-translate-y-0.5">
               <Link to="/sign-in">
                 Reserve Your Spot
                 <ArrowRightIcon />
@@ -160,25 +189,36 @@ export function LandingPage() {
               size="lg"
               variant="outline"
               asChild
-              className="border-white/30 bg-white/5 text-base text-white hover:bg-white/10 hover:text-white"
+              className="border-white/30 bg-white/5 text-base text-white transition-transform hover:-translate-y-0.5 hover:bg-white/10 hover:text-white"
             >
               <a href="#how-it-works">See How It Works</a>
             </Button>
           </div>
 
-          <div className="mt-14 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-white/70">
+          <div
+            className="animate-fade-up-in mt-14 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-white/70"
+            style={{ animationDelay: '540ms' }}
+          >
             <span>5 World Marathon Majors</span>
             <span className="size-1 rounded-full bg-white/40" />
             <span>Queue-Based Fair Booking</span>
             <span className="size-1 rounded-full bg-white/40" />
             <span>Manila-Based Race Concierge</span>
           </div>
+
+          <a
+            href="#how-it-works"
+            aria-label="Scroll to how it works"
+            className="text-white/50 hover:text-white/80 mt-16 animate-bounce transition-colors motion-reduce:animate-none"
+          >
+            <ChevronDownIcon className="size-6" />
+          </a>
         </div>
       </section>
 
       {/* Destinations */}
       <section className="mx-auto max-w-6xl px-4 py-20 sm:py-24">
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal className="mx-auto max-w-2xl text-center">
           <span className="text-primary text-xs font-semibold tracking-[0.2em] uppercase">
             Where We Take You
           </span>
@@ -189,21 +229,20 @@ export function LandingPage() {
             Each tour package is built around one of the world's most iconic race weekends — we
             handle the logistics, you handle the miles.
           </p>
-        </div>
+        </Reveal>
 
         <div className="mt-12 grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-5">
-          {DESTINATIONS.map((destination) => (
-            <div
-              key={destination.city}
-              className="border-border bg-card rounded-xl border p-5 transition-shadow hover:shadow-md"
-            >
-              <span className="font-display text-primary/15 text-4xl">{destination.n}</span>
-              <h3 className="font-display mt-2 text-2xl tracking-wide">{destination.city}</h3>
-              <p className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
-                {destination.country}
-              </p>
-              <p className="text-muted-foreground mt-3 text-sm">{destination.note}</p>
-            </div>
+          {DESTINATIONS.map((destination, index) => (
+            <Reveal key={destination.city} delay={index * 80}>
+              <div className="border-border bg-card h-full rounded-xl border p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+                <span className="font-display text-primary/15 text-4xl">{destination.n}</span>
+                <h3 className="font-display mt-2 text-2xl tracking-wide">{destination.city}</h3>
+                <p className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+                  {destination.country}
+                </p>
+                <p className="text-muted-foreground mt-3 text-sm">{destination.note}</p>
+              </div>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -211,7 +250,7 @@ export function LandingPage() {
       {/* How it works */}
       <section id="how-it-works" className="bg-secondary/40 px-4 py-20 sm:py-24">
         <div className="mx-auto max-w-6xl">
-          <div className="mx-auto max-w-2xl text-center">
+          <Reveal className="mx-auto max-w-2xl text-center">
             <span className="text-primary text-xs font-semibold tracking-[0.2em] uppercase">
               The Process
             </span>
@@ -222,12 +261,12 @@ export function LandingPage() {
               A real travel-agency process, not an instant checkout — every applicant is reviewed
               so we can guarantee your package.
             </p>
-          </div>
+          </Reveal>
 
           <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
             {STEPS.map((step, index) => (
-              <div key={step.title} className="flex flex-col items-center gap-3 text-center">
-                <div className="relative">
+              <Reveal key={step.title} delay={index * 100} className="flex flex-col items-center gap-3 text-center">
+                <div className="relative transition-transform duration-300 hover:scale-105">
                   <span className="border-primary/20 bg-card text-primary flex size-14 items-center justify-center rounded-full border-2">
                     <step.icon className="size-6" />
                   </span>
@@ -237,7 +276,7 @@ export function LandingPage() {
                 </div>
                 <h3 className="font-semibold">{step.title}</h3>
                 <p className="text-muted-foreground text-sm">{step.description}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -245,24 +284,28 @@ export function LandingPage() {
 
       {/* Value props */}
       <section className="mx-auto max-w-6xl px-4 py-20 sm:py-24">
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal className="mx-auto max-w-2xl text-center">
           <span className="text-primary text-xs font-semibold tracking-[0.2em] uppercase">
             Why Travel With Us
           </span>
           <h2 className="font-display mt-3 text-4xl tracking-wide sm:text-5xl">
             Built for runners who fly to race.
           </h2>
-        </div>
+        </Reveal>
 
         <div className="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-3">
-          {VALUE_PROPS.map((prop) => (
-            <div key={prop.title} className="flex flex-col items-center gap-3 text-center">
-              <span className="bg-primary/10 text-primary flex size-12 items-center justify-center rounded-full">
+          {VALUE_PROPS.map((prop, index) => (
+            <Reveal
+              key={prop.title}
+              delay={index * 120}
+              className="flex flex-col items-center gap-3 text-center"
+            >
+              <span className="bg-primary/10 text-primary flex size-12 items-center justify-center rounded-full transition-transform duration-300 hover:scale-110">
                 <prop.icon className="size-6" />
               </span>
               <h3 className="font-semibold">{prop.title}</h3>
               <p className="text-muted-foreground text-sm">{prop.description}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -270,7 +313,7 @@ export function LandingPage() {
       {/* Final CTA */}
       <section className="relative overflow-hidden bg-gradient-to-br from-brand-navy to-[#041d3d] px-4 py-20 text-center sm:py-24">
         <RouteLines className="pointer-events-none absolute inset-0 h-full w-full opacity-20" />
-        <div className="relative mx-auto max-w-2xl">
+        <Reveal className="relative mx-auto max-w-2xl">
           <h2 className="font-display text-4xl tracking-wide text-white sm:text-5xl">
             Your next start line is waiting.
           </h2>
@@ -278,13 +321,13 @@ export function LandingPage() {
             Create your account to see live availability and join the queue for our current
             tours.
           </p>
-          <Button size="lg" asChild className="mt-8 text-base">
+          <Button size="lg" asChild className="mt-8 text-base transition-transform hover:-translate-y-0.5">
             <Link to="/sign-in">
               Create Your Account
               <ArrowRightIcon />
             </Link>
           </Button>
-        </div>
+        </Reveal>
       </section>
 
       {/* Footer */}
