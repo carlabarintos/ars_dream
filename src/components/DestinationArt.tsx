@@ -111,9 +111,12 @@ export function DestinationArt({ city, className }: { city: MedalCity; className
             strokeWidth="4"
             opacity="0.85"
           />
-          <path d="M58 92 Q80 32 102 92 Z" fill="#F5F1E6" />
-          <path d="M90 96 Q114 28 138 96 Z" fill="#EDE8D9" />
-          <path d="M126 96 Q148 40 170 96 Z" fill="#F5F1E6" />
+          <path d="M86 98 L117 21 C 140 34, 149 66, 154 98 Z" fill="#EDE8D9" />
+          <path d="M117 21 L100 96" stroke="#D8D0BC" strokeWidth="1" fill="none" />
+          <path d="M52 98 L79 41 C 98 51, 104 76, 108 98 Z" fill="#F7F3E9" />
+          <path d="M79 41 L68 96" stroke="#E4DECB" strokeWidth="1" fill="none" />
+          <path d="M130 98 L152 46 C 166 54, 170 76, 174 98 Z" fill="#F7F3E9" />
+          <path d="M152 46 L141 96" stroke="#E4DECB" strokeWidth="1" fill="none" />
           <rect x="20" y="96" width="200" height="6" fill="#00301a" opacity="0.6" />
         </>
       ) : null}
