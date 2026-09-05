@@ -235,3 +235,12 @@ export interface AuditLogEntry {
   metadata: Record<string, string | number> | null
   createdAt: Timestamp
 }
+
+export type LegalPageId = 'terms' | 'privacy'
+
+/** An admin-authored override for a legal page — falls back to that page's built-in default copy whenever body is empty. */
+export interface LegalContent {
+  id: LegalPageId
+  body: string
+  updatedAt: Timestamp
+}

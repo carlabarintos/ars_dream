@@ -99,6 +99,9 @@ export function AdminDashboard() {
           <Button variant="outline" asChild>
             <Link to="/admin/revenue">Revenue</Link>
           </Button>
+          <Button variant="outline" asChild>
+            <Link to="/admin/legal-content">Legal Pages</Link>
+          </Button>
           <ExportImportControls />
           <NotificationSettingsDialog />
           <ClearDataDialog />

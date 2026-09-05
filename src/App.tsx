@@ -18,8 +18,8 @@ import { QuestionnaireTemplatesPage } from '@/features/admin/QuestionnaireTempla
 import { RevenuePage } from '@/features/admin/RevenuePage'
 import { UsersPage } from '@/features/admin/UsersPage'
 import { LandingPage } from '@/features/marketing/LandingPage'
+import { LegalContentPage } from '@/features/admin/LegalContentPage'
 import { PrivacyPolicyPage } from '@/features/legal/PrivacyPolicyPage'
-import { RefundPolicyPage } from '@/features/legal/RefundPolicyPage'
 import { TermsOfServicePage } from '@/features/legal/TermsOfServicePage'
 import { MessagesPage } from '@/features/messages/MessagesPage'
 import { PackageSelectionPage } from '@/features/marathons/PackageSelectionPage'
@@ -47,7 +47,6 @@ function AppRoutes() {
         <Route path="/" element={<HomeRoute />} />
         <Route path="/terms" element={<TermsOfServicePage />} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
-        <Route path="/refund-policy" element={<RefundPolicyPage />} />
         <Route
           path="/marathons/:marathonId/packages"
           element={
@@ -157,6 +156,16 @@ function AppRoutes() {
               <RequireFinanceAccess>
                 <RevenuePage />
               </RequireFinanceAccess>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/legal-content"
+          element={
+            <RequireAuth>
+              <RequireAdmin>
+                <LegalContentPage />
+              </RequireAdmin>
             </RequireAuth>
           }
         />

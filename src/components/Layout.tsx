@@ -101,9 +101,6 @@ export function Layout({ children }: { children: ReactNode }) {
           <Link to="/privacy" className="hover:text-foreground hover:underline">
             Privacy Policy
           </Link>
-          <Link to="/refund-policy" className="hover:text-foreground hover:underline">
-            Refund Policy
-          </Link>
         </div>
       </footer>
       {firebaseUser && <BottomNav />}

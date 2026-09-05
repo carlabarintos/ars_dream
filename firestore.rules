@@ -56,6 +56,13 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    match /legalContent/{docId} {
+      // Public — powers /terms and /privacy, which must render for
+      // signed-out visitors too (see App.tsx's routes and LegalPageLayout).
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /registrations/{registrationId} {
       // `resource` is null for a registration id that doesn't exist yet — e.g.
       // joinQueue()'s existence check (getDoc at the deterministic id) before

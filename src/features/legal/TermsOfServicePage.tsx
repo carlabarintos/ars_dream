@@ -1,6 +1,27 @@
+import { PageSpinner } from '@/components/ui/spinner'
+
 import { LegalPageLayout } from './LegalPageLayout'
+import { useLegalContent } from './use-legal-content'
 
 export function TermsOfServicePage() {
+  const { content, isLoading } = useLegalContent('terms')
+
+  if (isLoading) return <PageSpinner />
+
+  if (content?.body) {
+    return (
+      <LegalPageLayout
+        title="Terms of Service"
+        lastUpdated={content.updatedAt?.toDate().toLocaleDateString() ?? '—'}
+        showDraftNotice={false}
+      >
+        {content.body.split(/\n{2,}/).map((paragraph, index) => (
+          <p key={index}>{paragraph}</p>
+        ))}
+      </LegalPageLayout>
+    )
+  }
+
   return (
     <LegalPageLayout title="Terms of Service" lastUpdated="September 5, 2026">
       <section>
@@ -28,11 +49,8 @@ export function TermsOfServicePage() {
         <h2>2. Payments</h2>
         <p>
           A registration is only confirmed once ARS Dream has verified your submitted proof of payment.
-          Submitting proof of payment does not by itself confirm your package — see our{' '}
-          <a href="/refund-policy" className="text-primary hover:underline">
-            Refund Policy
-          </a>{' '}
-          for what happens if payment is rejected or a confirmed booking is later cancelled.
+          Submitting proof of payment does not by itself confirm your package. If payment is rejected,
+          you will be notified and given a chance to resolve the issue and resubmit.
         </p>
       </section>
 

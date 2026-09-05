@@ -1,6 +1,27 @@
+import { PageSpinner } from '@/components/ui/spinner'
+
 import { LegalPageLayout } from './LegalPageLayout'
+import { useLegalContent } from './use-legal-content'
 
 export function PrivacyPolicyPage() {
+  const { content, isLoading } = useLegalContent('privacy')
+
+  if (isLoading) return <PageSpinner />
+
+  if (content?.body) {
+    return (
+      <LegalPageLayout
+        title="Privacy Policy"
+        lastUpdated={content.updatedAt?.toDate().toLocaleDateString() ?? '—'}
+        showDraftNotice={false}
+      >
+        {content.body.split(/\n{2,}/).map((paragraph, index) => (
+          <p key={index}>{paragraph}</p>
+        ))}
+      </LegalPageLayout>
+    )
+  }
+
   return (
     <LegalPageLayout title="Privacy Policy" lastUpdated="September 5, 2026">
       <section>
