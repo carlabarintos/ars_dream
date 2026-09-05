@@ -2,7 +2,7 @@ import { v1 } from 'firebase-admin/firestore'
 import { logger } from 'firebase-functions'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 
-import { sentryDsn, withSentry } from './sentry.js'
+import { withSentry } from './sentry.js'
 
 // One-time manual setup required before this can succeed in a real project
 // (not something this function can provision for itself):
@@ -26,7 +26,7 @@ const client = new v1.FirestoreAdminClient()
  * format, restorable via `gcloud firestore import`.
  */
 export const scheduledFirestoreBackup = onSchedule(
-  { schedule: 'every day 03:00', timeZone: 'Asia/Manila', secrets: [sentryDsn], retryCount: 2 },
+  { schedule: 'every day 03:00', timeZone: 'Asia/Manila', retryCount: 2 },
   withSentry(async () => {
     const bucket = process.env[BACKUP_BUCKET_ENV]
     if (!bucket) {

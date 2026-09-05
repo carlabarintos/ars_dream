@@ -5,7 +5,7 @@ import { logAuditEntry } from './audit-log.js'
 import { notifyUser } from './notify-user.js'
 import { requireAdmin } from './require-admin.js'
 import { resendApiKey } from './send-email.js'
-import { sentryDsn, withSentry } from './sentry.js'
+import { withSentry } from './sentry.js'
 
 // The Functions emulator has no real App Check backend to attest against
 // (the local demo- project isn't a real Firebase project), so enforcement
@@ -26,7 +26,7 @@ interface ReopenMarathonInput {
 }
 
 export const reopenMarathon = onCall<ReopenMarathonInput>(
-  { enforceAppCheck, secrets: [resendApiKey, sentryDsn] },
+  { enforceAppCheck, secrets: [resendApiKey] },
   withSentry(async (request: CallableRequest<ReopenMarathonInput>) => {
     const uid = await requireAdmin(request)
     const { marathonId } = request.data

@@ -4,7 +4,7 @@ import { onCall, type CallableRequest } from 'firebase-functions/v2/https'
 import { auth, db, storage } from './admin.js'
 import { logAuditEntry } from './audit-log.js'
 import { requireAdmin } from './require-admin.js'
-import { sentryDsn, withSentry } from './sentry.js'
+import { withSentry } from './sentry.js'
 
 // The Functions emulator has no real App Check backend to attest against
 // (the local demo- project isn't a real Firebase project), so enforcement
@@ -46,7 +46,7 @@ async function deleteStoragePrefix(prefix: string) {
  * log and is never touched here.
  */
 export const clearOperationalData = onCall(
-  { enforceAppCheck, timeoutSeconds: 300, secrets: [sentryDsn] },
+  { enforceAppCheck, timeoutSeconds: 300 },
   withSentry(async (request: CallableRequest) => {
   const uid = await requireAdmin(request)
 

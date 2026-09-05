@@ -3,7 +3,7 @@ import { onDocumentUpdated } from 'firebase-functions/v2/firestore'
 import { db } from './admin.js'
 import { notifyUser } from './notify-user.js'
 import { resendApiKey } from './send-email.js'
-import { sentryDsn, withSentry } from './sentry.js'
+import { withSentry } from './sentry.js'
 
 const NOTIFICATION_COPY: Record<string, { title: string; body: string }> = {
   accepted: {
@@ -25,7 +25,7 @@ const NOTIFICATION_COPY: Record<string, { title: string; body: string }> = {
 }
 
 export const onRegistrationStatusChange = onDocumentUpdated(
-  { document: 'registrations/{registrationId}', secrets: [resendApiKey, sentryDsn] },
+  { document: 'registrations/{registrationId}', secrets: [resendApiKey] },
   withSentry(async (event) => {
     const before = event.data?.before.data()
     const after = event.data?.after.data()

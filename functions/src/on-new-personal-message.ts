@@ -2,10 +2,10 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore'
 
 import { db } from './admin.js'
 import { sendAndPruneTokens } from './notify.js'
-import { sentryDsn, withSentry } from './sentry.js'
+import { withSentry } from './sentry.js'
 
 export const onNewPersonalMessage = onDocumentCreated(
-  { document: 'personalThreads/{userId}/messages/{messageId}', secrets: [sentryDsn] },
+  { document: 'personalThreads/{userId}/messages/{messageId}' },
   withSentry(async (event) => {
     const message = event.data?.data()
     const userId = event.params.userId

@@ -1,19 +1,23 @@
-import { defineSecret } from 'firebase-functions/params'
 import { logger } from 'firebase-functions'
 import { HttpsError } from 'firebase-functions/v2/https'
-
-export const sentryDsn = defineSecret('SENTRY_DSN')
 
 let sentryPromise: Promise<typeof import('@sentry/node')> | null = null
 
 /**
+ * Sentry DSNs are meant to be public (the frontend already ships one in its
+ * bundle), so this is a plain runtime env var rather than a Secret Manager
+ * binding — set via a committed functions/.env.<project-id> file, same
+ * pattern as FIRESTORE_BACKUP_BUCKET (see scheduled-backup.ts). A Secret
+ * Manager binding would also require the secret to already exist with a
+ * non-empty value before every deploy, which defeats staying optional.
+ *
  * Dynamically imported so @sentry/node is only ever required (and only ever
  * initialized) when an error actually needs reporting AND a DSN is
  * configured — avoids the cold-start cost of loading it in every invocation
  * of every function when Sentry isn't set up.
  */
 function loadSentry() {
-  const dsn = sentryDsn.value()
+  const dsn = process.env.SENTRY_DSN
   if (!dsn) return null
   if (!sentryPromise) {
     sentryPromise = import('@sentry/node').then((Sentry) => {

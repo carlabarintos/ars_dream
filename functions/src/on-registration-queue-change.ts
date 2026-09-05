@@ -1,14 +1,14 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore'
 
 import { db } from './admin.js'
-import { sentryDsn, withSentry } from './sentry.js'
+import { withSentry } from './sentry.js'
 
 // Keeps `queuePosition` on every queued registration in sync with its place
 // in line (1 = next up), recomputed whenever a registration joins or leaves
 // the 'queued' state for a marathon (new signup, admin accept/reject, or a
 // queued registration being deleted).
 export const onRegistrationQueueChange = onDocumentWritten(
-  { document: 'registrations/{registrationId}', secrets: [sentryDsn] },
+  { document: 'registrations/{registrationId}' },
   withSentry(async (event) => {
     const before = event.data?.before.data()
     const after = event.data?.after.data()

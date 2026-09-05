@@ -81,6 +81,9 @@ jobs:
       # --force skips the "grant access to this secret?" prompt and repoints any function
       # already using it at the new version automatically.
       - run: echo -n "${{ secrets.RESEND_API_KEY }}" | npx firebase functions:secrets:set RESEND_API_KEY --project ${{ env.FIREBASE_PROJECT_ID }} --data-file - --force --non-interactive
-      - run: echo -n "${{ secrets.SENTRY_DSN }}" | npx firebase functions:secrets:set SENTRY_DSN --project ${{ env.FIREBASE_PROJECT_ID }} --data-file - --force --non-interactive
+      # SENTRY_DSN is intentionally NOT a Secret Manager secret (unlike RESEND_API_KEY above) —
+      # DSNs are meant to be public, so it's a plain env var from functions/.env.<project-id>
+      # (see functions/src/sentry.ts). That also means it stays truly optional: no GitHub
+      # secret or Secret Manager entry has to exist for functions to deploy successfully.
       # functions/ is built automatically by firebase.json's predeploy hooks
       - run: npx firebase deploy --only functions,firestore:rules,firestore:indexes,storage --project ${{ env.FIREBASE_PROJECT_ID }} --non-interactive --force
