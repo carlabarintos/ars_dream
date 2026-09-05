@@ -13,7 +13,6 @@ export function PrivacyPolicyPage() {
       <LegalPageLayout
         title="Privacy Policy"
         lastUpdated={content.updatedAt?.toDate().toLocaleDateString() ?? '—'}
-        showDraftNotice={false}
       >
         {content.body.split(/\n{2,}/).map((paragraph, index) => (
           <p key={index}>{paragraph}</p>

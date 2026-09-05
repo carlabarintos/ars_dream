@@ -77,7 +77,7 @@ export function ThreadView<TMessage extends ThreadMessage>({
     <div className="flex h-[60vh] flex-col gap-3">
       <div
         ref={scrollRef}
-        className="border-border bg-card flex flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border p-3 shadow-sm"
+        className="border-border bg-card flex flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border p-3 shadow-sm [scrollbar-gutter:stable]"
       >
         {isLoading ? (
           <div className="flex flex-1 items-center justify-center py-8">
