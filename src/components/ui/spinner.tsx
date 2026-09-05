@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { RunnerIcon } from '@/components/RunnerIcon'
+import { BibIcon } from '@/components/BibIcon'
 import { BibCard } from '@/components/BibCard'
 
 const SIZE_CLASSES = {
@@ -17,7 +17,7 @@ export function Spinner({
 }) {
   return (
     <span role="status" aria-label="Loading" className={cn('text-primary inline-block', className)}>
-      <RunnerIcon className={cn('animate-runner', SIZE_CLASSES[size])} />
+      <BibIcon className={cn('animate-bib-swing', SIZE_CLASSES[size])} />
     </span>
   )
 }

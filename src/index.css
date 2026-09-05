@@ -103,23 +103,23 @@
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 }
 
-@keyframes runner {
+@keyframes bib-swing {
   0%,
   100% {
-    transform: translateX(-15%) rotate(-10deg);
+    transform: rotate(-8deg);
   }
   50% {
-    transform: translateX(15%) rotate(10deg);
+    transform: rotate(8deg);
   }
 }
 
-.animate-runner {
-  animation: runner 0.6s ease-in-out infinite;
-  transform-origin: center;
+.animate-bib-swing {
+  animation: bib-swing 0.9s ease-in-out infinite;
+  transform-origin: top center;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-runner {
+  .animate-bib-swing {
     animation: none;
   }
 }
