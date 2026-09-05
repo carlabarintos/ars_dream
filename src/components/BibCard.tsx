@@ -1,15 +1,32 @@
 import { cn } from '@/lib/utils'
 
 /** One column of a race-bib number: an endless 0-9 reel, each column spinning at its own
- * speed (like a mechanical odometer) so the number never visibly settles. */
-function BibDigitReel({ duration, delay }: { duration: string; delay: string }) {
+ * speed (like a mechanical odometer) so the number never visibly settles. `height` also
+ * drives the reel's scroll distance (10 digits' worth), so it stays seamless at any size. */
+function BibDigitReel({
+  duration,
+  delay,
+  width = 27,
+  height = 46,
+  fontSize = 34,
+}: {
+  duration: string
+  delay: string
+  width?: number
+  height?: number
+  fontSize?: number
+}) {
   return (
-    <div className="h-[46px] w-[27px] overflow-hidden" aria-hidden="true">
-      <div className="animate-bib-roll flex flex-col" style={{ animationDuration: duration, animationDelay: delay }}>
+    <div className="overflow-hidden" style={{ width, height }} aria-hidden="true">
+      <div
+        className="animate-bib-roll flex flex-col"
+        style={{ animationDuration: duration, animationDelay: delay, ['--bib-roll-distance' as string]: `${-height * 10}px` }}
+      >
         {DIGIT_REEL.map((digit, i) => (
           <div
             key={i}
-            className="text-card-foreground font-mono flex h-[46px] items-center justify-center text-[34px] font-bold"
+            className="text-card-foreground font-mono flex items-center justify-center font-bold"
+            style={{ height, fontSize }}
           >
             {digit}
           </div>
@@ -53,6 +70,52 @@ export function BibCard({ className }: { className?: string }) {
         ))}
       </div>
       <p className="text-muted-foreground font-display text-center text-[13px] tracking-[0.08em]">ARS DREAM</p>
+    </div>
+  )
+}
+
+const MINI_REELS = [
+  { duration: '2.1s', delay: '-0.6s' },
+  { duration: '1.2s', delay: '-0.2s' },
+  { duration: '0.7s', delay: '-0.4s' },
+]
+
+const MINI_SIZE_CONFIG = {
+  default: { reelWidth: 12, reelHeight: 19, fontSize: 14 },
+  lg: { reelWidth: 15, reelHeight: 24, fontSize: 18 },
+} as const
+
+/** A pocket-sized BibCard for inline loading states — same pinned-tag, rolling-digit look,
+ * scaled down and stripped of the footer copy so it stays legible at icon-adjacent sizes. */
+export function MiniBibCard({
+  size = 'default',
+  className,
+}: {
+  size?: keyof typeof MINI_SIZE_CONFIG
+  className?: string
+}) {
+  const { reelWidth, reelHeight, fontSize } = MINI_SIZE_CONFIG[size]
+  return (
+    <div
+      className={cn(
+        'border-border bg-card relative inline-block -rotate-3 rounded-md border p-2 shadow-md',
+        className,
+      )}
+    >
+      <span className="bg-primary absolute inset-x-2 top-0 h-[3px] rounded-b-[2px]" />
+      <span
+        className="bg-background absolute top-1 left-1.5 size-1 rounded-full shadow-[inset_0_1px_1px_rgba(0,0,0,0.3)]"
+        aria-hidden="true"
+      />
+      <span
+        className="bg-background absolute top-1 right-1.5 size-1 rounded-full shadow-[inset_0_1px_1px_rgba(0,0,0,0.3)]"
+        aria-hidden="true"
+      />
+      <div className="mt-1.5 flex justify-center gap-0.5">
+        {MINI_REELS.map((reel, i) => (
+          <BibDigitReel key={i} {...reel} width={reelWidth} height={reelHeight} fontSize={fontSize} />
+        ))}
+      </div>
     </div>
   )
 }

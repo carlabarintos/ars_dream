@@ -126,7 +126,7 @@
 
 @keyframes bib-digit-roll {
   to {
-    transform: translateY(-460px);
+    transform: translateY(var(--bib-roll-distance, -460px));
   }
 }
 
@@ -138,7 +138,7 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-bib-roll {
     animation: none;
-    transform: translateY(-230px);
+    transform: translateY(calc(var(--bib-roll-distance, -460px) / 2));
   }
 }
 

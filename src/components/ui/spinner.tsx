@@ -1,23 +1,17 @@
 import { cn } from '@/lib/utils'
 import { BibIcon } from '@/components/BibIcon'
-import { BibCard } from '@/components/BibCard'
-
-const SIZE_CLASSES = {
-  sm: 'size-4',
-  default: 'size-6',
-  lg: 'size-10',
-} as const
+import { BibCard, MiniBibCard } from '@/components/BibCard'
 
 export function Spinner({
   size = 'default',
   className,
 }: {
-  size?: keyof typeof SIZE_CLASSES
+  size?: 'sm' | 'default' | 'lg'
   className?: string
 }) {
   return (
     <span role="status" aria-label="Loading" className={cn('text-primary inline-block', className)}>
-      <BibIcon className={cn('animate-bib-swing', SIZE_CLASSES[size])} />
+      {size === 'sm' ? <BibIcon className="animate-bib-swing size-4" /> : <MiniBibCard size={size} />}
     </span>
   )
 }
