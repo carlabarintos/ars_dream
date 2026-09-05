@@ -4,6 +4,7 @@ import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/
 import { db } from './admin.js'
 import { logAuditEntry } from './audit-log.js'
 import { requireAdmin } from './require-admin.js'
+import { sentryDsn, withSentry } from './sentry.js'
 
 // The Functions emulator has no real App Check backend to attest against
 // (the local demo- project isn't a real Firebase project), so enforcement
@@ -17,8 +18,8 @@ interface ConfirmPaymentInput {
 }
 
 export const confirmPayment = onCall<ConfirmPaymentInput>(
-  { enforceAppCheck },
-  async (request: CallableRequest<ConfirmPaymentInput>) => {
+  { enforceAppCheck, secrets: [sentryDsn] },
+  withSentry(async (request: CallableRequest<ConfirmPaymentInput>) => {
     const uid = await requireAdmin(request)
     const { registrationId, decision, adminNote } = request.data
     let loggedTarget: { marathonId: string; userId: string } | undefined
@@ -73,5 +74,5 @@ export const confirmPayment = onCall<ConfirmPaymentInput>(
     }
 
     return { status: decision === 'confirmed' ? 'confirmed' : 'payment_rejected' }
-  },
+  }),
 )

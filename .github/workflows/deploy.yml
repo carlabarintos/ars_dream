@@ -34,6 +34,7 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_VAPID_KEY: ${{ secrets.VITE_FIREBASE_VAPID_KEY }}
           VITE_FIREBASE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_FIREBASE_RECAPTCHA_SITE_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_USE_FIREBASE_EMULATORS: "false"
       - uses: actions/upload-artifact@v4
         with:
@@ -80,5 +81,6 @@ jobs:
       # --force skips the "grant access to this secret?" prompt and repoints any function
       # already using it at the new version automatically.
       - run: echo -n "${{ secrets.RESEND_API_KEY }}" | npx firebase functions:secrets:set RESEND_API_KEY --project ${{ env.FIREBASE_PROJECT_ID }} --data-file - --force --non-interactive
+      - run: echo -n "${{ secrets.SENTRY_DSN }}" | npx firebase functions:secrets:set SENTRY_DSN --project ${{ env.FIREBASE_PROJECT_ID }} --data-file - --force --non-interactive
       # functions/ is built automatically by firebase.json's predeploy hooks
       - run: npx firebase deploy --only functions,firestore:rules,firestore:indexes,storage --project ${{ env.FIREBASE_PROJECT_ID }} --non-interactive --force

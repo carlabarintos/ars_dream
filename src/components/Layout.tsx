@@ -87,6 +87,25 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main className={cn('flex-1', firebaseUser && 'pb-16')}>{children}</main>
+      <footer
+        className={cn(
+          'border-border text-muted-foreground border-t px-4 py-6 text-center text-xs',
+          firebaseUser && 'pb-16',
+        )}
+      >
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-4 gap-y-1">
+          <span>© {new Date().getFullYear()} ARS Dream Sports</span>
+          <Link to="/terms" className="hover:text-foreground hover:underline">
+            Terms of Service
+          </Link>
+          <Link to="/privacy" className="hover:text-foreground hover:underline">
+            Privacy Policy
+          </Link>
+          <Link to="/refund-policy" className="hover:text-foreground hover:underline">
+            Refund Policy
+          </Link>
+        </div>
+      </footer>
       {firebaseUser && <BottomNav />}
     </div>
   )

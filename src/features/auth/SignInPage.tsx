@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { LogoBadge } from '@/components/LogoBadge'
@@ -213,6 +213,19 @@ export function SignInPage() {
                     required
                   />
                 </div>
+                {mode === 'sign-up' && (
+                  <p className="text-muted-foreground text-xs">
+                    By creating an account, you agree to our{' '}
+                    <Link to="/terms" className="text-primary hover:underline">
+                      Terms of Service
+                    </Link>{' '}
+                    and{' '}
+                    <Link to="/privacy" className="text-primary hover:underline">
+                      Privacy Policy
+                    </Link>
+                    .
+                  </p>
+                )}
                 <Button type="submit" loading={isSubmitting} className="mt-2">
                   {mode === 'sign-in' ? 'Sign in' : 'Create account'}
                 </Button>

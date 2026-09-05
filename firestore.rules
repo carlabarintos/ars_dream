@@ -20,6 +20,16 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'finance';
     }
 
+    // Throttles joinQueue's create/re-register writes (see registrations
+    // below) to at most one every few seconds per user, guarding against a
+    // scripted spam loop. exists() is checked before get() since a
+    // brand-new user has no rateLimits doc yet, and get() throws (rather than
+    // returning null) for a document that isn't there.
+    function rateLimitOk(uid) {
+      return !exists(/databases/$(database)/documents/rateLimits/$(uid)) ||
+        request.time > get(/databases/$(database)/documents/rateLimits/$(uid)).data.lastActionAt + duration.value(5, 's');
+    }
+
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow create: if isSignedIn() && request.auth.uid == userId &&
@@ -71,7 +81,8 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.status == 'queued' &&
         registrationId == request.auth.uid + '_' + request.resource.data.marathonId + '_' + string(request.resource.data.cycle) &&
-        get(/databases/$(database)/documents/marathons/$(request.resource.data.marathonId)).data.status == 'published';
+        get(/databases/$(database)/documents/marathons/$(request.resource.data.marathonId)).data.status == 'published' &&
+        rateLimitOk(request.auth.uid);
 
       // While still pending (not yet submitted for payment), the registrant
       // may swap their selected package on their existing queue entry rather
@@ -100,6 +111,7 @@ service cloud.firestore {
         resource.data.status in ['rejected', 'cancelled'] &&
         request.resource.data.status == 'queued' &&
         get(/databases/$(database)/documents/marathons/$(resource.data.marathonId)).data.status == 'published' &&
+        rateLimitOk(request.auth.uid) &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly([
             'packageId', 'packageName', 'packagePriceAmount', 'packagePriceCurrency',
@@ -131,6 +143,17 @@ service cloud.firestore {
         );
 
       allow update: if isAdmin();
+    }
+
+    match /rateLimits/{uid} {
+      // Sole purpose: a per-user "last queue action" timestamp read by
+      // rateLimitOk() above. lastActionAt must equal the server's own
+      // request time — a client can never backdate it to fake a cooldown
+      // that already elapsed.
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if isSignedIn() && request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['lastActionAt']) &&
+        request.resource.data.lastActionAt == request.time;
     }
 
     match /personalThreads/{userId} {

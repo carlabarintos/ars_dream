@@ -3,6 +3,7 @@ import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/
 import { db } from './admin.js'
 import { logAuditEntry } from './audit-log.js'
 import { requireAdmin } from './require-admin.js'
+import { sentryDsn, withSentry } from './sentry.js'
 
 const PIPELINE_STATUSES = ['accepted', 'terms_accepted', 'payment_submitted', 'confirmed']
 
@@ -19,8 +20,8 @@ interface AcceptRegistrationInput {
 }
 
 export const acceptRegistration = onCall<AcceptRegistrationInput>(
-  { enforceAppCheck },
-  async (request: CallableRequest<AcceptRegistrationInput>) => {
+  { enforceAppCheck, secrets: [sentryDsn] },
+  withSentry(async (request: CallableRequest<AcceptRegistrationInput>) => {
     const uid = await requireAdmin(request)
     const { registrationId, decision, offerImageUrl } = request.data
 
@@ -98,5 +99,5 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
     })
 
     return { status: 'accepted' }
-  },
+  }),
 )

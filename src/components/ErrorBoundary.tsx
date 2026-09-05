@@ -3,6 +3,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { LogoBadge } from '@/components/LogoBadge'
 import { RouteLines } from '@/components/RouteLines'
 import { Button } from '@/components/ui/button'
+import { captureException } from '@/lib/sentry'
 
 interface Props {
   children: ReactNode
@@ -23,6 +24,7 @@ export class ErrorBoundary extends Component<Props, State> {
     // Never surfaced in the UI — the fallback below stays deliberately
     // non-technical (no error.message, no stack) for the registrant.
     console.error('Unhandled error in ARS Dream', error, errorInfo)
+    captureException(error, { componentStack: errorInfo.componentStack })
   }
 
   render() {

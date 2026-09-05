@@ -7,9 +7,9 @@ import {
   onSnapshot,
   query,
   serverTimestamp,
-  setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore'
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 import { httpsCallable } from 'firebase/functions'
@@ -73,6 +73,15 @@ function registrationId(userId: string, marathonId: string, cycle: number) {
   return `${userId}_${marathonId}_${cycle}`
 }
 
+/**
+ * Stamped alongside every fresh-join/re-register write in the same batch —
+ * firestore.rules' rateLimitOk() reads this to throttle repeated joinQueue
+ * calls to at most one every few seconds per user.
+ */
+function stampRateLimit(batch: ReturnType<typeof writeBatch>, userId: string) {
+  batch.set(doc(db, 'rateLimits', userId), { lastActionAt: serverTimestamp() })
+}
+
 function toSelectedAddOns(addOns: MarathonPackageAddOn[]): SelectedAddOn[] {
   return addOns.map((addOn) => ({ addOnId: addOn.id, name: addOn.name, priceAmount: addOn.priceAmount }))
 }
@@ -97,7 +106,8 @@ export async function joinQueue(
       // (which orders the queue by createdAt asc) places them at the BACK of
       // the queue, not wherever their original, already-resolved join time
       // would have put them.
-      await updateDoc(registrationRef, {
+      const batch = writeBatch(db)
+      batch.update(registrationRef, {
         packageId: selectedPackage.id,
         packageName: selectedPackage.name,
         packagePriceAmount: selectedPackage.priceAmount,
@@ -114,6 +124,8 @@ export async function joinQueue(
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
+      stampRateLimit(batch, userId)
+      await batch.commit()
       return
     }
 
@@ -134,7 +146,8 @@ export async function joinQueue(
     return
   }
 
-  await setDoc(registrationRef, {
+  const batch = writeBatch(db)
+  batch.set(registrationRef, {
     userId,
     marathonId,
     packageId: selectedPackage.id,
@@ -153,6 +166,8 @@ export async function joinQueue(
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
+  stampRateLimit(batch, userId)
+  await batch.commit()
 }
 
 export async function submitTermsAndConditions(registrationId: string, answers: QuestionAnswer[]) {

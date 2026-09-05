@@ -2,6 +2,7 @@ import { FieldValue } from 'firebase-admin/firestore'
 import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https'
 
 import { db } from './admin.js'
+import { sentryDsn, withSentry } from './sentry.js'
 
 // The Functions emulator has no real App Check backend to attest against
 // (the local demo- project isn't a real Firebase project), so enforcement
@@ -28,8 +29,8 @@ interface CancelRegistrationInput {
 }
 
 export const cancelRegistration = onCall<CancelRegistrationInput>(
-  { enforceAppCheck },
-  async (request: CallableRequest<CancelRegistrationInput>) => {
+  { enforceAppCheck, secrets: [sentryDsn] },
+  withSentry(async (request: CallableRequest<CancelRegistrationInput>) => {
     const uid = request.auth?.uid
     if (!uid) {
       throw new HttpsError('unauthenticated', 'You must be signed in.')
@@ -63,5 +64,5 @@ export const cancelRegistration = onCall<CancelRegistrationInput>(
     })
 
     return { status: 'cancelled' }
-  },
+  }),
 )

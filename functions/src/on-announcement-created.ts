@@ -2,6 +2,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore'
 
 import { db } from './admin.js'
 import { sendAndPruneTokens } from './notify.js'
+import { sentryDsn, withSentry } from './sentry.js'
 
 interface MarathonQuestion {
   id: string
@@ -68,7 +69,9 @@ async function getTargetUserDocs(
   return usersSnapshot.docs
 }
 
-export const onAnnouncementCreated = onDocumentCreated('announcements/{announcementId}', async (event) => {
+export const onAnnouncementCreated = onDocumentCreated(
+  { document: 'announcements/{announcementId}', secrets: [sentryDsn] },
+  withSentry(async (event) => {
   const announcement = event.data?.data()
   if (!announcement) return
 
@@ -89,4 +92,5 @@ export const onAnnouncementCreated = onDocumentCreated('announcements/{announcem
     { title: announcement.title, body: announcement.body },
     '/',
   )
-})
+  }),
+)
