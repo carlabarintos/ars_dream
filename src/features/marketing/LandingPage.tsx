@@ -179,6 +179,16 @@ export function LandingPage() {
           </div>
 
           <div
+            className="animate-fade-up-in mt-10 flex justify-center xl:hidden"
+            style={{ animationDelay: '600ms' }}
+            aria-hidden="true"
+          >
+            <div className="animate-bib-float">
+              <BibCard className="scale-90 opacity-90" />
+            </div>
+          </div>
+
+          <div
             className="animate-fade-up-in mt-14 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-white/70"
             style={{ animationDelay: '540ms' }}
           >
