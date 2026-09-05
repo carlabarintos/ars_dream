@@ -100,6 +100,7 @@
 
   --font-display: 'Bebas Neue', 'Arial Narrow', sans-serif;
   --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 }
 
 @keyframes runner {
@@ -120,6 +121,24 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-runner {
     animation: none;
+  }
+}
+
+@keyframes bib-digit-roll {
+  to {
+    transform: translateY(-460px);
+  }
+}
+
+.animate-bib-roll {
+  animation: bib-digit-roll linear infinite;
+  animation-timing-function: steps(10, end);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-bib-roll {
+    animation: none;
+    transform: translateY(-230px);
   }
 }
 
