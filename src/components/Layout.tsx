@@ -4,7 +4,7 @@ import { LogOutIcon, MoonIcon, SunIcon, UserPenIcon } from 'lucide-react'
 
 import { BottomNav } from '@/components/BottomNav'
 import { InstallAppButton } from '@/components/InstallAppButton'
-import { Logo } from '@/components/Logo'
+import { LogoBadge } from '@/components/LogoBadge'
 import { NotificationBell } from '@/components/NotificationBell'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -44,7 +44,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="border-border sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
           <Link to="/" aria-label="ARS Dream">
-            <Logo className="h-8 w-auto" />
+            <LogoBadge className="rounded-xl p-1.5 shadow-md" imgClassName="h-8 w-auto" />
           </Link>
 
           {isLoading ? null : firebaseUser ? (

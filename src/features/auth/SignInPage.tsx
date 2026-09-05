@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
+import { LogoBadge } from '@/components/LogoBadge'
 import { RouteLines } from '@/components/RouteLines'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
@@ -17,18 +18,6 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: 'other', label: 'Other' },
   { value: 'prefer_not_to_say', label: 'Prefer not to say' },
 ]
-
-function LogoBadge({ className }: { className?: string }) {
-  return (
-    <div className={`animate-fade-up-in inline-flex rounded-2xl bg-white/95 p-4 shadow-xl ${className ?? ''}`}>
-      <img
-        src="/ars-dream-logo-jp.avif"
-        alt="ARS Dream Sports — アールス ドリーム"
-        className="h-12 w-auto"
-      />
-    </div>
-  )
-}
 
 export function SignInPage() {
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in')
@@ -94,7 +83,7 @@ export function SignInPage() {
         </svg>
 
         <div className="relative flex max-w-md flex-col items-center text-center">
-          <LogoBadge className="mb-8" />
+          <LogoBadge className="animate-fade-up-in mb-8" />
           <span
             className="animate-fade-up-in mb-4 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-white/70 uppercase before:h-px before:w-6 before:bg-white/70 after:h-px after:w-6 after:bg-white/70"
             style={{ animationDelay: '100ms' }}
@@ -121,7 +110,7 @@ export function SignInPage() {
       <div className="flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-sm">
           <div className="mb-6 flex justify-center lg:hidden">
-            <LogoBadge />
+            <LogoBadge className="animate-fade-up-in" />
           </div>
 
           <Card>

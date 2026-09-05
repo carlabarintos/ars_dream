@@ -13,7 +13,7 @@ import {
 import { Link } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
-import { Logo } from '@/components/Logo'
+import { LogoBadge } from '@/components/LogoBadge'
 import { RouteLines } from '@/components/RouteLines'
 import { Reveal } from './Reveal'
 import { useParallax } from './use-parallax'
@@ -125,13 +125,7 @@ export function LandingPage() {
         </svg>
 
         <div className="relative mx-auto flex max-w-5xl flex-col items-center text-center">
-          <div className="animate-fade-up-in mb-8 inline-flex rounded-2xl bg-white/95 p-4 shadow-xl sm:p-5">
-            <img
-              src="/ars-dream-logo-jp.avif"
-              alt="ARS Dream Sports — アールス ドリーム"
-              className="h-12 w-auto sm:h-16"
-            />
-          </div>
+          <LogoBadge className="animate-fade-up-in mb-8 sm:p-5" imgClassName="h-12 w-auto sm:h-16" />
 
           <span
             className="animate-fade-up-in mb-4 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-white/70 uppercase before:h-px before:w-6 before:bg-white/70 after:h-px after:w-6 after:bg-white/70"
@@ -311,7 +305,7 @@ export function LandingPage() {
       {/* Footer */}
       <footer className="bg-foreground px-4 py-10">
         <div className="text-background mx-auto flex max-w-6xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
-          <Logo className="h-8 w-auto" />
+          <LogoBadge className="p-2" imgClassName="h-8 w-auto" />
           <p className="text-background/60 text-sm">
             © {year} ARS Dream Sports · Manila, Philippines
           </p>
