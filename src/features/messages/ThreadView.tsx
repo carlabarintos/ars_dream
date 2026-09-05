@@ -73,7 +73,10 @@ export function ThreadView<TMessage extends ThreadMessage>({
 
   return (
     <div className="flex h-[60vh] flex-col gap-3">
-      <div ref={scrollRef} className="flex flex-1 flex-col gap-3 overflow-y-auto rounded-md border border-border p-3">
+      <div
+        ref={scrollRef}
+        className="border-border bg-card flex flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border p-3 shadow-sm"
+      >
         {isLoading ? (
           <p className="text-muted-foreground text-sm">Loading…</p>
         ) : messages.length === 0 ? (

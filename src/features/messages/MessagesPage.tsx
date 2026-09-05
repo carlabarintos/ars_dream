@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 
+import { RouteLines } from '@/components/RouteLines'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
@@ -52,7 +53,10 @@ function AnnouncementsTab({ uid }: { uid: string }) {
   return (
     <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto">
       {visibleAnnouncements.map((announcement) => (
-        <div key={announcement.id} className="overflow-hidden rounded-md border border-border">
+        <div
+          key={announcement.id}
+          className="border-border bg-card overflow-hidden rounded-2xl border shadow-sm"
+        >
           {announcement.bannerImageUrl && (
             <div
               className="h-32 w-full bg-cover bg-center"
@@ -101,30 +105,66 @@ export function MessagesPage() {
   if (!uid) return null
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
-      <div>
-        <h1 className="font-display text-4xl tracking-wide">Messages</h1>
-        <p className="text-muted-foreground mt-1">Chat with our team, catch up on announcements, or say hi to other travelers.</p>
-      </div>
+    <>
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary via-brand-navy to-[#041d3d] px-4 pt-14 pb-24 sm:pt-20 sm:pb-28">
+        <RouteLines className="pointer-events-none absolute inset-0 h-full w-full opacity-30" />
+        <svg
+          className="pointer-events-none absolute top-1/2 right-[-8%] h-[min(52vw,420px)] w-[min(52vw,420px)] -translate-y-1/2 opacity-90 max-sm:top-auto max-sm:right-[-22%] max-sm:bottom-[-18%] max-sm:h-[70vw] max-sm:w-[70vw] max-sm:translate-y-0 max-sm:opacity-40"
+          viewBox="0 0 300 300"
+          aria-hidden="true"
+        >
+          <circle cx="150" cy="150" r="130" fill="none" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
+          <ellipse cx="150" cy="150" rx="52" ry="130" fill="none" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
+          <ellipse cx="150" cy="150" rx="95" ry="130" fill="none" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
+          <line x1="20" y1="150" x2="280" y2="150" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
+          <line x1="35" y1="95" x2="265" y2="95" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
+          <line x1="35" y1="205" x2="265" y2="205" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
+        </svg>
+
+        <div className="relative mx-auto flex max-w-2xl flex-col items-center text-center">
+          <span className="mb-4 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-white/70 uppercase before:h-px before:w-6 before:bg-white/70 after:h-px after:w-6 after:bg-white/70">
+            Inbox
+          </span>
+          <h1 className="font-display max-w-[14ch] text-5xl leading-[0.95] tracking-wide text-white sm:text-6xl">
+            Let's Talk
+          </h1>
+          <p className="mt-5 max-w-[46ch] text-white/80">
+            Chat with our team, catch up on announcements, or say hi to other travelers.
+          </p>
+        </div>
+      </section>
 
       <Tabs defaultValue={role === 'admin' ? 'announcements' : 'support'}>
-        <TabsList>
-          {role !== 'admin' && <TabsTrigger value="support">Support</TabsTrigger>}
-          <TabsTrigger value="announcements">Announcements</TabsTrigger>
-          <TabsTrigger value="community">Community</TabsTrigger>
-        </TabsList>
-        {role !== 'admin' && (
-          <TabsContent value="support">
-            <SupportTab uid={uid} />
+        <div className="relative z-10 mx-auto -mt-10 max-w-2xl px-4 sm:-mt-12">
+          <TabsList className="border-border bg-card h-auto w-full gap-1 rounded-2xl border p-1.5 shadow-lg sm:p-2">
+            {role !== 'admin' && (
+              <TabsTrigger value="support" className="rounded-xl py-2">
+                Support
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="announcements" className="rounded-xl py-2">
+              Announcements
+            </TabsTrigger>
+            <TabsTrigger value="community" className="rounded-xl py-2">
+              Community
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <div className="mx-auto max-w-2xl px-4 pt-8 pb-8">
+          {role !== 'admin' && (
+            <TabsContent value="support">
+              <SupportTab uid={uid} />
+            </TabsContent>
+          )}
+          <TabsContent value="announcements">
+            <AnnouncementsTab uid={uid} />
           </TabsContent>
-        )}
-        <TabsContent value="announcements">
-          <AnnouncementsTab uid={uid} />
-        </TabsContent>
-        <TabsContent value="community">
-          <CommunityTab uid={uid} />
-        </TabsContent>
+          <TabsContent value="community">
+            <CommunityTab uid={uid} />
+          </TabsContent>
+        </div>
       </Tabs>
-    </div>
+    </>
   )
 }

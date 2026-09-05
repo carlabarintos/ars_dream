@@ -8,8 +8,10 @@ import {
   ClockIcon,
   type LucideIcon,
   MapPinIcon,
+  PartyPopperIcon,
   TicketIcon,
   XCircleIcon,
+  ZapIcon,
 } from 'lucide-react'
 
 import { RouteLines } from '@/components/RouteLines'
@@ -119,6 +121,50 @@ function PipelineTracker({ status }: { status: RegistrationStatus }) {
   )
 }
 
+const STAT_TONE = {
+  primary: 'bg-primary/10 text-primary',
+  warning: 'bg-warning/15 text-warning',
+  success: 'bg-success/15 text-success',
+} as const
+
+/** One tile in the bookings summary strip — a colored icon chip on top of a big number, staggered in on mount for a bit of life. */
+function StatTile({
+  icon: Icon,
+  value,
+  label,
+  tone,
+  pulse,
+  delayMs,
+}: {
+  icon: LucideIcon
+  value: number
+  label: string
+  tone: keyof typeof STAT_TONE
+  pulse?: boolean
+  delayMs: number
+}) {
+  return (
+    <div
+      className="group border-border bg-card animate-fade-up-in flex flex-col items-center gap-2 rounded-2xl border p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md sm:p-5"
+      style={{ animationDelay: `${delayMs}ms` }}
+    >
+      <span
+        className={cn(
+          'flex size-10 items-center justify-center rounded-full transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6',
+          STAT_TONE[tone],
+          pulse && 'animate-bounce',
+        )}
+      >
+        <Icon className="size-5" />
+      </span>
+      <span className="font-display text-3xl tracking-wide tabular-nums">{value}</span>
+      <span className="text-muted-foreground text-center text-[10px] font-semibold tracking-wider uppercase">
+        {label}
+      </span>
+    </div>
+  )
+}
+
 export function MyRegistrationsPage() {
   const uid = useAuthStore((state) => state.firebaseUser?.uid)
   const { registrations, isLoading } = useUserRegistrations(uid)
@@ -174,23 +220,17 @@ export function MyRegistrationsPage() {
 
       {!isLoading && sorted.length > 0 && (
         <div className="relative z-10 mx-auto -mt-10 max-w-2xl px-4 sm:-mt-12">
-          <div className="border-border bg-card divide-border grid grid-cols-3 divide-x rounded-2xl border shadow-lg">
-            <div className="flex flex-col items-center gap-0.5 p-4 sm:p-5">
-              <span className="font-display text-3xl tracking-wide">{sorted.length}</span>
-              <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">Total</span>
-            </div>
-            <div className="flex flex-col items-center gap-0.5 p-4 sm:p-5">
-              <span className="font-display text-3xl tracking-wide">{actionNeededCount}</span>
-              <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
-                Action Needed
-              </span>
-            </div>
-            <div className="flex flex-col items-center gap-0.5 p-4 sm:p-5">
-              <span className="font-display text-3xl tracking-wide">{confirmedCount}</span>
-              <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
-                Confirmed
-              </span>
-            </div>
+          <div className="grid grid-cols-3 gap-3">
+            <StatTile icon={TicketIcon} value={sorted.length} label="Total" tone="primary" delayMs={0} />
+            <StatTile
+              icon={ZapIcon}
+              value={actionNeededCount}
+              label="Action Needed"
+              tone="warning"
+              pulse={actionNeededCount > 0}
+              delayMs={80}
+            />
+            <StatTile icon={PartyPopperIcon} value={confirmedCount} label="Confirmed" tone="success" delayMs={160} />
           </div>
         </div>
       )}
