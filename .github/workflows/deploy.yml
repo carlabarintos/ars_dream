@@ -86,4 +86,14 @@ jobs:
       # (see functions/src/sentry.ts). That also means it stays truly optional: no GitHub
       # secret or Secret Manager entry has to exist for functions to deploy successfully.
       # functions/ is built automatically by firebase.json's predeploy hooks
-      - run: npx firebase deploy --only functions,firestore:rules,firestore:indexes,storage --project ${{ env.FIREBASE_PROJECT_ID }} --non-interactive --force
+      #
+      # NOTE: --only lists every function EXCEPT scheduledFirestoreBackup on purpose. A plain
+      # `--only functions` deploys the full set AND deletes any deployed function no longer in
+      # the codebase's export list — but this deploy's service account lacks the
+      # cloudscheduler.jobs.update/delete IAM permissions Cloud Scheduler-backed (onSchedule)
+      # functions need, so touching scheduledFirestoreBackup at all (update OR delete) 403s and
+      # fails the whole deploy. Scoping to an explicit function list here means firebase-tools
+      # never tries to reconcile that one function, so it's left alone (inert, but harmless)
+      # until the account is granted roles/cloudscheduler.admin on arsdream-1f00f. Once granted,
+      # drop this back to the plain `functions` target to pick scheduledFirestoreBackup back up.
+      - run: npx firebase deploy --only functions:acceptRegistration,functions:confirmPayment,functions:cancelRegistration,functions:reopenMarathon,functions:clearOperationalData,functions:onRegistrationStatusChange,functions:onRegistrationQueueChange,functions:onNewPersonalMessage,functions:onAnnouncementCreated,firestore:rules,firestore:indexes,storage --project ${{ env.FIREBASE_PROJECT_ID }} --non-interactive --force
