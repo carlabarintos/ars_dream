@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { getFriendlyErrorMessage } from '@/lib/friendly-error'
 import type { Marathon, QuestionAnswer, Registration } from '@/types'
 
 import { submitProofOfPayment, submitTermsAndConditions } from './api'
@@ -62,7 +63,7 @@ export function RegistrationWizard({
       toast.success('Thanks! Next: submit your proof of payment.')
       onClose()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+      toast.error(getFriendlyErrorMessage(error, 'terms'))
     } finally {
       setIsSubmitting(false)
     }
@@ -76,7 +77,7 @@ export function RegistrationWizard({
       toast.success('Proof of payment submitted. An admin will review it shortly.')
       onClose()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+      toast.error(getFriendlyErrorMessage(error, 'payment'))
     } finally {
       setIsSubmitting(false)
     }

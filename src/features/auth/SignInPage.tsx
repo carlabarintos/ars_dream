@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { getFriendlyErrorMessage } from '@/lib/friendly-error'
 import type { Gender } from '@/types'
 import { signInWithEmail, signUpWithEmail } from './auth-actions'
 
@@ -58,7 +59,7 @@ export function SignInPage() {
       }
       navigate('/')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+      toast.error(getFriendlyErrorMessage(error, 'auth'))
     } finally {
       setIsSubmitting(false)
     }

@@ -18,6 +18,7 @@ import { db, functions, storage } from '@/firebase/config'
 import type { MarathonPackage, MarathonPackageAddOn, QuestionAnswer, Registration, SelectedAddOn } from '@/types'
 import type { RegistrationRestorePatch } from '@/features/admin/export-import/serialize'
 import { canChangePackage, canReRegister } from '@/features/registrations/registration-flow'
+import { UserFacingError } from '@/lib/user-facing-error'
 
 const registrationsRef = collection(db, 'registrations')
 
@@ -117,7 +118,7 @@ export async function joinQueue(
     }
 
     if (!canChangePackage(existing)) {
-      throw new Error(
+      throw new UserFacingError(
         'Your registration has already moved on to payment — contact an admin to change your package.',
       )
     }

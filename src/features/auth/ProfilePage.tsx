@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { getFriendlyErrorMessage } from '@/lib/friendly-error'
 import type { Gender } from '@/types'
 import { updatePersonalInfo } from './auth-actions'
 import { useAuthStore } from './auth-store'
@@ -51,7 +52,7 @@ export function ProfilePage() {
       toast.success('Personal information updated')
       navigate(-1)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+      toast.error(getFriendlyErrorMessage(error, 'profile'))
     } finally {
       setIsSubmitting(false)
     }

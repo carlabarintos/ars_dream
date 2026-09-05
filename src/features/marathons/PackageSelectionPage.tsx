@@ -35,6 +35,7 @@ import {
 import { RegistrationWizard } from '@/features/registrations/RegistrationWizard'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
+import { getFriendlyErrorMessage } from '@/lib/friendly-error'
 import { cn } from '@/lib/utils'
 import type { MarathonPackage, MarathonPackageAddOn } from '@/types'
 
@@ -120,7 +121,7 @@ export function PackageSelectionPage() {
         navigate('/')
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not join the queue')
+      toast.error(getFriendlyErrorMessage(error, 'queue'))
     } finally {
       setJoiningPackageId(null)
     }

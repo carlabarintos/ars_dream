@@ -6,6 +6,7 @@ import type { Timestamp } from 'firebase/firestore'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
+import { getFriendlyErrorMessage } from '@/lib/friendly-error'
 import { cn } from '@/lib/utils'
 import type { MessageSenderRole } from '@/types'
 
@@ -66,7 +67,7 @@ export function ThreadView<TMessage extends ThreadMessage>({
       await onSend(trimmed)
       setText('')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+      toast.error(getFriendlyErrorMessage(error, 'message'))
     } finally {
       setIsSending(false)
     }

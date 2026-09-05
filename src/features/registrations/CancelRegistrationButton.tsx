@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { getFriendlyErrorMessage } from '@/lib/friendly-error'
 import type { Registration } from '@/types'
 
 import { cancelRegistration } from './api'
@@ -28,7 +29,7 @@ export function CancelRegistrationButton({ registration }: { registration: Regis
       toast.success('Your registration has been cancelled.')
       setOpen(false)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+      toast.error(getFriendlyErrorMessage(error, 'cancel'))
     } finally {
       setIsCancelling(false)
     }
