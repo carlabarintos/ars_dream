@@ -1,4 +1,4 @@
-import { CalendarIcon, MapPinIcon } from 'lucide-react'
+import { MapPinIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { Badge } from '@/components/ui/badge'
@@ -33,26 +33,42 @@ export function MarathonCard({
 
   return (
     <Card className="overflow-hidden py-0 gap-0">
-      <Link to={`/marathons/${marathon.id}/packages`} className="relative block h-40 w-full bg-cover bg-center" style={{ backgroundImage: `url(${marathon.bannerImageUrl})` }}>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+      <Link to={`/marathons/${marathon.id}/packages`} className="relative block h-44 w-full bg-cover bg-center" style={{ backgroundImage: `url(${marathon.bannerImageUrl})` }}>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-brand-navy/25 to-transparent" />
         <Badge variant={statusPill.variant} className="absolute top-3 right-3">
           {statusPill.label}
         </Badge>
-        <div className="absolute bottom-3 left-4 font-display text-4xl tracking-wide text-white drop-shadow">
-          {formatDate(eventDate)}
+        <div className="absolute right-4 bottom-4 left-4 flex flex-col gap-1">
+          <h3 className="font-display text-2xl leading-none tracking-wide text-white drop-shadow hover:underline">
+            {marathon.title}
+          </h3>
+          <div className="flex items-center gap-1.5 text-xs text-white/80">
+            <MapPinIcon className="size-3.5" />
+            {marathon.location}
+          </div>
         </div>
       </Link>
 
-      <CardContent className="flex flex-col gap-3 pt-5">
-        <div>
-          <Link to={`/marathons/${marathon.id}/packages`}>
-            <h3 className="font-display text-xl tracking-wide leading-tight hover:underline">
-              {marathon.title}
-            </h3>
-          </Link>
-          <div className="text-muted-foreground mt-1 flex items-center gap-1.5 text-sm">
-            <MapPinIcon className="size-3.5" />
-            {marathon.location}
+      {/* Die-cut seam — a small nod to the tour-ticket feel of a travel booking, not just a race signup. */}
+      <div className="relative h-[18px] shrink-0">
+        <div className="border-border absolute inset-x-[22px] top-1/2 border-t-2 border-dashed" />
+        <span className="bg-background absolute top-1/2 -left-[9px] size-[18px] -translate-y-1/2 rounded-full" />
+        <span className="bg-background absolute top-1/2 -right-[9px] size-[18px] -translate-y-1/2 rounded-full" />
+      </div>
+
+      <CardContent className="flex flex-col gap-3.5 pt-0.5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+              Marathon Date
+            </div>
+            <div className="text-sm font-semibold tabular-nums">{formatDate(eventDate)}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+              Registration Closes
+            </div>
+            <div className="text-sm font-semibold tabular-nums">{formatDate(closesAt)}</div>
           </div>
         </div>
 
@@ -65,14 +81,9 @@ export function MarathonCard({
           </div>
           <Progress value={percentFull} />
         </div>
-
-        <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-          <CalendarIcon className="size-3.5" />
-          Registration closes {formatDate(closesAt)}
-        </div>
       </CardContent>
 
-      <CardFooter className="mt-4 pt-4 border-t border-border">
+      <CardFooter className="mt-1 pt-4 border-t border-border">
         {myRegistration ? (
           myRegistration.status === 'queued' ? (
             <div className="flex w-full items-center justify-between text-sm">

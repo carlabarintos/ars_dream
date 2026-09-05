@@ -1,9 +1,10 @@
 import { cn } from '@/lib/utils'
+import { RunnerIcon } from '@/components/RunnerIcon'
 
 const SIZE_CLASSES = {
-  sm: 'text-base',
-  default: 'text-xl',
-  lg: 'text-4xl',
+  sm: 'size-4',
+  default: 'size-6',
+  lg: 'size-10',
 } as const
 
 export function Spinner({
@@ -14,12 +15,8 @@ export function Spinner({
   className?: string
 }) {
   return (
-    <span
-      role="status"
-      aria-label="Loading"
-      className={cn('animate-runner inline-block leading-none select-none', SIZE_CLASSES[size], className)}
-    >
-      🏃
+    <span role="status" aria-label="Loading" className={cn('text-primary inline-block', className)}>
+      <RunnerIcon className={cn('animate-runner', SIZE_CLASSES[size])} />
     </span>
   )
 }
