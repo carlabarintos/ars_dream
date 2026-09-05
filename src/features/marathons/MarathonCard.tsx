@@ -5,18 +5,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { TicketSeam } from '@/components/TicketSeam'
 import type { Marathon, Registration } from '@/types'
 
-import { getMarathonAvailability } from './marathon-status'
+import { AVAILABILITY_PILL, getMarathonAvailability } from './marathon-status'
 
 function formatDate(date: Date) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-const STATUS_PILL = {
-  open: { label: 'Open', variant: 'success' as const },
-  filling: { label: 'Filling Up', variant: 'warning' as const },
-  closed: { label: 'Closed', variant: 'secondary' as const },
 }
 
 export function MarathonCard({
@@ -32,11 +27,15 @@ export function MarathonCard({
   const closesAt = marathon.registrationClosesAt.toDate()
   const isFull = spotsLeft <= 0
   const isClosed = new Date() > closesAt
-  const statusPill = STATUS_PILL[getMarathonAvailability(marathon)]
+  const statusPill = AVAILABILITY_PILL[getMarathonAvailability(marathon)]
 
   return (
-    <Card className="overflow-hidden py-0 gap-0">
-      <Link to={`/marathons/${marathon.id}/packages`} className="relative block h-44 w-full bg-cover bg-center" style={{ backgroundImage: `url(${marathon.bannerImageUrl})` }}>
+    <Card className="group overflow-hidden py-0 gap-0 transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg">
+      <Link to={`/marathons/${marathon.id}/packages`} className="relative block h-44 w-full overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
+          style={{ backgroundImage: `url(${marathon.bannerImageUrl})` }}
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-brand-navy/25 to-transparent" />
         <Badge variant={statusPill.variant} className="absolute top-3 right-3">
           {statusPill.label}
@@ -52,12 +51,7 @@ export function MarathonCard({
         </div>
       </Link>
 
-      {/* Die-cut seam — a small nod to the tour-ticket feel of a travel booking, not just a race signup. */}
-      <div className="relative h-[18px] shrink-0">
-        <div className="border-border absolute inset-x-[22px] top-1/2 border-t-2 border-dashed" />
-        <span className="bg-background absolute top-1/2 -left-[9px] size-[18px] -translate-y-1/2 rounded-full" />
-        <span className="bg-background absolute top-1/2 -right-[9px] size-[18px] -translate-y-1/2 rounded-full" />
-      </div>
+      <TicketSeam />
 
       <CardContent className="flex flex-col gap-3.5 pt-0.5">
         <div className="flex items-start justify-between gap-3">
