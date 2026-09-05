@@ -3,9 +3,11 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
 import { Layout } from '@/components/Layout'
 import { Toaster } from '@/components/ui/sonner'
+import { PageSpinner } from '@/components/ui/spinner'
 import { ProfilePage } from '@/features/auth/ProfilePage'
 import { RequireAdmin, RequireAuth, RequireFinanceAccess } from '@/features/auth/RequireAuth'
 import { SignInPage } from '@/features/auth/SignInPage'
+import { useAuthStore } from '@/features/auth/auth-store'
 import { useAuthListener } from '@/features/auth/use-auth-listener'
 import { AdminDashboard } from '@/features/admin/AdminDashboard'
 import { AdminMessagesPage } from '@/features/admin/AdminMessagesPage'
@@ -15,12 +17,22 @@ import { QueueReviewPage } from '@/features/admin/QueueReviewPage'
 import { QuestionnaireTemplatesPage } from '@/features/admin/QuestionnaireTemplatesPage'
 import { RevenuePage } from '@/features/admin/RevenuePage'
 import { UsersPage } from '@/features/admin/UsersPage'
+import { LandingPage } from '@/features/marketing/LandingPage'
 import { MessagesPage } from '@/features/messages/MessagesPage'
 import { PackageSelectionPage } from '@/features/marathons/PackageSelectionPage'
 import { TimelinePage } from '@/features/marathons/TimelinePage'
 import { MyRegistrationsPage } from '@/features/registrations/MyRegistrationsPage'
 
 const queryClient = new QueryClient()
+
+/** Signed-out visitors get the public marketing landing page; signed-in users keep the Timeline feed. */
+function HomeRoute() {
+  const firebaseUser = useAuthStore((state) => state.firebaseUser)
+  const isLoading = useAuthStore((state) => state.isLoading)
+
+  if (isLoading) return <PageSpinner />
+  return firebaseUser ? <TimelinePage /> : <LandingPage />
+}
 
 function AppRoutes() {
   useAuthListener()
@@ -29,14 +41,7 @@ function AppRoutes() {
     <Layout>
       <Routes>
         <Route path="/sign-in" element={<SignInPage />} />
-        <Route
-          path="/"
-          element={
-            <RequireAuth>
-              <TimelinePage />
-            </RequireAuth>
-          }
-        />
+        <Route path="/" element={<HomeRoute />} />
         <Route
           path="/marathons/:marathonId/packages"
           element={

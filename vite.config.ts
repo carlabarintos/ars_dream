@@ -51,4 +51,11 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    // Visual Studio's solution index files under .vs/ get locked while VS has the
+    // AppHost solution open, which crashes Vite's file watcher with EBUSY.
+    watch: {
+      ignored: ['**/.vs/**'],
+    },
+  },
 })
