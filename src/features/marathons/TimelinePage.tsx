@@ -84,9 +84,9 @@ export function TimelinePage() {
         </svg>
 
         <div className="relative mx-auto flex max-w-5xl flex-col gap-8">
-          <div>
-            <span className="mb-4 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-white/70 uppercase before:h-px before:w-6 before:bg-white/70">
-              2026 World Tour
+          <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
+            <span className="mb-4 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-white/70 uppercase before:h-px before:w-6 before:bg-white/70 after:h-px after:w-6 after:bg-white/70">
+              World Tour
             </span>
             <h1 className="font-display max-w-[11ch] text-5xl leading-[0.95] tracking-wide text-white sm:text-6xl">
               Run the world.
