@@ -15,6 +15,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { BibCard } from '@/components/BibCard'
 import { LogoBadge } from '@/components/LogoBadge'
+import { MedalIcon, type MedalCity } from '@/components/MedalIcon'
 import { RouteLines } from '@/components/RouteLines'
 import { Reveal } from './Reveal'
 import { useParallax } from './use-parallax'
@@ -78,6 +79,22 @@ const STEPS = [
     title: 'Confirmed',
     description: "You're booked. We'll see you at the start line.",
   },
+]
+
+// Scattered around the final CTA, as if pinned to the wall behind "your next start line" —
+// one finisher medal per major, each swaying on its own timer for an organic, non-synced feel.
+const CTA_MEDALS: {
+  city: MedalCity
+  className: string
+  rotate: string
+  duration: string
+  delay: string
+}[] = [
+  { city: 'new-york', className: 'top-2 left-[6%] w-16 sm:top-6 sm:w-20', rotate: '-8deg', duration: '5.2s', delay: '0s' },
+  { city: 'berlin', className: 'top-0 right-[9%] w-14 sm:top-2 sm:w-16', rotate: '6deg', duration: '4.6s', delay: '-1.4s' },
+  { city: 'tokyo', className: 'bottom-2 right-[5%] w-16 sm:bottom-6 sm:w-20', rotate: '7deg', duration: '5s', delay: '-0.6s' },
+  { city: 'london', className: 'bottom-4 left-[11%] w-14 sm:bottom-10 sm:w-16', rotate: '-5deg', duration: '5.8s', delay: '-2.1s' },
+  { city: 'sydney', className: 'top-1/2 left-[1%] w-12 -translate-y-1/2 sm:w-14', rotate: '-6deg', duration: '4.8s', delay: '-3s' },
 ]
 
 const VALUE_PROPS = [
@@ -306,6 +323,26 @@ export function LandingPage() {
       {/* Final CTA */}
       <section className="relative overflow-hidden bg-gradient-to-br from-brand-navy to-[#041d3d] px-4 py-20 text-center sm:py-24">
         <RouteLines className="pointer-events-none absolute inset-0 h-full w-full opacity-20" />
+
+        {CTA_MEDALS.map((medal, index) => (
+          <div
+            key={medal.city}
+            className={`animate-fade-up-in pointer-events-none absolute hidden opacity-90 sm:block ${medal.className}`}
+            style={{ animationDelay: `${index * 90}ms` }}
+            aria-hidden="true"
+          >
+            <MedalIcon
+              city={medal.city}
+              className="animate-medal-sway"
+              style={{
+                ['--medal-rotate' as string]: medal.rotate,
+                animationDuration: medal.duration,
+                animationDelay: medal.delay,
+              }}
+            />
+          </div>
+        ))}
+
         <Reveal className="relative mx-auto max-w-2xl">
           <h2 className="font-display text-4xl tracking-wide text-white sm:text-5xl">
             Your next start line is waiting.
@@ -320,6 +357,21 @@ export function LandingPage() {
               <ArrowRightIcon />
             </Link>
           </Button>
+
+          <div className="mt-10 flex justify-center gap-3 sm:hidden" aria-hidden="true">
+            {CTA_MEDALS.map((medal, index) => (
+              <MedalIcon
+                key={medal.city}
+                city={medal.city}
+                className="animate-medal-sway w-11 opacity-90"
+                style={{
+                  ['--medal-rotate' as string]: medal.rotate,
+                  animationDuration: medal.duration,
+                  animationDelay: `${index * 90}ms`,
+                }}
+              />
+            ))}
+          </div>
         </Reveal>
       </section>
 

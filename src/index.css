@@ -183,6 +183,28 @@
   }
 }
 
+@keyframes medal-sway {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--medal-rotate, -4deg));
+  }
+  50% {
+    transform: translateY(-10px) rotate(calc(var(--medal-rotate, -4deg) * -1));
+  }
+}
+
+.animate-medal-sway {
+  animation: medal-sway 5s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-medal-sway {
+    animation: none;
+    transform: rotate(var(--medal-rotate, -4deg));
+  }
+}
+
 @keyframes fade-up-in {
   from {
     opacity: 0;
