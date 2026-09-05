@@ -8,14 +8,18 @@ import {
   ClockIcon,
   type LucideIcon,
   MapPinIcon,
+  TicketIcon,
   XCircleIcon,
 } from 'lucide-react'
 
+import { RouteLines } from '@/components/RouteLines'
+import { TicketSeam } from '@/components/TicketSeam'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
+import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { useMarathonsByIds } from '@/features/marathons/use-marathons'
-import type { Registration } from '@/types'
+import { cn } from '@/lib/utils'
+import type { RegistrationStatus } from '@/types'
 
 import { CancelRegistrationButton } from './CancelRegistrationButton'
 import {
@@ -35,7 +39,7 @@ function formatDate(date: Date) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-const STATUS_ICON: Record<Registration['status'], LucideIcon> = {
+const STATUS_ICON: Record<RegistrationStatus, LucideIcon> = {
   queued: ClockIcon,
   accepted: AlertCircleIcon,
   terms_accepted: AlertCircleIcon,
@@ -44,6 +48,75 @@ const STATUS_ICON: Record<Registration['status'], LucideIcon> = {
   confirmed: CheckCircle2Icon,
   rejected: XCircleIcon,
   cancelled: BanIcon,
+}
+
+const STATUS_ICON_BG: Record<RegistrationStatus, string> = {
+  queued: 'bg-secondary text-secondary-foreground',
+  accepted: 'bg-warning text-warning-foreground',
+  terms_accepted: 'bg-warning text-warning-foreground',
+  payment_submitted: 'bg-secondary text-secondary-foreground',
+  payment_rejected: 'bg-destructive text-destructive-foreground',
+  confirmed: 'bg-success text-success-foreground',
+  rejected: 'bg-destructive text-destructive-foreground',
+  cancelled: 'bg-secondary text-secondary-foreground',
+}
+
+// Mirrors the registrations.status pipeline documented in CLAUDE.md — the
+// happy-path progression a booking moves through from queue to confirmation.
+const PIPELINE_STEPS = ['Queued', 'Accepted', 'Terms', 'Payment', 'Confirmed'] as const
+
+const PIPELINE_INDEX: Partial<Record<RegistrationStatus, number>> = {
+  queued: 0,
+  accepted: 1,
+  terms_accepted: 2,
+  payment_submitted: 3,
+  payment_rejected: 3,
+  confirmed: 4,
+}
+
+/** Compact step tracker for the happy-path pipeline; renders nothing for terminal off-path statuses (rejected/cancelled) where a linear step count no longer applies. */
+function PipelineTracker({ status }: { status: RegistrationStatus }) {
+  const currentIndex = PIPELINE_INDEX[status]
+  if (currentIndex === undefined) return null
+  const isDerailed = status === 'payment_rejected'
+
+  return (
+    <div className="flex items-center" aria-hidden="true">
+      {PIPELINE_STEPS.map((label, index) => {
+        const isReached = index <= currentIndex
+        const isCurrent = index === currentIndex
+        return (
+          <div key={label} className="flex flex-1 items-center last:flex-none">
+            <div className="flex flex-col items-center gap-1">
+              <span
+                className={cn(
+                  'size-2.5 rounded-full border-2',
+                  isCurrent && isDerailed
+                    ? 'border-destructive bg-destructive'
+                    : isReached
+                      ? 'border-primary bg-primary'
+                      : 'border-border bg-background',
+                )}
+              />
+              <span
+                className={cn(
+                  'text-[9px] font-semibold tracking-wide uppercase',
+                  isCurrent ? 'text-foreground' : 'text-muted-foreground',
+                )}
+              >
+                {label}
+              </span>
+            </div>
+            {index < PIPELINE_STEPS.length - 1 && (
+              <span
+                className={cn('mx-1 mb-3.5 h-0.5 flex-1 rounded-full', index < currentIndex ? 'bg-primary' : 'bg-border')}
+              />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 export function MyRegistrationsPage() {
@@ -64,44 +137,108 @@ export function MyRegistrationsPage() {
     .slice()
     .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())
 
-  return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
-      <div>
-        <h1 className="font-display text-4xl tracking-wide">My Registrations</h1>
-        <p className="text-muted-foreground mt-1">Track your bookings and complete any pending steps.</p>
-      </div>
+  const actionNeededCount = registrations.filter(
+    (r) => getPendingActionStep(r, marathons[r.marathonId]) != null,
+  ).length
+  const confirmedCount = registrations.filter((r) => r.status === 'confirmed').length
 
-      {isLoading ? (
-        <p className="text-muted-foreground">Loading…</p>
-      ) : sorted.length === 0 ? (
-        <div className="border-border flex flex-col items-center gap-3 rounded-xl border border-dashed p-10 text-center">
-          <p className="text-muted-foreground">You haven't registered for any marathons yet.</p>
-          <Button asChild>
-            <Link to="/">Browse Marathons</Link>
-          </Button>
+  return (
+    <>
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary via-brand-navy to-[#041d3d] px-4 pt-14 pb-24 sm:pt-20 sm:pb-28">
+        <RouteLines className="pointer-events-none absolute inset-0 h-full w-full opacity-30" />
+        <svg
+          className="pointer-events-none absolute top-1/2 right-[-8%] h-[min(52vw,420px)] w-[min(52vw,420px)] -translate-y-1/2 opacity-90 max-sm:top-auto max-sm:right-[-22%] max-sm:bottom-[-18%] max-sm:h-[70vw] max-sm:w-[70vw] max-sm:translate-y-0 max-sm:opacity-40"
+          viewBox="0 0 300 300"
+          aria-hidden="true"
+        >
+          <circle cx="150" cy="150" r="130" fill="none" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
+          <ellipse cx="150" cy="150" rx="52" ry="130" fill="none" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
+          <ellipse cx="150" cy="150" rx="95" ry="130" fill="none" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
+          <line x1="20" y1="150" x2="280" y2="150" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
+          <line x1="35" y1="95" x2="265" y2="95" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
+          <line x1="35" y1="205" x2="265" y2="205" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
+        </svg>
+
+        <div className="relative mx-auto flex max-w-2xl flex-col items-center text-center">
+          <span className="mb-4 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-white/70 uppercase before:h-px before:w-6 before:bg-white/70 after:h-px after:w-6 after:bg-white/70">
+            Ticket Wallet
+          </span>
+          <h1 className="font-display max-w-[14ch] text-5xl leading-[0.95] tracking-wide text-white sm:text-6xl">
+            Your Bookings
+          </h1>
+          <p className="mt-5 max-w-[46ch] text-white/80">
+            Every marathon package you've queued for, reviewed, and confirmed — all in one place.
+          </p>
         </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {sorted.map((registration) => {
+      </section>
+
+      {!isLoading && sorted.length > 0 && (
+        <div className="relative z-10 mx-auto -mt-10 max-w-2xl px-4 sm:-mt-12">
+          <div className="border-border bg-card divide-border grid grid-cols-3 divide-x rounded-2xl border shadow-lg">
+            <div className="flex flex-col items-center gap-0.5 p-4 sm:p-5">
+              <span className="font-display text-3xl tracking-wide">{sorted.length}</span>
+              <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">Total</span>
+            </div>
+            <div className="flex flex-col items-center gap-0.5 p-4 sm:p-5">
+              <span className="font-display text-3xl tracking-wide">{actionNeededCount}</span>
+              <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+                Action Needed
+              </span>
+            </div>
+            <div className="flex flex-col items-center gap-0.5 p-4 sm:p-5">
+              <span className="font-display text-3xl tracking-wide">{confirmedCount}</span>
+              <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+                Confirmed
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 pt-8 pb-8">
+        {isLoading ? (
+          <p className="text-muted-foreground">Loading…</p>
+        ) : sorted.length === 0 ? (
+          <div className="border-border flex flex-col items-center gap-3 rounded-2xl border border-dashed p-12 text-center">
+            <span className="bg-primary/10 text-primary flex size-12 items-center justify-center rounded-full">
+              <TicketIcon className="size-6" />
+            </span>
+            <div>
+              <p className="font-display text-xl tracking-wide">No bookings yet</p>
+              <p className="text-muted-foreground mt-1 text-sm">You haven't registered for any marathons yet.</p>
+            </div>
+            <Button asChild className="mt-2">
+              <Link to="/">Browse Marathons</Link>
+            </Button>
+          </div>
+        ) : (
+          sorted.map((registration) => {
             const marathon = marathons[registration.marathonId]
             const pendingStep = getPendingActionStep(registration, marathon)
             const StatusIcon = STATUS_ICON[registration.status]
 
             return (
-              <Card key={registration.id} className="gap-0 overflow-hidden py-0">
-                {marathon?.bannerImageUrl && (
-                  <div
-                    className="h-28 w-full bg-cover bg-center"
-                    style={{ backgroundImage: `url(${marathon.bannerImageUrl})` }}
-                  />
-                )}
-                <CardHeader>
-                  <div>
-                    <h2 className="font-display text-2xl leading-tight tracking-wide">
+              <Card
+                key={registration.id}
+                className="group gap-0 overflow-hidden py-0 transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg"
+              >
+                <div className="relative h-36 w-full overflow-hidden sm:h-40">
+                  {marathon?.bannerImageUrl ? (
+                    <div
+                      className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
+                      style={{ backgroundImage: `url(${marathon.bannerImageUrl})` }}
+                    />
+                  ) : (
+                    <div className="from-primary to-brand-navy absolute inset-0 bg-gradient-to-br" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-brand-navy/25 to-transparent" />
+                  <StatusBadge status={registration.status} className="absolute top-3 right-3" />
+                  <div className="absolute right-4 bottom-4 left-4 flex flex-col gap-1">
+                    <h2 className="font-display text-2xl leading-none tracking-wide text-white drop-shadow">
                       {marathon?.title ?? 'Marathon'}
                     </h2>
                     {marathon && (
-                      <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/80">
                         <span className="flex items-center gap-1">
                           <MapPinIcon className="size-3.5" />
                           {marathon.location}
@@ -113,24 +250,50 @@ export function MyRegistrationsPage() {
                       </div>
                     )}
                   </div>
-                </CardHeader>
+                </div>
 
-                <CardContent className="flex flex-col gap-3 pb-5">
-                  <div className="text-muted-foreground text-sm">
-                    {registration.packageName} · {registration.packagePriceCurrency}{' '}
-                    {getRegistrationTotalAmount(registration).toLocaleString()}
-                    {registration.selectedAddOns && registration.selectedAddOns.length > 0 && (
-                      <> (incl. {registration.selectedAddOns.map((addOn) => addOn.name).join(', ')})</>
-                    )}
+                <TicketSeam />
+
+                <CardContent className="flex flex-col gap-4 pt-4 pb-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+                        Package
+                      </div>
+                      <div className="text-sm font-semibold">{registration.packageName}</div>
+                      {registration.selectedAddOns && registration.selectedAddOns.length > 0 && (
+                        <div className="text-muted-foreground mt-0.5 text-xs">
+                          + {registration.selectedAddOns.map((addOn) => addOn.name).join(', ')}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <div className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+                        Total
+                      </div>
+                      <div className="text-sm font-semibold tabular-nums">
+                        {registration.packagePriceCurrency}{' '}
+                        {getRegistrationTotalAmount(registration).toLocaleString()}
+                      </div>
+                    </div>
                   </div>
-                  <div className="bg-muted/50 flex items-start gap-2 rounded-md p-3 text-sm">
-                    <StatusIcon className="mt-0.5 size-4 shrink-0" />
+
+                  <PipelineTracker status={registration.status} />
+
+                  <div className="bg-muted/50 flex items-start gap-2.5 rounded-lg p-3 text-sm">
+                    <span
+                      className={cn(
+                        'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full',
+                        STATUS_ICON_BG[registration.status],
+                      )}
+                    >
+                      <StatusIcon className="size-3.5" />
+                    </span>
                     <span>{getRegistrationStatusMessage(registration)}</span>
                   </div>
                 </CardContent>
 
-                <CardFooter className="border-border flex flex-col items-center gap-3 border-t pt-4 pb-5">
-                  <StatusBadge status={registration.status} />
+                <CardFooter className="border-border flex flex-col gap-2 border-t pt-4 pb-5">
                   {needsPackageUpdate(registration) && (
                     <Button className="w-full" asChild>
                       <Link to={`/marathons/${registration.marathonId}/packages`}>Choose a New Package</Link>
@@ -150,9 +313,9 @@ export function MyRegistrationsPage() {
                 </CardFooter>
               </Card>
             )
-          })}
-        </div>
-      )}
+          })
+        )}
+      </div>
 
       {activeRegistration && (
         <RegistrationWizard
@@ -161,6 +324,6 @@ export function MyRegistrationsPage() {
           onClose={() => setActiveRegistrationId(null)}
         />
       )}
-    </div>
+    </>
   )
 }

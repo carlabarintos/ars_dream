@@ -12,7 +12,11 @@ const STATUS_CONFIG: Record<RegistrationStatus, { label: string; variant: 'defau
   cancelled: { label: 'Cancelled', variant: 'secondary' },
 }
 
-export function StatusBadge({ status }: { status: RegistrationStatus }) {
+export function StatusBadge({ status, className }: { status: RegistrationStatus; className?: string }) {
   const config = STATUS_CONFIG[status]
-  return <Badge variant={config.variant}>{config.label}</Badge>
+  return (
+    <Badge variant={config.variant} className={className}>
+      {config.label}
+    </Badge>
+  )
 }

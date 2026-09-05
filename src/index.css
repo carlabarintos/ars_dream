@@ -37,20 +37,22 @@
 }
 
 .dark {
-  /* Navy-black background rather than neutral gray, to feel like an extension of the brand. */
-  --background: oklch(0.16 0.02 260);
+  /* Navy-black background rather than neutral gray, to feel like an extension of the brand.
+     Chroma is pushed noticeably higher than the light theme's grays (0.02) so surfaces read
+     as blue rather than flat charcoal. */
+  --background: oklch(0.16 0.045 258);
   --foreground: oklch(0.97 0.005 250);
-  --card: oklch(0.2 0.022 260);
+  --card: oklch(0.21 0.05 258);
   --card-foreground: oklch(0.97 0.005 250);
-  --popover: oklch(0.2 0.022 260);
+  --popover: oklch(0.21 0.05 258);
   --popover-foreground: oklch(0.97 0.005 250);
   --primary: #4c86e0;
   --primary-foreground: oklch(0.16 0.03 260);
   --brand-navy: #06356b;
-  --secondary: oklch(0.27 0.02 260);
+  --secondary: oklch(0.28 0.06 258);
   --secondary-foreground: oklch(0.97 0.005 250);
-  --muted: oklch(0.27 0.02 260);
-  --muted-foreground: oklch(0.68 0.02 260);
+  --muted: oklch(0.28 0.055 258);
+  --muted-foreground: oklch(0.7 0.035 258);
   --accent: #7ba7ea;
   --accent-foreground: oklch(0.16 0.03 260);
   --destructive: oklch(0.62 0.22 25);
@@ -59,8 +61,8 @@
   --success-foreground: oklch(0.14 0.02 155);
   --warning: oklch(0.8 0.15 80);
   --warning-foreground: oklch(0.16 0.02 80);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 12%);
+  --border: oklch(0.55 0.08 258 / 20%);
+  --input: oklch(0.55 0.08 258 / 22%);
   --ring: #4c86e0;
   color-scheme: dark;
 }
