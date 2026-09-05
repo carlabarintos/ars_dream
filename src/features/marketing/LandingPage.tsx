@@ -13,6 +13,7 @@ import {
 import { Link } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
+import { BibCard } from '@/components/BibCard'
 import { LogoBadge } from '@/components/LogoBadge'
 import { RouteLines } from '@/components/RouteLines'
 import { Reveal } from './Reveal'
@@ -123,6 +124,16 @@ export function LandingPage() {
           <line x1="35" y1="95" x2="265" y2="95" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
           <line x1="35" y1="205" x2="265" y2="205" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
         </svg>
+
+        <div
+          className="animate-fade-up-in pointer-events-none absolute top-[58%] left-[-4%] hidden xl:block"
+          style={{ animationDelay: '700ms' }}
+          aria-hidden="true"
+        >
+          <div className="animate-bib-float">
+            <BibCard className="rotate-6 scale-90 opacity-90" />
+          </div>
+        </div>
 
         <div className="relative mx-auto flex max-w-5xl flex-col items-center text-center">
           <LogoBadge className="animate-fade-up-in mb-8 sm:p-5" imgClassName="h-12 w-auto sm:h-16" />
