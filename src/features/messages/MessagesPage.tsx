@@ -156,7 +156,7 @@ export function MessagesPage() {
           </TabsList>
         </div>
 
-        <div className="mx-auto max-w-2xl px-4 pt-8 pb-8">
+        <div className="mx-auto w-full max-w-2xl px-4 pt-8 pb-8">
           {role !== 'admin' && (
             <TabsContent value="support">
               <SupportTab uid={uid} />

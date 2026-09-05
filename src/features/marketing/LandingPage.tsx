@@ -14,42 +14,60 @@ import { Link } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
 import { BibCard } from '@/components/BibCard'
+import { DestinationArt } from '@/components/DestinationArt'
 import { LogoBadge } from '@/components/LogoBadge'
 import { MedalIcon, type MedalCity } from '@/components/MedalIcon'
 import { RouteLines } from '@/components/RouteLines'
 import { Reveal } from './Reveal'
 import { useParallax } from './use-parallax'
 
-const DESTINATIONS = [
+const DESTINATIONS: {
+  n: string
+  city: string
+  medalCity: MedalCity
+  country: string
+  note: string
+  landmark: string
+}[] = [
   {
     n: '01',
     city: 'New York',
+    medalCity: 'new-york',
     country: 'United States',
     note: 'Five boroughs, one finish line in Central Park.',
+    landmark: 'Statue of Liberty',
   },
   {
     n: '02',
     city: 'Berlin',
+    medalCity: 'berlin',
     country: 'Germany',
     note: 'Flat, fast streets built for a personal best.',
+    landmark: 'Brandenburg Gate',
   },
   {
     n: '03',
     city: 'London',
+    medalCity: 'london',
     country: 'United Kingdom',
     note: 'From Greenwich to The Mall.',
+    landmark: 'Big Ben & red double-decker',
   },
   {
     n: '04',
     city: 'Tokyo',
+    medalCity: 'tokyo',
     country: 'Japan',
     note: 'Neon-lit crowds all the way to Nihonbashi.',
+    landmark: 'Mt. Fuji & Tokyo Tower',
   },
   {
     n: '05',
     city: 'Sydney',
+    medalCity: 'sydney',
     country: 'Australia',
     note: 'Harbour views from the Bridge to the Opera House.',
+    landmark: 'Opera House & Harbour Bridge',
   },
 ]
 
@@ -244,13 +262,27 @@ export function LandingPage() {
         <div className="mt-12 grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-5">
           {DESTINATIONS.map((destination, index) => (
             <Reveal key={destination.city} delay={index * 80}>
-              <div className="border-border bg-card h-full rounded-xl border p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
-                <span className="font-display text-primary/15 text-4xl">{destination.n}</span>
-                <h3 className="font-display mt-2 text-2xl tracking-wide">{destination.city}</h3>
-                <p className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
-                  {destination.country}
-                </p>
-                <p className="text-muted-foreground mt-3 text-sm">{destination.note}</p>
+              <div className="border-border bg-card h-full overflow-hidden rounded-xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+                <div className="relative aspect-[6/5] w-full overflow-hidden">
+                  <DestinationArt
+                    city={destination.medalCity}
+                    className="scale-105 transition-transform duration-500 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-black/55 to-transparent" />
+                  <span className="font-display absolute top-2 right-3 text-3xl text-white/25">
+                    {destination.n}
+                  </span>
+                  <span className="absolute bottom-1.5 left-3 text-[9px] font-semibold tracking-wider text-white/85 uppercase">
+                    {destination.landmark}
+                  </span>
+                </div>
+                <div className="p-5">
+                  <h3 className="font-display text-2xl tracking-wide">{destination.city}</h3>
+                  <p className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+                    {destination.country}
+                  </p>
+                  <p className="text-muted-foreground mt-3 text-sm">{destination.note}</p>
+                </div>
               </div>
             </Reveal>
           ))}
