@@ -16,7 +16,7 @@ export function Spinner({
   )
 }
 
-export function PageSpinner({ label = 'Loading…' }: { label?: string }) {
+export function PageSpinner({ label = 'Warming up…' }: { label?: string }) {
   return (
     <div role="status" aria-label={label} className="flex min-h-svh flex-col items-center justify-center gap-6">
       <BibCard />

@@ -130,7 +130,7 @@ export function PackageSelectionPage() {
   if (isLoading) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-8">
-        <p className="text-muted-foreground">Loading…</p>
+        <p className="text-muted-foreground">Warming up…</p>
       </div>
     )
   }
