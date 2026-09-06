@@ -177,7 +177,7 @@ export function LandingPage() {
             className="animate-fade-up-in mb-4 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-white/70 uppercase before:h-px before:w-6 before:bg-white/70 after:h-px after:w-6 after:bg-white/70"
             style={{ animationDelay: '100ms' }}
           >
-            Manila's Marathon Travel Specialists
+            Manila's Only Major Marathon Travel Specialists
           </span>
           <h1
             className="animate-fade-up-in font-display max-w-[16ch] text-6xl leading-[0.95] tracking-wide text-white sm:text-7xl md:text-8xl"
