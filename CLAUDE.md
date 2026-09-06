@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-ARS Dream is a Firebase-backed React PWA for a real Manila marathon-tourism company (arsdreamsports.com) — it's the digital registration/queue system for their international marathon tour packages (New York, Berlin, London, Tokyo, Sydney), not a generic fun-run app. Copy and flows should reflect an actual travel-agency booking process: limited-capacity tour packages, a queue → acceptance → payment pipeline, not instant signup.
+ARS Dream is a Firebase-backed React PWA for a real Manila-based marathon-tourism company (arsdreamsports.com) serving clients nationwide across the Philippines — it's the digital registration/queue system for their international marathon tour packages (New York, Berlin, London, Tokyo, Sydney), not a generic fun-run app. Copy and flows should reflect an actual travel-agency booking process: limited-capacity tour packages, a queue → acceptance → payment pipeline, not instant signup. Marketing copy should present the company's reach/audience as Philippines-wide (not Manila-only), while the company's HQ/registered address remains Manila.
 
 The frontend (`src/`) is the actual application. `AppHost/` is a .NET Aspire project used **only** for local dev orchestration — it has no runtime role; it just launches the Vite dev server and the Firebase emulator suite together under one dashboard (see `AppHost/AppHost.cs`). Do not treat this as a .NET app.
 

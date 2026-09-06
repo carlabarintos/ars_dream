@@ -123,7 +123,7 @@ const VALUE_PROPS = [
   },
   {
     icon: HeadphonesIcon,
-    title: 'Manila-Based Race Concierge',
+    title: 'Philippines-Based Race Concierge',
     description: 'Real people reviewing your queue, payments, and questions — not a faceless booking engine.',
   },
   {
@@ -177,7 +177,7 @@ export function LandingPage() {
             className="animate-fade-up-in mb-4 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-white/70 uppercase before:h-px before:w-6 before:bg-white/70 after:h-px after:w-6 after:bg-white/70"
             style={{ animationDelay: '100ms' }}
           >
-            Manila's Only Major Marathon Travel Specialists
+            The Philippines' Only World Marathon Majors Travel Specialist
           </span>
           <h1
             className="animate-fade-up-in font-display max-w-[16ch] text-6xl leading-[0.95] tracking-wide text-white sm:text-7xl md:text-8xl"
@@ -231,7 +231,7 @@ export function LandingPage() {
             <span className="size-1 rounded-full bg-white/40" />
             <span>Queue-Based Fair Booking</span>
             <span className="size-1 rounded-full bg-white/40" />
-            <span>Manila-Based Race Concierge</span>
+            <span>Philippines-Based Race Concierge</span>
           </div>
 
           <a
@@ -262,7 +262,7 @@ export function LandingPage() {
         <div className="mt-12 grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-5">
           {DESTINATIONS.map((destination, index) => (
             <Reveal key={destination.city} delay={index * 80}>
-              <div className="border-border bg-card h-full overflow-hidden rounded-xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+              <div className="group border-border bg-card h-full overflow-hidden rounded-xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
                 <div className="relative aspect-[6/5] w-full overflow-hidden">
                   <DestinationArt
                     city={destination.medalCity}

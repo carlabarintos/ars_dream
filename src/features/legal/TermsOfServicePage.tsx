@@ -27,9 +27,9 @@ export function TermsOfServicePage() {
         <p>
           These Terms of Service ("Terms") govern your use of the ARS Dream Sports booking platform,
           operated by ARS Dream Sports ("ARS Dream", "we", "us"), a Manila-based marathon tour operator
-          arranging travel packages to international marathon events (New York, Berlin, London, Tokyo,
-          Sydney, and others). By creating an account or submitting a registration, you agree to these
-          Terms.
+          serving clients nationwide across the Philippines, arranging travel packages to international
+          marathon events (New York, Berlin, London, Tokyo, Sydney, and others). By creating an account
+          or submitting a registration, you agree to these Terms.
         </p>
       </section>
 

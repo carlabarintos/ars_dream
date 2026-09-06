@@ -100,6 +100,9 @@ export function AdminDashboard() {
             <Link to="/admin/revenue">Revenue</Link>
           </Button>
           <Button variant="outline" asChild>
+            <Link to="/admin/funnel-analytics">Funnel Analytics</Link>
+          </Button>
+          <Button variant="outline" asChild>
             <Link to="/admin/legal-content">Legal Pages</Link>
           </Button>
           <ExportImportControls />

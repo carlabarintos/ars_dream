@@ -6,6 +6,8 @@ function Toaster(props: ToasterProps) {
     <Sonner
       theme="light"
       className="toaster group"
+      offset={{ bottom: 'calc(env(safe-area-inset-bottom) + 76px)' }}
+      mobileOffset={{ bottom: 'calc(env(safe-area-inset-bottom) + 76px)' }}
       style={
         {
           '--normal-bg': 'var(--card)',

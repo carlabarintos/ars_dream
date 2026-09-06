@@ -12,6 +12,7 @@ import { useAuthListener } from '@/features/auth/use-auth-listener'
 import { AdminDashboard } from '@/features/admin/AdminDashboard'
 import { AdminMessagesPage } from '@/features/admin/AdminMessagesPage'
 import { AuditLogPage } from '@/features/admin/AuditLogPage'
+import { FunnelAnalyticsPage } from '@/features/admin/FunnelAnalyticsPage'
 import { PaymentReviewPage } from '@/features/admin/PaymentReviewPage'
 import { QueueReviewPage } from '@/features/admin/QueueReviewPage'
 import { QuestionnaireTemplatesPage } from '@/features/admin/QuestionnaireTemplatesPage'
@@ -33,7 +34,7 @@ function HomeRoute() {
   const firebaseUser = useAuthStore((state) => state.firebaseUser)
   const isLoading = useAuthStore((state) => state.isLoading)
 
-  if (isLoading) return <PageSpinner />
+  if (isLoading) return <PageSpinner label="Warming up…" />
   return firebaseUser ? <TimelinePage /> : <LandingPage />
 }
 
@@ -145,6 +146,16 @@ function AppRoutes() {
             <RequireAuth>
               <RequireAdmin>
                 <AuditLogPage />
+              </RequireAdmin>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/funnel-analytics"
+          element={
+            <RequireAuth>
+              <RequireAdmin>
+                <FunnelAnalyticsPage />
               </RequireAdmin>
             </RequireAuth>
           }
