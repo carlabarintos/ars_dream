@@ -22,6 +22,8 @@ const CODE_MESSAGES: Record<string, string> = {
   'auth/network-request-failed': 'We lost signal for a second there. Check your connection and try again.',
   'auth/user-disabled': 'This account has been disabled. Please contact ARS Dream support.',
   'auth/requires-recent-login': 'Please sign in again to continue.',
+  'auth/expired-action-code': 'This reset link has expired — please request a new one.',
+  'auth/invalid-action-code': 'This reset link is invalid or has already been used — please request a new one.',
   'permission-denied': "That's not something you're able to do right now.",
   unavailable: 'Our servers are catching their breath — please try again in a moment.',
   'deadline-exceeded': 'That took longer than expected. Please try again.',

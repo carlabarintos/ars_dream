@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { sendAdminPasswordReset, updateUserProfileAsAdmin, updateUserRole } from '@/features/auth/auth-actions'
+import { requestPasswordReset, updateUserProfileAsAdmin, updateUserRole } from '@/features/auth/auth-actions'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName } from '@/features/auth/use-user-profiles'
 import { useMarathonsByIds } from '@/features/marathons/use-marathons'
@@ -127,7 +127,7 @@ function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: () =>
     }
     setIsSendingReset(true)
     try {
-      await sendAdminPasswordReset(profile.email)
+      await requestPasswordReset(profile.email)
       toast.success(`Password reset email sent to ${profile.email}.`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')

@@ -84,9 +84,22 @@ export async function updateUserRole(uid: string, role: UserRole) {
   await updateDoc(doc(db, 'users', uid), { role })
 }
 
-/** Sends the standard Firebase "reset your password" email. Only meaningful for email/password accounts (Google sign-in users have no password to reset), and works without any elevated privileges since it's the same mechanism as the sign-in page's forgot-password flow. */
-export async function sendAdminPasswordReset(email: string) {
-  await sendPasswordResetEmail(auth, email)
+/**
+ * Sends the standard Firebase "reset your password" email. Only meaningful for
+ * email/password accounts (Google sign-in users have no password to reset),
+ * and works without any elevated privileges — used both by the sign-in page's
+ * forgot-password flow and by an admin resetting another user's password.
+ *
+ * `url` becomes the `continueUrl` query param on whatever page the reset link
+ * lands on. In production, once Firebase Console → Authentication → Templates
+ * → Password reset → action URL is pointed at ResetPasswordPage.tsx's route
+ * (see CLAUDE.md), that page handles the reset itself and ignores this param;
+ * it only matters as a "back to the app" link on Firebase's default hosted
+ * page for any environment where the custom action URL isn't configured yet
+ * (e.g. the local emulator, which always uses its own built-in action page).
+ */
+export async function requestPasswordReset(email: string) {
+  await sendPasswordResetEmail(auth, email, { url: `${window.location.origin}/sign-in` })
 }
 
 export async function signInWithEmail(email: string, password: string) {

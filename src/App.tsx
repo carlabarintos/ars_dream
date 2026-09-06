@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { PageSpinner } from '@/components/ui/spinner'
 import { ProfilePage } from '@/features/auth/ProfilePage'
 import { RequireAdmin, RequireAuth, RequireFinanceAccess } from '@/features/auth/RequireAuth'
+import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
 import { SignInPage } from '@/features/auth/SignInPage'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { useAuthListener } from '@/features/auth/use-auth-listener'
@@ -45,6 +46,7 @@ function AppRoutes() {
     <Layout>
       <Routes>
         <Route path="/sign-in" element={<SignInPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/" element={<HomeRoute />} />
         <Route path="/terms" element={<TermsOfServicePage />} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />

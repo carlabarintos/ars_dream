@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getFriendlyErrorMessage } from '@/lib/friendly-error'
 import type { Gender } from '@/types'
-import { signInWithEmail, signUpWithEmail } from './auth-actions'
+import { requestPasswordReset, signInWithEmail, signUpWithEmail } from './auth-actions'
 
 const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: 'male', label: 'Male' },
@@ -20,8 +20,15 @@ const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: 'prefer_not_to_say', label: 'Prefer not to say' },
 ]
 
+// Local throttle on top of Firebase's own rate limiting, so a registrant can't
+// spam the button into repeated emails while waiting for the first one to arrive.
+const RESEND_COOLDOWN_SECONDS = 30
+// After this many resends, stop offering the button entirely and point them at
+// support instead — if the email still isn't arriving, retrying won't help.
+const MAX_RESEND_ATTEMPTS = 3
+
 export function SignInPage() {
-  const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in')
+  const [mode, setMode] = useState<'sign-in' | 'sign-up' | 'forgot-password'>('sign-in')
   const [firstName, setFirstName] = useState('')
   const [middleName, setMiddleName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -31,7 +38,16 @@ export function SignInPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [resetEmailSent, setResetEmailSent] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const [resendCount, setResendCount] = useState(0)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (resendCooldown === 0) return
+    const timer = setTimeout(() => setResendCooldown((seconds) => seconds - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [resendCooldown])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -63,6 +79,45 @@ export function SignInPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  async function sendResetEmail() {
+    setIsSubmitting(true)
+    try {
+      await requestPasswordReset(email)
+      setResetEmailSent(true)
+      setResendCooldown(RESEND_COOLDOWN_SECONDS)
+    } catch (error) {
+      // Never reveal whether an email is registered — treat "no such account" as
+      // success too, so this form can't be used to probe for valid accounts.
+      const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined
+      if (code === 'auth/user-not-found') {
+        setResetEmailSent(true)
+        setResendCooldown(RESEND_COOLDOWN_SECONDS)
+      } else {
+        toast.error(getFriendlyErrorMessage(error, 'auth'))
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function handleForgotPassword(event: FormEvent) {
+    event.preventDefault()
+    await sendResetEmail()
+  }
+
+  async function handleResend() {
+    if (resendCount >= MAX_RESEND_ATTEMPTS) return
+    setResendCount((count) => count + 1)
+    await sendResetEmail()
+  }
+
+  function backToSignIn() {
+    setMode('sign-in')
+    setResetEmailSent(false)
+    setResendCooldown(0)
+    setResendCount(0)
   }
 
   return (
@@ -117,130 +172,200 @@ export function SignInPage() {
           <Card>
             <CardHeader className="items-center text-center">
               <span className="text-primary text-xs font-semibold tracking-[0.2em] uppercase">
-                {mode === 'sign-in' ? 'Welcome Back' : 'Get Started'}
+                {mode === 'sign-in' && 'Welcome Back'}
+                {mode === 'sign-up' && 'Get Started'}
+                {mode === 'forgot-password' && 'Reset Password'}
               </span>
               <CardDescription>
-                {mode === 'sign-in'
-                  ? 'Sign in to join the queue for your next race.'
-                  : 'Create an account to get started.'}
+                {mode === 'sign-in' && 'Sign in to join the queue for your next race.'}
+                {mode === 'sign-up' && 'Create an account to get started.'}
+                {mode === 'forgot-password' &&
+                  (resetEmailSent
+                    ? "Check your inbox for a link to reset your password. It may take a few minutes to arrive."
+                    : "Enter the email on your account and we'll send you a link to reset your password.")}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                {mode === 'sign-up' && (
-                  <>
+              {mode === 'forgot-password' ? (
+                resetEmailSent ? (
+                  <div className="flex flex-col gap-3">
+                    {resendCount >= MAX_RESEND_ATTEMPTS ? (
+                      <p className="text-muted-foreground text-center text-sm">
+                        Still nothing? Email{' '}
+                        <a href="mailto:support@arsdreamsports.com" className="text-primary hover:underline">
+                          support@arsdreamsports.com
+                        </a>{' '}
+                        and we'll help you get back in.
+                      </p>
+                    ) : (
+                      <Button
+                        type="button"
+                        loading={isSubmitting}
+                        disabled={resendCooldown > 0}
+                        className="w-full"
+                        onClick={handleResend}
+                      >
+                        {resendCooldown > 0 ? `Resend link in ${resendCooldown}s` : 'Resend link'}
+                      </Button>
+                    )}
+                    <Button type="button" variant="outline" className="w-full" onClick={backToSignIn}>
+                      Back to sign in
+                    </Button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleForgotPassword} className="flex flex-col gap-4">
                     <div className="flex flex-col gap-1.5">
-                      <Label htmlFor="firstName">First name</Label>
+                      <Label htmlFor="reset-email">Email</Label>
                       <Input
-                        id="firstName"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
+                        id="reset-email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         required
                       />
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                      <Label htmlFor="middleName">Middle name (optional)</Label>
-                      <Input
-                        id="middleName"
-                        value={middleName}
-                        onChange={(e) => setMiddleName(e.target.value)}
-                      />
+                    <Button type="submit" loading={isSubmitting} className="mt-2">
+                      Send reset link
+                    </Button>
+                    <button
+                      type="button"
+                      className="text-primary text-center text-sm font-medium hover:underline"
+                      onClick={backToSignIn}
+                    >
+                      Back to sign in
+                    </button>
+                  </form>
+                )
+              ) : (
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                  {mode === 'sign-up' && (
+                    <>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="firstName">First name</Label>
+                        <Input
+                          id="firstName"
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="middleName">Middle name (optional)</Label>
+                        <Input
+                          id="middleName"
+                          value={middleName}
+                          onChange={(e) => setMiddleName(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="lastName">Last name</Label>
+                        <Input
+                          id="lastName"
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="contactNumber">Contact number</Label>
+                        <Input
+                          id="contactNumber"
+                          type="tel"
+                          value={contactNumber}
+                          onChange={(e) => setContactNumber(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="dateOfBirth">Date of birth</Label>
+                        <Input
+                          id="dateOfBirth"
+                          type="date"
+                          value={dateOfBirth}
+                          onChange={(e) => setDateOfBirth(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="gender">Gender</Label>
+                        <Select value={gender} onValueChange={(value) => setGender(value as Gender)}>
+                          <SelectTrigger id="gender">
+                            <SelectValue placeholder="Select…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {GENDER_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Password</Label>
+                      {mode === 'sign-in' && (
+                        <button
+                          type="button"
+                          className="text-primary text-xs font-medium hover:underline"
+                          onClick={() => setMode('forgot-password')}
+                        >
+                          Forgot password?
+                        </button>
+                      )}
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                      <Label htmlFor="lastName">Last name</Label>
-                      <Input
-                        id="lastName"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <Label htmlFor="contactNumber">Contact number</Label>
-                      <Input
-                        id="contactNumber"
-                        type="tel"
-                        value={contactNumber}
-                        onChange={(e) => setContactNumber(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <Label htmlFor="dateOfBirth">Date of birth</Label>
-                      <Input
-                        id="dateOfBirth"
-                        type="date"
-                        value={dateOfBirth}
-                        onChange={(e) => setDateOfBirth(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <Label htmlFor="gender">Gender</Label>
-                      <Select value={gender} onValueChange={(value) => setGender(value as Gender)}>
-                        <SelectTrigger id="gender">
-                          <SelectValue placeholder="Select…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {GENDER_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    minLength={6}
-                    required
-                  />
-                </div>
-                {mode === 'sign-up' && (
-                  <p className="text-muted-foreground text-xs">
-                    By creating an account, you agree to our{' '}
-                    <Link to="/terms" className="text-primary hover:underline">
-                      Terms of Service
-                    </Link>{' '}
-                    and{' '}
-                    <Link to="/privacy" className="text-primary hover:underline">
-                      Privacy Policy
-                    </Link>
-                    .
-                  </p>
-                )}
-                <Button type="submit" loading={isSubmitting} className="mt-2">
-                  {mode === 'sign-in' ? 'Sign in' : 'Create account'}
-                </Button>
-              </form>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      minLength={6}
+                      required
+                    />
+                  </div>
+                  {mode === 'sign-up' && (
+                    <p className="text-muted-foreground text-xs">
+                      By creating an account, you agree to our{' '}
+                      <Link to="/terms" className="text-primary hover:underline">
+                        Terms of Service
+                      </Link>{' '}
+                      and{' '}
+                      <Link to="/privacy" className="text-primary hover:underline">
+                        Privacy Policy
+                      </Link>
+                      .
+                    </p>
+                  )}
+                  <Button type="submit" loading={isSubmitting} className="mt-2">
+                    {mode === 'sign-in' ? 'Sign in' : 'Create account'}
+                  </Button>
+                </form>
+              )}
 
-              <p className="text-muted-foreground mt-4 text-center text-sm">
-                {mode === 'sign-in' ? "Don't have an account? " : 'Already have an account? '}
-                <button
-                  type="button"
-                  className="text-primary font-medium hover:underline"
-                  onClick={() => setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')}
-                >
-                  {mode === 'sign-in' ? 'Sign up' : 'Sign in'}
-                </button>
-              </p>
+              {mode !== 'forgot-password' && (
+                <p className="text-muted-foreground mt-4 text-center text-sm">
+                  {mode === 'sign-in' ? "Don't have an account? " : 'Already have an account? '}
+                  <button
+                    type="button"
+                    className="text-primary font-medium hover:underline"
+                    onClick={() => setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')}
+                  >
+                    {mode === 'sign-in' ? 'Sign up' : 'Sign in'}
+                  </button>
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
