@@ -19,6 +19,7 @@ import { LogoBadge } from '@/components/LogoBadge'
 import { MedalIcon, type MedalCity } from '@/components/MedalIcon'
 import { RouteLines } from '@/components/RouteLines'
 import { Reveal } from './Reveal'
+import { FlowRibbon } from './FlowRibbon'
 import { useParallax } from './use-parallax'
 
 const DESTINATIONS: {
@@ -139,7 +140,10 @@ export function LandingPage() {
   const linesParallax = useParallax(0.06)
 
   return (
-    <>
+    // The milky way (z-1) sits above section backgrounds but below their content: every
+    // non-decorative section child is lifted to z-2.
+    <div className="relative [&>*>*:not(.absolute)]:relative [&>*>*]:z-[2]">
+      <FlowRibbon />
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary via-brand-navy to-[#041d3d] px-4 py-20 sm:py-28">
         <RouteLines
@@ -419,6 +423,6 @@ export function LandingPage() {
           </Button>
         </div>
       </footer>
-    </>
+    </div>
   )
 }
