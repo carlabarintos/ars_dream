@@ -11,7 +11,7 @@ export function LogoBadge({
     <div className={cn('inline-flex items-center justify-center rounded-2xl bg-white/95 p-4 shadow-xl', className)}>
       <img
         src="/ars-dream-logo-jp.avif"
-        alt="ARS Dream Sports — アールス ドリーム"
+        alt="ARS Dream Sports, アールス ドリーム"
         className={imgClassName}
       />
     </div>

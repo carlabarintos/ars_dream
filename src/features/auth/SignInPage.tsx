@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { LogoBadge } from '@/components/LogoBadge'
+import { MedalIcon, type MedalCity } from '@/components/MedalIcon'
+import { MedalOrbit } from '@/components/MedalOrbit'
 import { RouteLines } from '@/components/RouteLines'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
@@ -12,6 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { getFriendlyErrorMessage } from '@/lib/friendly-error'
 import type { Gender } from '@/types'
 import { requestPasswordReset, signInWithEmail, signUpWithEmail } from './auth-actions'
+
+const HEADLINE = ['Your', 'next', 'start', 'line', 'is', 'waiting.']
+
+const MOBILE_MEDALS: MedalCity[] = ['new-york', 'berlin', 'london', 'tokyo', 'sydney']
 
 const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: 'male', label: 'Male' },
@@ -122,252 +128,268 @@ export function SignInPage() {
 
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
-      {/* Brand panel */}
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-primary via-brand-navy to-[#041d3d] px-10 lg:flex lg:flex-col lg:items-center lg:justify-center">
-        <RouteLines className="pointer-events-none absolute inset-0 h-full w-full opacity-30" />
-        <svg
-          className="pointer-events-none absolute top-1/2 right-[-15%] h-[min(50vw,460px)] w-[min(50vw,460px)] -translate-y-1/2 opacity-60"
-          viewBox="0 0 300 300"
-          aria-hidden="true"
-        >
-          <circle cx="150" cy="150" r="130" fill="none" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
-          <ellipse cx="150" cy="150" rx="52" ry="130" fill="none" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
-          <ellipse cx="150" cy="150" rx="95" ry="130" fill="none" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
-          <line x1="20" y1="150" x2="280" y2="150" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
-          <line x1="35" y1="95" x2="265" y2="95" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
-          <line x1="35" y1="205" x2="265" y2="205" stroke="#fff" strokeOpacity="0.5" strokeWidth="1.5" />
-        </svg>
+      {/* Brand panel: same kinetic headline + medal orbit as the landing hero, so the jump from
+          "Reserve Your Spot" lands somewhere that feels like the same place. */}
+      <div className="relative hidden overflow-hidden bg-gradient-to-br from-primary via-brand-navy to-[#041d3d] px-12 py-16 lg:flex lg:flex-col lg:justify-center">
+        <RouteLines className="animate-route-drift pointer-events-none absolute inset-0 h-full w-full opacity-30" />
 
-        <div className="relative flex max-w-md flex-col items-center text-center">
-          <LogoBadge className="animate-fade-up-in mb-8" />
-          <span
-            className="animate-fade-up-in mb-4 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-white/70 uppercase before:h-px before:w-6 before:bg-white/70 after:h-px after:w-6 after:bg-white/70"
-            style={{ animationDelay: '100ms' }}
-          >
-            The Philippines' Only World Marathon Majors Travel Specialist
-          </span>
-          <h1
-            className="animate-fade-up-in font-display text-5xl leading-[0.95] tracking-wide text-white"
-            style={{ animationDelay: '180ms' }}
-          >
-            Your next start line is waiting.
+        <div className="relative mx-auto w-full max-w-lg">
+          <LogoBadge className="animate-fade-up-in mb-10 p-3" imgClassName="h-10 w-auto" />
+          <h1 className="font-display text-6xl leading-[0.92] tracking-wide text-white xl:text-7xl">
+            {HEADLINE.map((word, i) => (
+              <span key={word} className="inline-block overflow-hidden pr-[0.22em] align-bottom">
+                <span className="kinetic-word" style={{ ['--i' as string]: i }}>
+                  {word}
+                </span>
+              </span>
+            ))}
           </h1>
-          <p
-            className="animate-fade-up-in mt-6 text-white/80"
-            style={{ animationDelay: '320ms' }}
-          >
+          <p className="animate-fade-up-in mt-5 max-w-[42ch] text-white/80" style={{ animationDelay: '480ms' }}>
             Sign in to track your place in the queue, or create an account to start your tour
             package application.
           </p>
+          <div className="animate-fade-up-in mt-10" style={{ animationDelay: '300ms' }}>
+            <MedalOrbit className="sm:size-[340px] sm:[--r:150px] xl:size-[400px] xl:[--r:178px]" />
+          </div>
         </div>
       </div>
 
       {/* Form panel */}
-      <div className="flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-sm">
-          <div className="mb-6 flex justify-center lg:hidden">
-            <LogoBadge className="animate-fade-up-in" />
+      <div className="flex flex-col lg:items-center lg:justify-center lg:px-4 lg:py-12">
+        {/* Mobile brand band: compact version of the desktop panel (no room for the orbit, so the
+            medals sway in a row instead). The form card overlaps its bottom edge. */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-primary via-brand-navy to-[#041d3d] px-6 pt-8 pb-20 lg:hidden">
+          <RouteLines className="animate-route-drift pointer-events-none absolute inset-0 h-full w-full opacity-30" />
+          <div className="relative mx-auto max-w-sm">
+            <LogoBadge className="animate-fade-up-in p-2.5" imgClassName="h-8 w-auto" />
+            <h1 className="font-display mt-6 text-5xl leading-[0.92] tracking-wide text-white">
+              {HEADLINE.map((word, i) => (
+                <span key={word} className="inline-block overflow-hidden pr-[0.22em] align-bottom">
+                  <span className="kinetic-word" style={{ ['--i' as string]: i }}>
+                    {word}
+                  </span>
+                </span>
+              ))}
+            </h1>
+            <div className="animate-fade-up-in mt-6 flex gap-3" style={{ animationDelay: '450ms' }} aria-hidden="true">
+              {MOBILE_MEDALS.map((city, i) => (
+                <MedalIcon
+                  key={city}
+                  city={city}
+                  className="animate-medal-sway w-9"
+                  style={{
+                    ['--medal-rotate' as string]: `${i % 2 ? 6 : -6}deg`,
+                    animationDuration: `${4.6 + i * 0.3}s`,
+                    animationDelay: `${-i * 0.7}s`,
+                  }}
+                />
+              ))}
+            </div>
           </div>
+        </div>
 
-          <Card>
-            <CardHeader className="items-center text-center">
-              <span className="text-primary text-xs font-semibold tracking-[0.2em] uppercase">
-                {mode === 'sign-in' && 'Welcome Back'}
-                {mode === 'sign-up' && 'Get Started'}
-                {mode === 'forgot-password' && 'Reset Password'}
-              </span>
-              <CardDescription>
-                {mode === 'sign-in' && 'Sign in to join the queue for your next race.'}
-                {mode === 'sign-up' && 'Create an account to get started.'}
-                {mode === 'forgot-password' &&
-                  (resetEmailSent
-                    ? "Check your inbox for a link to reset your password. It may take a few minutes to arrive."
-                    : "Enter the email on your account and we'll send you a link to reset your password.")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {mode === 'forgot-password' ? (
-                resetEmailSent ? (
-                  <div className="flex flex-col gap-3">
-                    {resendCount >= MAX_RESEND_ATTEMPTS ? (
-                      <p className="text-muted-foreground text-center text-sm">
-                        Still nothing? Email{' '}
-                        <a href="mailto:support@arsdreamsports.com" className="text-primary hover:underline">
-                          support@arsdreamsports.com
-                        </a>{' '}
-                        and we'll help you get back in.
-                      </p>
-                    ) : (
-                      <Button
-                        type="button"
-                        loading={isSubmitting}
-                        disabled={resendCooldown > 0}
-                        className="w-full"
-                        onClick={handleResend}
-                      >
-                        {resendCooldown > 0 ? `Resend link in ${resendCooldown}s` : 'Resend link'}
+        <div className="relative -mt-12 w-full px-4 pb-12 lg:mt-0 lg:max-w-sm lg:px-0 lg:pb-0">
+          <div className="mx-auto max-w-sm">
+            <Card className="animate-fade-up-in" style={{ animationDelay: '150ms' }}>
+              <CardHeader className="items-center text-center">
+                <span className="text-primary text-xs font-semibold tracking-[0.2em] uppercase">
+                  {mode === 'sign-in' && 'Welcome Back'}
+                  {mode === 'sign-up' && 'Get Started'}
+                  {mode === 'forgot-password' && 'Reset Password'}
+                </span>
+                <CardDescription>
+                  {mode === 'sign-in' && 'Sign in to join the queue for your next race.'}
+                  {mode === 'sign-up' && 'Create an account to get started.'}
+                  {mode === 'forgot-password' &&
+                    (resetEmailSent
+                      ? "Check your inbox for a link to reset your password. It may take a few minutes to arrive."
+                      : "Enter the email on your account and we'll send you a link to reset your password.")}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {mode === 'forgot-password' ? (
+                  resetEmailSent ? (
+                    <div className="flex flex-col gap-3">
+                      {resendCount >= MAX_RESEND_ATTEMPTS ? (
+                        <p className="text-muted-foreground text-center text-sm">
+                          Still nothing? Email{' '}
+                          <a href="mailto:support@arsdreamsports.com" className="text-primary hover:underline">
+                            support@arsdreamsports.com
+                          </a>{' '}
+                          and we'll help you get back in.
+                        </p>
+                      ) : (
+                        <Button
+                          type="button"
+                          loading={isSubmitting}
+                          disabled={resendCooldown > 0}
+                          className="w-full"
+                          onClick={handleResend}
+                        >
+                          {resendCooldown > 0 ? `Resend link in ${resendCooldown}s` : 'Resend link'}
+                        </Button>
+                      )}
+                      <Button type="button" variant="outline" className="w-full" onClick={backToSignIn}>
+                        Back to sign in
                       </Button>
-                    )}
-                    <Button type="button" variant="outline" className="w-full" onClick={backToSignIn}>
-                      Back to sign in
-                    </Button>
-                  </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleForgotPassword} className="flex flex-col gap-4">
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="reset-email">Email</Label>
+                        <Input
+                          id="reset-email"
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <Button type="submit" loading={isSubmitting} className="mt-2">
+                        Send reset link
+                      </Button>
+                      <button
+                        type="button"
+                        className="text-primary text-center text-sm font-medium hover:underline"
+                        onClick={backToSignIn}
+                      >
+                        Back to sign in
+                      </button>
+                    </form>
+                  )
                 ) : (
-                  <form onSubmit={handleForgotPassword} className="flex flex-col gap-4">
+                  <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    {mode === 'sign-up' && (
+                      <>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="firstName">First name</Label>
+                          <Input
+                            id="firstName"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="middleName">Middle name (optional)</Label>
+                          <Input
+                            id="middleName"
+                            value={middleName}
+                            onChange={(e) => setMiddleName(e.target.value)}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="lastName">Last name</Label>
+                          <Input
+                            id="lastName"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="contactNumber">Contact number</Label>
+                          <Input
+                            id="contactNumber"
+                            type="tel"
+                            value={contactNumber}
+                            onChange={(e) => setContactNumber(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="dateOfBirth">Date of birth</Label>
+                          <Input
+                            id="dateOfBirth"
+                            type="date"
+                            value={dateOfBirth}
+                            onChange={(e) => setDateOfBirth(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="gender">Gender</Label>
+                          <Select value={gender} onValueChange={(value) => setGender(value as Gender)}>
+                            <SelectTrigger id="gender">
+                              <SelectValue placeholder="Select…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {GENDER_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </>
+                    )}
                     <div className="flex flex-col gap-1.5">
-                      <Label htmlFor="reset-email">Email</Label>
+                      <Label htmlFor="email">Email</Label>
                       <Input
-                        id="reset-email"
+                        id="email"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
                       />
                     </div>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="password">Password</Label>
+                        {mode === 'sign-in' && (
+                          <button
+                            type="button"
+                            className="text-primary text-xs font-medium hover:underline"
+                            onClick={() => setMode('forgot-password')}
+                          >
+                            Forgot password?
+                          </button>
+                        )}
+                      </div>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        minLength={6}
+                        required
+                      />
+                    </div>
+                    {mode === 'sign-up' && (
+                      <p className="text-muted-foreground text-xs">
+                        By creating an account, you agree to our{' '}
+                        <Link to="/terms" className="text-primary hover:underline">
+                          Terms of Service
+                        </Link>{' '}
+                        and{' '}
+                        <Link to="/privacy" className="text-primary hover:underline">
+                          Privacy Policy
+                        </Link>
+                        .
+                      </p>
+                    )}
                     <Button type="submit" loading={isSubmitting} className="mt-2">
-                      Send reset link
+                      {mode === 'sign-in' ? 'Sign in' : 'Create account'}
                     </Button>
+                  </form>
+                )}
+
+                {mode !== 'forgot-password' && (
+                  <p className="text-muted-foreground mt-4 text-center text-sm">
+                    {mode === 'sign-in' ? "Don't have an account? " : 'Already have an account? '}
                     <button
                       type="button"
-                      className="text-primary text-center text-sm font-medium hover:underline"
-                      onClick={backToSignIn}
+                      className="text-primary font-medium hover:underline"
+                      onClick={() => setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')}
                     >
-                      Back to sign in
+                      {mode === 'sign-in' ? 'Sign up' : 'Sign in'}
                     </button>
-                  </form>
-                )
-              ) : (
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                  {mode === 'sign-up' && (
-                    <>
-                      <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="firstName">First name</Label>
-                        <Input
-                          id="firstName"
-                          value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="middleName">Middle name (optional)</Label>
-                        <Input
-                          id="middleName"
-                          value={middleName}
-                          onChange={(e) => setMiddleName(e.target.value)}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="lastName">Last name</Label>
-                        <Input
-                          id="lastName"
-                          value={lastName}
-                          onChange={(e) => setLastName(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="contactNumber">Contact number</Label>
-                        <Input
-                          id="contactNumber"
-                          type="tel"
-                          value={contactNumber}
-                          onChange={(e) => setContactNumber(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="dateOfBirth">Date of birth</Label>
-                        <Input
-                          id="dateOfBirth"
-                          type="date"
-                          value={dateOfBirth}
-                          onChange={(e) => setDateOfBirth(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="gender">Gender</Label>
-                        <Select value={gender} onValueChange={(value) => setGender(value as Gender)}>
-                          <SelectTrigger id="gender">
-                            <SelectValue placeholder="Select…" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {GENDER_OPTIONS.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </>
-                  )}
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="password">Password</Label>
-                      {mode === 'sign-in' && (
-                        <button
-                          type="button"
-                          className="text-primary text-xs font-medium hover:underline"
-                          onClick={() => setMode('forgot-password')}
-                        >
-                          Forgot password?
-                        </button>
-                      )}
-                    </div>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      minLength={6}
-                      required
-                    />
-                  </div>
-                  {mode === 'sign-up' && (
-                    <p className="text-muted-foreground text-xs">
-                      By creating an account, you agree to our{' '}
-                      <Link to="/terms" className="text-primary hover:underline">
-                        Terms of Service
-                      </Link>{' '}
-                      and{' '}
-                      <Link to="/privacy" className="text-primary hover:underline">
-                        Privacy Policy
-                      </Link>
-                      .
-                    </p>
-                  )}
-                  <Button type="submit" loading={isSubmitting} className="mt-2">
-                    {mode === 'sign-in' ? 'Sign in' : 'Create account'}
-                  </Button>
-                </form>
-              )}
-
-              {mode !== 'forgot-password' && (
-                <p className="text-muted-foreground mt-4 text-center text-sm">
-                  {mode === 'sign-in' ? "Don't have an account? " : 'Already have an account? '}
-                  <button
-                    type="button"
-                    className="text-primary font-medium hover:underline"
-                    onClick={() => setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')}
-                  >
-                    {mode === 'sign-in' ? 'Sign up' : 'Sign in'}
-                  </button>
-                </p>
-              )}
-            </CardContent>
-          </Card>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

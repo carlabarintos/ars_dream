@@ -32,6 +32,10 @@
   --warning-foreground: oklch(0.18 0.02 80);
   --border: oklch(0.9 0.012 260);
   --input: oklch(0.9 0.012 260);
+  --star-1: #0b2a5c;
+  --star-2: #00509e;
+  --star-3: #1d67cd;
+  --star-haze: #4c86e0;
   --ring: #1d67cd;
   color-scheme: light;
 }
@@ -63,6 +67,10 @@
   --warning-foreground: oklch(0.16 0.02 80);
   --border: oklch(0.55 0.08 258 / 20%);
   --input: oklch(0.55 0.08 258 / 22%);
+  --star-1: #ffffff;
+  --star-2: #cfe0ff;
+  --star-3: #8db6f5;
+  --star-haze: #8db6f5;
   --ring: #4c86e0;
   color-scheme: dark;
 }
@@ -227,6 +235,129 @@
 
   html {
     scroll-behavior: auto;
+  }
+}
+
+/* ---- Landing page motion ----
+   Time-based loops are gated on no-preference; scroll-driven ones additionally need scroll
+   timelines (no Firefox yet). Without either, the page falls back to its static layout. */
+@keyframes rise-in {
+  from {
+    transform: translateY(110%);
+  }
+}
+@keyframes orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes route-drift {
+  50% {
+    transform: translateY(-3%) scaleX(1.04);
+  }
+}
+
+.kinetic-word {
+  display: inline-block;
+}
+
+.text-outline {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--muted-foreground);
+}
+
+/* Destinations: a horizontally scrollable strip by default. */
+.sd-pan-viewport {
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .kinetic-word {
+    animation: rise-in 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(var(--i) * 70ms + 120ms);
+  }
+  .animate-orbit {
+    animation: orbit-spin 70s linear infinite;
+  }
+  .animate-orbit-reverse {
+    animation: orbit-spin 70s linear infinite reverse;
+  }
+  .animate-marquee {
+    animation: marquee 45s linear infinite;
+  }
+  .animate-route-drift {
+    animation: route-drift 12s ease-in-out infinite;
+  }
+
+  @supports (animation-timeline: view()) {
+    @keyframes sd-reveal {
+      from {
+        opacity: 0;
+        transform: translateY(48px);
+      }
+    }
+    @keyframes sd-hero-exit {
+      to {
+        opacity: 0;
+        transform: translateY(-12%) scale(0.94);
+      }
+    }
+    @keyframes sd-pan {
+      to {
+        transform: translateX(calc(-100% + 100vw));
+      }
+    }
+    @keyframes sd-fill {
+      from {
+        transform: scaleY(0);
+      }
+    }
+
+    .sd-reveal {
+      animation: sd-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+    .sd-hero-exit {
+      animation: sd-hero-exit linear both;
+      animation-timeline: view();
+      animation-range: exit 0% exit 90%;
+    }
+
+    /* Destinations: the section is tall, its panel pins, and scrolling through it pans the track. */
+    .sd-pan {
+      height: 320vh;
+      view-timeline-name: --pan;
+    }
+    .sd-pan-sticky {
+      position: sticky;
+      top: 0;
+      height: 100dvh;
+    }
+    .sd-pan-viewport {
+      overflow: hidden;
+    }
+    .sd-pan-track {
+      animation: sd-pan linear both;
+      animation-timeline: --pan;
+      animation-range: contain 5% contain 95%;
+    }
+
+    .sd-steps {
+      view-timeline-name: --steps;
+    }
+    .sd-fill {
+      animation: sd-fill linear both;
+      animation-timeline: --steps;
+      animation-range: entry 60% exit 40%;
+    }
   }
 }
 

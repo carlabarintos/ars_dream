@@ -14,7 +14,8 @@ const spread = () => rand() + rand() + rand() - 1.5
 // The band's spine: a slow S-curve down the page. t = 0..1 → x as % of page width.
 const spineX = (t: number) => 50 + 28 * Math.sin(t * Math.PI * 4.4)
 
-const COLORS = ['#ffffff', '#cfe0ff', '#8db6f5', 'var(--accent)', 'var(--primary)']
+// Star tones are theme tokens (index.css): pale on the night theme, navy/cobalt on the light one.
+const COLORS = ['var(--star-1)', 'var(--star-2)', 'var(--star-3)', 'var(--accent)', 'var(--primary)']
 
 // Two depth layers: far stars are small/dim and drift slowly, near stars are brighter and faster.
 function makeStars(count: number, maxSize: number) {
@@ -97,7 +98,7 @@ export function FlowRibbon() {
             left: `${h.left}%`,
             width: h.size,
             height: h.size,
-            background: 'radial-gradient(circle, #8db6f5, transparent 70%)',
+            background: 'radial-gradient(circle, var(--star-haze), transparent 70%)',
           }}
         />
       ))}

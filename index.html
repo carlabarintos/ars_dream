@@ -12,9 +12,7 @@
       (function () {
         try {
           var stored = localStorage.getItem('ars-dream-theme')
-          var isDark =
-            stored === 'dark' ||
-            (stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          var isDark = stored !== 'light'
           if (isDark) document.documentElement.classList.add('dark')
         } catch (e) {}
       })()
