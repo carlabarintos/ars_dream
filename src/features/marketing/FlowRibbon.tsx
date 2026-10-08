@@ -27,12 +27,11 @@ function makeStars(count: number, maxSize: number) {
       size: 1 + rand() * maxSize,
       color: COLORS[Math.floor(rand() * COLORS.length)],
       opacity: 0.35 + rand() * 0.65,
-      twinkle: rand() < 0.3 ? `${rand() * -3}s` : undefined,
     }
   })
 }
-const FAR = makeStars(700, 1.8)
-const NEAR = makeStars(160, 3.5)
+const FAR = makeStars(400, 1.8)
+const NEAR = makeStars(100, 3.5)
 const HAZE = Array.from({ length: 40 }, (_, i) => {
   const t = i / 39 - 0.1
   return { top: t * 100, left: spineX(t) + spread() * 8, size: 260 + rand() * 260 }
@@ -45,10 +44,14 @@ const HAZE = Array.from({ length: 40 }, (_, i) => {
  */
 export function FlowRibbon() {
   const ref = useRef<HTMLDivElement>(null)
+  const farRef = useRef<HTMLDivElement>(null)
+  const nearRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const el = ref.current
-    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const far = farRef.current
+    const near = nearRef.current
+    if (!el || !far || !near || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
     let progress = 0
     let frame = 0
@@ -58,9 +61,11 @@ export function FlowRibbon() {
       // Keep the band's leading edge a bit below the middle of the viewport.
       const target = Math.min((y + window.innerHeight * 1.1) / document.documentElement.scrollHeight, 1)
       progress += (target - progress) * 0.08
-      el!.style.setProperty('--reveal', `${progress * 100}%`)
-      el!.style.setProperty('--far', `${y * 0.06}px`)
-      el!.style.setProperty('--near', `${y * 0.16}px`)
+      // Write styles directly (not inherited custom properties) so ~500 stars don't restyle every frame.
+      const reveal = `${progress * 100}%`
+      el!.style.maskImage = `linear-gradient(to bottom, #000 calc(${reveal} - 500px), transparent ${reveal})`
+      far!.style.transform = `translate3d(0, ${y * 0.06}px, 0)`
+      near!.style.transform = `translate3d(0, ${y * 0.16}px, 0)`
       frame = Math.abs(target - progress) > 0.0005 ? requestAnimationFrame(tick) : 0
     }
 
@@ -83,16 +88,13 @@ export function FlowRibbon() {
       ref={ref}
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 z-[1] overflow-hidden motion-reduce:hidden"
-      style={{
-        ['--reveal' as string]: '0%',
-        // Soft leading edge instead of a hard cut-off.
-        maskImage: 'linear-gradient(to bottom, #000 calc(var(--reveal) - 500px), transparent var(--reveal))',
-      }}
+      // Soft leading edge instead of a hard cut-off; updated on scroll.
+      style={{ maskImage: 'linear-gradient(to bottom, #000 -500px, transparent 0%)' }}
     >
       {HAZE.map((h, i) => (
         <span
           key={i}
-          className="absolute -translate-1/2 rounded-full opacity-40 blur-3xl"
+          className="absolute -translate-1/2 rounded-full opacity-40"
           style={{
             top: `${h.top}%`,
             left: `${h.left}%`,
@@ -102,12 +104,13 @@ export function FlowRibbon() {
           }}
         />
       ))}
-      {([['--far', FAR], ['--near', NEAR]] as const).map(([depth, stars]) => (
-        <div key={depth} className="absolute inset-0" style={{ transform: `translateY(var(${depth}))` }}>
+      {([[farRef, FAR], [nearRef, NEAR]] as const).map(([layerRef, stars], li) => (
+        // will-change: each layer is rasterized once, then just moved on the compositor.
+        <div key={li} ref={layerRef} className="absolute inset-0 will-change-transform">
           {stars.map((s, i) => (
             <span
               key={i}
-              className={`absolute rounded-full ${s.twinkle ? 'animate-pulse' : ''}`}
+              className="absolute rounded-full"
               style={{
                 top: `${s.top}%`,
                 left: `${s.left}%`,
@@ -116,7 +119,6 @@ export function FlowRibbon() {
                 background: s.color,
                 opacity: s.opacity,
                 boxShadow: s.size > 2 ? `0 0 6px ${s.color}` : undefined,
-                animationDelay: s.twinkle,
               }}
             />
           ))}
