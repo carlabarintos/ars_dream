@@ -301,7 +301,13 @@ export function PackageSelectionPage() {
                 </ul>
               </div>
             )}
-            <div className="flex flex-wrap justify-center gap-5">
+            <div
+              className={cn(
+                'grid grid-cols-1 gap-5',
+                marathon.packages!.length === 2 && 'sm:grid-cols-2',
+                marathon.packages!.length >= 3 && 'sm:grid-cols-2 lg:grid-cols-3',
+              )}
+            >
               {marathon.packages!.map((pkg) => {
                 // Swap mode = editing the package on a still-pending registration.
                 // Re-register/fresh-join both start a new queue attempt, so they
@@ -333,7 +339,7 @@ export function PackageSelectionPage() {
                 <Card
                   key={pkg.id}
                   className={cn(
-                    'group flex w-full flex-col gap-0 overflow-hidden py-0 transition-all duration-200 sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-2.5rem)/3)]',
+                    'group flex flex-col gap-0 overflow-hidden py-0 transition-all duration-200',
                     !disabled && 'hover:border-primary/40 hover:-translate-y-1 hover:shadow-lg',
                     isCurrentPackage && 'border-primary ring-primary/25 ring-2',
                   )}
