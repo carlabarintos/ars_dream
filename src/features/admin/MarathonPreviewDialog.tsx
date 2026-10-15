@@ -183,7 +183,7 @@ export function MarathonPreviewDialog({
                                   {addOn.name}
                                   {addOn.mandatory && <span className="text-muted-foreground"> (required)</span>}
                                 </span>
-                                <span className="text-muted-foreground">
+                                <span className="text-muted-foreground font-bold">
                                   +{pkg.priceCurrency || 'PHP'} {addOn.priceAmount.toLocaleString()}
                                 </span>
                               </div>

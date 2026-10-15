@@ -387,7 +387,7 @@ export function PackageSelectionPage() {
                                 {addOn.name}
                                 {addOn.mandatory && <span className="text-muted-foreground text-xs">(required)</span>}
                               </Label>
-                              <span className="text-muted-foreground text-xs font-medium">
+                              <span className="text-muted-foreground text-xs font-bold">
                                 +{pkg.priceCurrency} {addOn.priceAmount.toLocaleString()}
                               </span>
                             </div>
