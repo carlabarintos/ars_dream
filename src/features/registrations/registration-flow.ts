@@ -15,13 +15,9 @@ export function getRegistrationStatusMessage(registration: Registration) {
   switch (registration.status) {
     case 'queued':
       if (needsPackageUpdate(registration)) {
-        return registration.queuePosition != null
-          ? `The package you previously selected is no longer offered for this round. Choose a new package below to keep your spot (#${registration.queuePosition}).`
-          : 'The package you previously selected is no longer offered for this round. Choose a new package below to keep your spot in the queue.'
+        return 'The package you previously selected is no longer offered for this round. Choose a new package below to keep your spot in the queue.'
       }
-      return registration.queuePosition != null
-        ? `You're #${registration.queuePosition} in the waiting list. We'll notify you once a spot opens up.`
-        : "You're in the waiting list. We'll notify you once a spot opens up."
+      return "You're in the waiting list. We'll notify you once a spot opens up."
     case 'accepted':
       return "You've been accepted! Review and accept the terms & conditions to continue."
     case 'terms_accepted':

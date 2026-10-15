@@ -191,7 +191,7 @@ export function PackageSelectionPage() {
           </div>
         </div>
 
-        <div className="bg-card divide-border border-border grid grid-cols-2 divide-x border-t sm:grid-cols-3">
+        <div className="bg-card divide-border border-border grid grid-cols-2 divide-x border-t">
           <div className="flex flex-col gap-1 p-4">
             <span className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase">
               <CalendarIcon className="size-3.5" />
@@ -199,14 +199,7 @@ export function PackageSelectionPage() {
             </span>
             <span className="text-sm font-semibold tabular-nums">{formatDate(eventDate)}</span>
           </div>
-          <div className="flex flex-col gap-1 p-4">
-            <span className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase">
-              <CalendarIcon className="size-3.5" />
-              Registration Closes
-            </span>
-            <span className="text-sm font-semibold tabular-nums">{formatDate(marathon.registrationClosesAt.toDate())}</span>
-          </div>
-          <div className="col-span-2 flex flex-col gap-1.5 p-4 sm:col-span-1">
+          <div className="flex flex-col gap-1.5 p-4">
             <span className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase">
               <UsersIcon className="size-3.5" />
               Spots Left

@@ -1,4 +1,4 @@
-import { CalendarIcon, CheckIcon, MapPinIcon } from 'lucide-react'
+import { CheckIcon, MapPinIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -127,11 +127,6 @@ export function MarathonPreviewDialog({
                   </span>
                 </div>
                 <Progress value={percentFull} />
-              </div>
-
-              <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                <CalendarIcon className="size-3.5" />
-                Registration closes {formatDate(data.registrationClosesAt)}
               </div>
             </CardContent>
           </Card>

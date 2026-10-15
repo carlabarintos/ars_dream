@@ -54,19 +54,11 @@ export function MarathonCard({
       <TicketSeam />
 
       <CardContent className="flex flex-col gap-3.5 pt-0.5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
-              Marathon Date
-            </div>
-            <div className="text-sm font-semibold tabular-nums">{formatDate(eventDate)}</div>
+        <div>
+          <div className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+            Marathon Date
           </div>
-          <div className="text-right">
-            <div className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
-              Registration Closes
-            </div>
-            <div className="text-sm font-semibold tabular-nums">{formatDate(closesAt)}</div>
-          </div>
+          <div className="text-sm font-semibold tabular-nums">{formatDate(eventDate)}</div>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -83,14 +75,7 @@ export function MarathonCard({
       <CardFooter className="mt-1 pt-4 border-t border-border">
         {myRegistration ? (
           myRegistration.status === 'queued' ? (
-            <div className="flex w-full items-center justify-between text-sm">
-              <span className="text-muted-foreground">You're in the waiting list</span>
-              <Badge variant="secondary">
-                {myRegistration.queuePosition != null
-                  ? `#${myRegistration.queuePosition} in line`
-                  : 'Joining…'}
-              </Badge>
-            </div>
+            <span className="text-muted-foreground text-sm">You're in the waiting list.</span>
           ) : (
             <span className="text-muted-foreground text-sm">You're registered for this event.</span>
           )
