@@ -55,6 +55,7 @@ interface AddOnRow {
   addOnId: string
   name: string
   priceAmount: string
+  mandatory: boolean
 }
 
 interface PackageRow {
@@ -110,6 +111,7 @@ function toPackageRows(packages: MarathonPackage[] | undefined): PackageRow[] {
       addOnId: addOn.id,
       name: addOn.name,
       priceAmount: addOn.priceAmount.toString(),
+      mandatory: addOn.mandatory ?? false,
     })),
   }))
 }
@@ -230,20 +232,20 @@ export function MarathonFormDialog({
     setPackageRows((rows) =>
       rows.map((row) =>
         row.id === packageId
-          ? { ...row, addOns: [...row.addOns, { id: nextRowId++, addOnId: crypto.randomUUID(), name: '', priceAmount: '' }] }
+          ? { ...row, addOns: [...row.addOns, { id: nextRowId++, addOnId: crypto.randomUUID(), name: '', priceAmount: '', mandatory: false }] }
           : row,
       ),
     )
   }
 
-  function updateAddOnRow(packageId: number, addOnRowId: number, field: 'name' | 'priceAmount', text: string) {
+  function updateAddOnRow(packageId: number, addOnRowId: number, patch: Partial<AddOnRow>) {
     setPackageRows((rows) =>
       rows.map((row) =>
         row.id === packageId
           ? {
               ...row,
               addOns: row.addOns.map((addOn) =>
-                addOn.id === addOnRowId ? { ...addOn, [field]: text } : addOn,
+                addOn.id === addOnRowId ? { ...addOn, ...patch } : addOn,
               ),
             }
           : row,
@@ -321,6 +323,7 @@ export function MarathonFormDialog({
       confirmedCount: marathon?.confirmedCount ?? 0,
       paymentInstructions: String(formData.get('paymentInstructions') ?? ''),
       sharedInclusions: String(formData.get('sharedInclusions') ?? ''),
+      packageNotes: String(formData.get('packageNotes') ?? ''),
       packages: packageRows
         .filter((row) => row.name.trim())
         .map((row) => ({
@@ -336,6 +339,7 @@ export function MarathonFormDialog({
               id: addOn.addOnId,
               name: addOn.name.trim(),
               priceAmount: Number(addOn.priceAmount) || 0,
+              ...(addOn.mandatory ? { mandatory: true } : {}),
             })),
         })),
       questions: questionRows
@@ -415,6 +419,7 @@ export function MarathonFormDialog({
             id: addOn.addOnId,
             name: addOn.name.trim(),
             priceAmount: Number(addOn.priceAmount) || 0,
+            ...(addOn.mandatory ? { mandatory: true } : {}),
           })),
       }))
 
@@ -429,6 +434,7 @@ export function MarathonFormDialog({
         capacity: Number(form.get('capacity')),
         paymentInstructions: String(form.get('paymentInstructions')),
         sharedInclusions: String(form.get('sharedInclusions') ?? '').trim(),
+        packageNotes: String(form.get('packageNotes') ?? '').trim(),
         packages,
         questions,
         feedDeadline: feedDeadline ? new Date(feedDeadline) : null,
@@ -618,23 +624,31 @@ export function MarathonFormDialog({
 
                 <div className="flex flex-col gap-1.5 pl-3">
                   <Label className="text-muted-foreground text-xs">
-                    Add-ons (optional extras a registrant can toggle on, e.g. "Add Companion")
+                    Add-ons (extras a registrant can toggle on, e.g. "Add Companion"; mark mandatory to always include)
                   </Label>
                   {pkg.addOns.map((addOn) => (
                     <div key={addOn.id} className="flex items-center gap-2">
                       <Input
                         placeholder="Add-on name (e.g. Add Companion)"
                         value={addOn.name}
-                        onChange={(e) => updateAddOnRow(pkg.id, addOn.id, 'name', e.target.value)}
+                        onChange={(e) => updateAddOnRow(pkg.id, addOn.id, { name: e.target.value })}
                         className="flex-1"
                       />
                       <Input
                         placeholder="Price"
                         type="number"
                         value={addOn.priceAmount}
-                        onChange={(e) => updateAddOnRow(pkg.id, addOn.id, 'priceAmount', e.target.value)}
+                        onChange={(e) => updateAddOnRow(pkg.id, addOn.id, { priceAmount: e.target.value })}
                         className="w-28"
                       />
+                      <label className="flex items-center gap-1.5 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={addOn.mandatory}
+                          onChange={(e) => updateAddOnRow(pkg.id, addOn.id, { mandatory: e.target.checked })}
+                        />
+                        Mandatory
+                      </label>
                       <Button
                         type="button"
                         variant="ghost"
@@ -730,6 +744,18 @@ export function MarathonFormDialog({
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="packageNotes">Notes (optional)</Label>
+            <Textarea
+              id="packageNotes"
+              name="packageNotes"
+              placeholder={'One per line (each becomes a bullet)\nVisa fees not included\nPrices subject to change'}
+              rows={3}
+              defaultValue={marathon?.packageNotes}
+            />
+            <p className="text-muted-foreground text-xs">Shown once below the packages.</p>
           </div>
 
           <div className="flex flex-col gap-3">

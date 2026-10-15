@@ -30,11 +30,13 @@ export interface MarathonDetail {
   value: string
 }
 
-/** An optional add-on a registrant can toggle on for a package, e.g. "Add Companion" — adds its price on top of the package's base price. Priced in the parent package's currency. */
+/** An add-on a registrant can toggle on (or that's always included, if `mandatory`) for a package, e.g. "Add Companion" — adds its price on top of the package's base price. Priced in the parent package's currency. */
 export interface MarathonPackageAddOn {
   id: string
   name: string
   priceAmount: number
+  /** Always included and can't be unticked by the registrant. Absent means optional. */
+  mandatory?: boolean
 }
 
 /** One selectable tour package within a marathon event, e.g. "Standard" vs "VIP". */
@@ -90,6 +92,8 @@ export interface Marathon {
   paymentInstructions: string
   /** Inclusions common to every package (e.g. race bib, airport transfers), one per line. Shown once above the package cards instead of repeated in each package's description. */
   sharedInclusions?: string
+  /** Event-wide notes (e.g. visa reminders, exclusions), one per line. Shown once below the package cards. */
+  packageNotes?: string
   /** Selectable packages for this event (e.g. Standard, VIP). Absent on events created before this field existed. */
   packages?: MarathonPackage[]
   /** Registration questions a registrant must complete before payment (e.g. an agreement checkbox, emergency contact, dietary restrictions). Absent on events created before this field existed. May originate from a QuestionnaireTemplate copied in at authoring time, but is independent of it thereafter. */

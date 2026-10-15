@@ -75,12 +75,14 @@ export function PackageSelectionPage() {
   // becomes the source of truth for it; until then, default to whatever
   // they'd previously selected if this is the package on their existing
   // registration, so re-opening the page doesn't silently drop their picks.
+  // Mandatory add-ons are always selected regardless.
   function getSelectedIdsForPackage(pkg: MarathonPackage): Set<string> {
-    if (selectedAddOnIds[pkg.id]) return selectedAddOnIds[pkg.id]
+    const mandatoryIds = (pkg.addOns ?? []).filter((a) => a.mandatory).map((a) => a.id)
+    if (selectedAddOnIds[pkg.id]) return new Set([...selectedAddOnIds[pkg.id], ...mandatoryIds])
     if (myRegistration && myRegistration.packageId === pkg.id) {
-      return new Set((myRegistration.selectedAddOns ?? []).map((a) => a.addOnId))
+      return new Set([...(myRegistration.selectedAddOns ?? []).map((a) => a.addOnId), ...mandatoryIds])
     }
-    return new Set()
+    return new Set(mandatoryIds)
   }
 
   function toggleAddOn(pkg: MarathonPackage, addOnId: string) {
@@ -151,6 +153,7 @@ export function PackageSelectionPage() {
   const percentFull = marathon.capacity > 0 ? (marathon.confirmedCount / marathon.capacity) * 100 : 0
   const statusPill = AVAILABILITY_PILL[getMarathonAvailability(marathon)]
   const sharedInclusions = toBulletLines(marathon.sharedInclusions)
+  const packageNotes = toBulletLines(marathon.packageNotes)
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
@@ -298,7 +301,7 @@ export function PackageSelectionPage() {
                 </ul>
               </div>
             )}
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-wrap justify-center gap-5">
               {marathon.packages!.map((pkg) => {
                 // Swap mode = editing the package on a still-pending registration.
                 // Re-register/fresh-join both start a new queue attempt, so they
@@ -330,7 +333,7 @@ export function PackageSelectionPage() {
                 <Card
                   key={pkg.id}
                   className={cn(
-                    'group flex flex-col gap-0 overflow-hidden py-0 transition-all duration-200',
+                    'group flex w-full flex-col gap-0 overflow-hidden py-0 transition-all duration-200 sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-2.5rem)/3)]',
                     !disabled && 'hover:border-primary/40 hover:-translate-y-1 hover:shadow-lg',
                     isCurrentPackage && 'border-primary ring-primary/25 ring-2',
                   )}
@@ -369,7 +372,7 @@ export function PackageSelectionPage() {
                     {pkg.addOns && pkg.addOns.length > 0 && (
                       <div className="bg-secondary/40 border-border mt-auto flex flex-col gap-2 rounded-lg border p-3">
                         <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                          Optional Add-ons
+                          Add-ons
                         </p>
                         {pkg.addOns.map((addOn) => {
                           const checkboxId = `addon-${pkg.id}-${addOn.id}`
@@ -378,11 +381,12 @@ export function PackageSelectionPage() {
                               <Checkbox
                                 id={checkboxId}
                                 checked={selectedIds.has(addOn.id)}
-                                disabled={disabled}
+                                disabled={disabled || addOn.mandatory}
                                 onCheckedChange={() => toggleAddOn(pkg, addOn.id)}
                               />
                               <Label htmlFor={checkboxId} className="flex-1 text-sm font-normal">
                                 {addOn.name}
+                                {addOn.mandatory && <span className="text-muted-foreground text-xs">(required)</span>}
                               </Label>
                               <span className="text-muted-foreground text-xs font-medium">
                                 +{pkg.priceCurrency} {addOn.priceAmount.toLocaleString()}
@@ -407,6 +411,16 @@ export function PackageSelectionPage() {
                 )
               })}
             </div>
+            {packageNotes.length > 0 && (
+              <div className="bg-secondary/40 border-border rounded-xl border p-4">
+                <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Notes</p>
+                <ul className="text-muted-foreground mt-3 flex list-disc flex-col gap-1.5 pl-5 text-sm">
+                  {packageNotes.map((line, index) => (
+                    <li key={index}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )
       ) : null}

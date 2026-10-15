@@ -89,6 +89,7 @@ export interface MarathonInput {
   capacity: number
   paymentInstructions: string
   sharedInclusions: string
+  packageNotes: string
   packages: MarathonPackage[]
   questions: MarathonQuestion[]
   /** null clears an existing deadline; undefined/omitted leaves it unset (create) or untouched (update is not possible this way — pass null to clear). */

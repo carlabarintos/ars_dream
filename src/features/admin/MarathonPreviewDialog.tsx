@@ -16,7 +16,7 @@ export interface PreviewPackage {
   priceCurrency: string
   description: string
   photoUrls: string[]
-  addOns: { id: string; name: string; priceAmount: number }[]
+  addOns: { id: string; name: string; priceAmount: number; mandatory?: boolean }[]
 }
 
 export interface PreviewQuestion {
@@ -38,6 +38,7 @@ export interface MarathonPreviewData {
   confirmedCount: number
   paymentInstructions: string
   sharedInclusions: string
+  packageNotes: string
   packages: PreviewPackage[]
   questions: PreviewQuestion[]
 }
@@ -74,6 +75,7 @@ export function MarathonPreviewDialog({
   const isFull = spotsLeft <= 0
   const isClosed = data.registrationClosesAt ? new Date() > data.registrationClosesAt : false
   const sharedInclusions = toBulletLines(data.sharedInclusions)
+  const packageNotes = toBulletLines(data.packageNotes)
 
   const statusPill = isFull || isClosed
     ? { label: 'Closed', variant: 'secondary' as const }
@@ -179,10 +181,13 @@ export function MarathonPreviewDialog({
                         )}
                         {pkg.addOns.length > 0 && (
                           <div className="mt-3 flex flex-col gap-1">
-                            <p className="text-muted-foreground text-xs font-medium">Available add-ons</p>
+                            <p className="text-muted-foreground text-xs font-medium">Add-ons</p>
                             {pkg.addOns.map((addOn) => (
                               <div key={addOn.id} className="flex justify-between gap-3 text-sm">
-                                <span>{addOn.name}</span>
+                                <span>
+                                  {addOn.name}
+                                  {addOn.mandatory && <span className="text-muted-foreground"> (required)</span>}
+                                </span>
                                 <span className="text-muted-foreground">
                                   +{pkg.priceCurrency || 'PHP'} {addOn.priceAmount.toLocaleString()}
                                 </span>
@@ -195,6 +200,16 @@ export function MarathonPreviewDialog({
                   </Card>
                 ))}
               </div>
+              {packageNotes.length > 0 && (
+                <div className="bg-secondary/40 border-border rounded-xl border p-4">
+                  <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Notes</p>
+                  <ul className="text-muted-foreground mt-3 flex list-disc flex-col gap-1.5 pl-5 text-sm">
+                    {packageNotes.map((line, index) => (
+                      <li key={index}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 
