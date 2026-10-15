@@ -24,6 +24,11 @@ export function getPackageDescription(pkg: MarathonPackage): string {
   return pkg.description ?? (pkg.details ?? []).map((detail) => `${detail.label}: ${detail.value}`).join('\n')
 }
 
+/** Splits free text into non-empty, trimmed lines — one bullet each. */
+export function toBulletLines(text: string | undefined): string[] {
+  return (text ?? '').split('\n').map((line) => line.trim()).filter(Boolean)
+}
+
 const marathonsRef = collection(db, 'marathons')
 
 export function subscribeToPublishedMarathons(onData: (marathons: Marathon[]) => void) {
@@ -83,6 +88,7 @@ export interface MarathonInput {
   registrationClosesAt: Date
   capacity: number
   paymentInstructions: string
+  sharedInclusions: string
   packages: MarathonPackage[]
   questions: MarathonQuestion[]
   /** null clears an existing deadline; undefined/omitted leaves it unset (create) or untouched (update is not possible this way — pass null to clear). */

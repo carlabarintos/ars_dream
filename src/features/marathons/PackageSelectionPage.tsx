@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarIcon, MapPinIcon, UsersIcon } from 'lucide-react'
+import { CalendarIcon, CheckIcon, MapPinIcon, UsersIcon } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -19,7 +19,7 @@ import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { TicketSeam } from '@/components/TicketSeam'
 import { useAuthStore } from '@/features/auth/auth-store'
-import { getPackageDescription } from '@/features/marathons/api'
+import { getPackageDescription, toBulletLines } from '@/features/marathons/api'
 import { joinQueue } from '@/features/registrations/api'
 import { CancelRegistrationButton } from '@/features/registrations/CancelRegistrationButton'
 import {
@@ -150,6 +150,7 @@ export function PackageSelectionPage() {
   const eventDate = marathon.eventDate.toDate()
   const percentFull = marathon.capacity > 0 ? (marathon.confirmedCount / marathon.capacity) * 100 : 0
   const statusPill = AVAILABILITY_PILL[getMarathonAvailability(marathon)]
+  const sharedInclusions = toBulletLines(marathon.sharedInclusions)
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
@@ -282,6 +283,21 @@ export function PackageSelectionPage() {
                   : "Select a package to join the queue. We'll notify you once it's your turn."}
               </p>
             </div>
+            {sharedInclusions.length > 0 && (
+              <div className="bg-secondary/40 border-border rounded-xl border p-4">
+                <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                  Included in every package
+                </p>
+                <ul className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                  {sharedInclusions.map((line, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <CheckIcon className="text-primary mt-0.5 size-4 shrink-0" />
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {marathon.packages!.map((pkg) => {
                 // Swap mode = editing the package on a still-pending registration.

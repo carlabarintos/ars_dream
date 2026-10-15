@@ -320,6 +320,7 @@ export function MarathonFormDialog({
       capacity: Number(formData.get('capacity')) || 0,
       confirmedCount: marathon?.confirmedCount ?? 0,
       paymentInstructions: String(formData.get('paymentInstructions') ?? ''),
+      sharedInclusions: String(formData.get('sharedInclusions') ?? ''),
       packages: packageRows
         .filter((row) => row.name.trim())
         .map((row) => ({
@@ -427,6 +428,7 @@ export function MarathonFormDialog({
         registrationClosesAt: new Date(String(form.get('registrationClosesAt'))),
         capacity: Number(form.get('capacity')),
         paymentInstructions: String(form.get('paymentInstructions')),
+        sharedInclusions: String(form.get('sharedInclusions') ?? '').trim(),
         packages,
         questions,
         feedDeadline: feedDeadline ? new Date(feedDeadline) : null,
@@ -539,6 +541,20 @@ export function MarathonFormDialog({
               required
               defaultValue={marathon?.paymentInstructions}
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="sharedInclusions">Included in every package (optional)</Label>
+            <Textarea
+              id="sharedInclusions"
+              name="sharedInclusions"
+              placeholder={'One per line (each becomes a bullet)\nRace bib & entry\nAirport transfers'}
+              rows={3}
+              defaultValue={marathon?.sharedInclusions}
+            />
+            <p className="text-muted-foreground text-xs">
+              Shown once above the packages, so you don't repeat them in each package's details.
+            </p>
           </div>
 
           <div className="flex flex-col gap-3">

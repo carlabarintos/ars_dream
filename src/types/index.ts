@@ -88,6 +88,8 @@ export interface Marathon {
   capacity: number
   confirmedCount: number
   paymentInstructions: string
+  /** Inclusions common to every package (e.g. race bib, airport transfers), one per line. Shown once above the package cards instead of repeated in each package's description. */
+  sharedInclusions?: string
   /** Selectable packages for this event (e.g. Standard, VIP). Absent on events created before this field existed. */
   packages?: MarathonPackage[]
   /** Registration questions a registrant must complete before payment (e.g. an agreement checkbox, emergency contact, dietary restrictions). Absent on events created before this field existed. May originate from a QuestionnaireTemplate copied in at authoring time, but is independent of it thereafter. */

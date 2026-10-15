@@ -86,6 +86,7 @@ export const MARATHON_COLUMNS = [
   'capacity',
   'confirmedCount',
   'paymentInstructions',
+  'sharedInclusions',
   'packagesJson',
   'questionsJson',
   'status',
@@ -107,6 +108,7 @@ export interface MarathonRestoreInput {
   registrationClosesAt: Timestamp
   capacity: number
   paymentInstructions: string
+  sharedInclusions: string
   packages: MarathonPackage[]
   questions: MarathonQuestion[]
   status: MarathonStatus
@@ -128,6 +130,7 @@ export function marathonToRow(marathon: Marathon): MarathonRow {
     capacity: String(marathon.capacity),
     confirmedCount: String(marathon.confirmedCount),
     paymentInstructions: marathon.paymentInstructions,
+    sharedInclusions: marathon.sharedInclusions ?? '',
     packagesJson: JSON.stringify(marathon.packages ?? []),
     questionsJson: JSON.stringify(marathon.questions ?? []),
     status: marathon.status,
@@ -149,6 +152,8 @@ export function rowToMarathonRestoreInput(row: MarathonRow): RowResult<MarathonR
     registrationClosesAt: parseIso(row.registrationClosesAt, 'registrationClosesAt'),
     capacity: Number(row.capacity),
     paymentInstructions: row.paymentInstructions,
+    // Absent in backups exported before this column existed.
+    sharedInclusions: row.sharedInclusions ?? '',
     packages: parseJsonArray<MarathonPackage>(row.packagesJson, 'packagesJson'),
     questions: parseJsonArray<MarathonQuestion>(row.questionsJson, 'questionsJson'),
     status: row.status as MarathonStatus,

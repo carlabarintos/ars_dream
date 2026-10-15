@@ -1,9 +1,10 @@
-import { CalendarIcon, MapPinIcon } from 'lucide-react'
+import { CalendarIcon, CheckIcon, MapPinIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
+import { toBulletLines } from '@/features/marathons/api'
 import { PackagePhotoCarousel } from '@/features/marathons/PackagePhotoCarousel'
 import { cn } from '@/lib/utils'
 import type { QuestionType } from '@/types'
@@ -36,6 +37,7 @@ export interface MarathonPreviewData {
   capacity: number
   confirmedCount: number
   paymentInstructions: string
+  sharedInclusions: string
   packages: PreviewPackage[]
   questions: PreviewQuestion[]
 }
@@ -71,6 +73,7 @@ export function MarathonPreviewDialog({
   const percentFull = data.capacity > 0 ? (data.confirmedCount / data.capacity) * 100 : 0
   const isFull = spotsLeft <= 0
   const isClosed = data.registrationClosesAt ? new Date() > data.registrationClosesAt : false
+  const sharedInclusions = toBulletLines(data.sharedInclusions)
 
   const statusPill = isFull || isClosed
     ? { label: 'Closed', variant: 'secondary' as const }
@@ -136,6 +139,21 @@ export function MarathonPreviewDialog({
           {data.packages.length > 0 && (
             <div className="flex flex-col gap-3">
               <h4 className="text-sm font-medium">Packages</h4>
+              {sharedInclusions.length > 0 && (
+                <div className="bg-secondary/40 border-border rounded-xl border p-4">
+                  <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                    Included in every package
+                  </p>
+                  <ul className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                    {sharedInclusions.map((line, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <CheckIcon className="text-primary mt-0.5 size-4 shrink-0" />
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {data.packages.map((pkg) => (
                   <Card
