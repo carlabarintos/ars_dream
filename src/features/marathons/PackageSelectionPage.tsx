@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarIcon, CheckIcon, MapPinIcon, UsersIcon } from 'lucide-react'
+import { CalendarIcon, MapPinIcon, UsersIcon } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { TicketSeam } from '@/components/TicketSeam'
 import { useAuthStore } from '@/features/auth/auth-store'
+import { getPackageDescription } from '@/features/marathons/api'
 import { joinQueue } from '@/features/registrations/api'
 import { CancelRegistrationButton } from '@/features/registrations/CancelRegistrationButton'
 import {
@@ -339,21 +340,18 @@ export function PackageSelectionPage() {
                     )}
                   </CardHeader>
                   <CardContent className="flex flex-1 flex-col gap-4 pt-4">
-                    {pkg.details.length > 0 && (
-                      <ul className="flex flex-col gap-2 text-sm">
-                        {pkg.details.map((detail, index) => (
-                          <li key={index} className="flex items-start gap-2">
-                            <CheckIcon className="text-primary mt-0.5 size-4 shrink-0" />
-                            <span>
-                              <span className="font-medium">{detail.label}:</span>{' '}
-                              <span className="text-muted-foreground">{detail.value}</span>
-                            </span>
-                          </li>
-                        ))}
+                    {getPackageDescription(pkg) && (
+                      <ul className="text-muted-foreground flex list-disc flex-col gap-1.5 pl-5 text-sm">
+                        {getPackageDescription(pkg)
+                          .split('\n')
+                          .filter((line) => line.trim())
+                          .map((line, index) => (
+                            <li key={index}>{line.trim()}</li>
+                          ))}
                       </ul>
                     )}
                     {pkg.addOns && pkg.addOns.length > 0 && (
-                      <div className="bg-secondary/40 border-border flex flex-col gap-2 rounded-lg border p-3">
+                      <div className="bg-secondary/40 border-border mt-auto flex flex-col gap-2 rounded-lg border p-3">
                         <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
                           Optional Add-ons
                         </p>

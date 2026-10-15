@@ -20,6 +20,7 @@ import type { Marathon, MarathonPackage, MarathonQuestion, QuestionType } from '
 
 import {
   createMarathon,
+  getPackageDescription,
   updateMarathon,
   uploadMarathonBanner,
   uploadMarathonPackageOffer,
@@ -33,12 +34,6 @@ const LOAD_TEMPLATE_PLACEHOLDER = ''
 const MAX_PACKAGE_PHOTOS = 6
 
 let nextRowId = 0
-
-interface DetailRow {
-  id: number
-  label: string
-  value: string
-}
 
 interface PackagePhotoRow {
   id: number
@@ -69,7 +64,7 @@ interface PackageRow {
   name: string
   priceAmount: string
   priceCurrency: string
-  details: DetailRow[]
+  description: string
   photos: PackagePhotoRow[]
   offer: PackageOfferRow | null
   addOns: AddOnRow[]
@@ -107,7 +102,7 @@ function toPackageRows(packages: MarathonPackage[] | undefined): PackageRow[] {
     name: pkg.name,
     priceAmount: pkg.priceAmount.toString(),
     priceCurrency: pkg.priceCurrency,
-    details: pkg.details.map((detail) => ({ id: nextRowId++, ...detail })),
+    description: getPackageDescription(pkg),
     photos: (pkg.photoUrls ?? []).map((url) => ({ id: nextRowId++, url, file: null })),
     offer: pkg.offerImageUrl ? { url: pkg.offerImageUrl, file: null } : null,
     addOns: (pkg.addOns ?? []).map((addOn) => ({
@@ -213,7 +208,7 @@ export function MarathonFormDialog({
         name: '',
         priceAmount: '',
         priceCurrency: 'PHP',
-        details: [],
+        description: '',
         photos: [],
         offer: null,
         addOns: [],
@@ -225,44 +220,9 @@ export function MarathonFormDialog({
     setPackageRows((rows) => rows.filter((row) => row.id !== packageId))
   }
 
-  function updatePackageField(packageId: number, field: 'name' | 'priceAmount' | 'priceCurrency', text: string) {
+  function updatePackageField(packageId: number, field: 'name' | 'priceAmount' | 'priceCurrency' | 'description', text: string) {
     setPackageRows((rows) =>
       rows.map((row) => (row.id === packageId ? { ...row, [field]: text } : row)),
-    )
-  }
-
-  function addDetailRow(packageId: number) {
-    setPackageRows((rows) =>
-      rows.map((row) =>
-        row.id === packageId
-          ? { ...row, details: [...row.details, { id: nextRowId++, label: '', value: '' }] }
-          : row,
-      ),
-    )
-  }
-
-  function updateDetailRow(packageId: number, detailId: number, field: 'label' | 'value', text: string) {
-    setPackageRows((rows) =>
-      rows.map((row) =>
-        row.id === packageId
-          ? {
-              ...row,
-              details: row.details.map((detail) =>
-                detail.id === detailId ? { ...detail, [field]: text } : detail,
-              ),
-            }
-          : row,
-      ),
-    )
-  }
-
-  function removeDetailRow(packageId: number, detailId: number) {
-    setPackageRows((rows) =>
-      rows.map((row) =>
-        row.id === packageId
-          ? { ...row, details: row.details.filter((detail) => detail.id !== detailId) }
-          : row,
-      ),
     )
   }
 
@@ -367,9 +327,7 @@ export function MarathonFormDialog({
           name: row.name.trim(),
           priceAmount: Number(row.priceAmount) || 0,
           priceCurrency: row.priceCurrency.trim() || 'PHP',
-          details: row.details
-            .map((detail) => ({ label: detail.label.trim(), value: detail.value.trim() }))
-            .filter((detail) => detail.label && detail.value),
+          description: row.description.trim(),
           photoUrls: row.photos.map((photo) => photo.url),
           addOns: row.addOns
             .filter((addOn) => addOn.name.trim())
@@ -447,9 +405,7 @@ export function MarathonFormDialog({
         name: row.name.trim(),
         priceAmount: Number(row.priceAmount) || 0,
         priceCurrency: row.priceCurrency.trim() || 'PHP',
-        details: row.details
-          .map((detail) => ({ label: detail.label.trim(), value: detail.value.trim() }))
-          .filter((detail) => detail.label && detail.value),
+        description: row.description.trim(),
         photoUrls: photoUrlsByPackage[index],
         ...(offerUrlByPackage[index] ? { offerImageUrl: offerUrlByPackage[index]! } : {}),
         addOns: row.addOns
@@ -637,43 +593,12 @@ export function MarathonFormDialog({
                   </Button>
                 </div>
 
-                <div className="flex flex-col gap-1.5 pl-3">
-                  {pkg.details.map((detail) => (
-                    <div key={detail.id} className="flex items-center gap-2">
-                      <Input
-                        placeholder="Label (e.g. Inclusions)"
-                        value={detail.label}
-                        onChange={(e) => updateDetailRow(pkg.id, detail.id, 'label', e.target.value)}
-                        className="w-1/3"
-                      />
-                      <Input
-                        placeholder="Value (e.g. Roundtrip airfare, 4-star hotel)"
-                        value={detail.value}
-                        onChange={(e) => updateDetailRow(pkg.id, detail.id, 'value', e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeDetailRow(pkg.id, detail.id)}
-                        aria-label="Remove detail"
-                      >
-                        <XIcon className="size-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="self-start"
-                    onClick={() => addDetailRow(pkg.id)}
-                  >
-                    <PlusIcon className="size-3.5" />
-                    Add detail
-                  </Button>
-                </div>
+                <Textarea
+                  placeholder={'Details, one per line (each becomes a bullet)\nRoundtrip airfare\n4-star hotel'}
+                  value={pkg.description}
+                  onChange={(e) => updatePackageField(pkg.id, 'description', e.target.value)}
+                  rows={3}
+                />
 
                 <div className="flex flex-col gap-1.5 pl-3">
                   <Label className="text-muted-foreground text-xs">

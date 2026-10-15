@@ -24,7 +24,7 @@ export interface UserProfile {
 
 export type MarathonStatus = 'draft' | 'published' | 'closed'
 
-/** A single labeled fact about a package, e.g. { label: 'Inclusions', value: 'Roundtrip airfare, 4-star hotel' }. */
+/** Legacy label/value fact on a package — superseded by `MarathonPackage.description`, still read for packages saved before that. */
 export interface MarathonDetail {
   label: string
   value: string
@@ -43,7 +43,10 @@ export interface MarathonPackage {
   name: string
   priceAmount: number
   priceCurrency: string
-  details: MarathonDetail[]
+  /** Free-text package details, e.g. inclusions. Line breaks are preserved when shown. */
+  description?: string
+  /** @deprecated Legacy label/value rows; read via `getPackageDescription`, never written anymore. */
+  details?: MarathonDetail[]
   /** Optional photos shown as a carousel on the package selection page. Absent/empty means no carousel is shown. */
   photoUrls?: string[]
   /** Default "standard offer" image shown to an admin (and sendable to the registrant via chat) when accepting a registrant into this package. Absent means no default has been uploaded yet. */

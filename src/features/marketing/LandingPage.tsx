@@ -261,7 +261,7 @@ export function LandingPage() {
       <footer className="border-t border-border px-4 py-10">
         <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
           <LogoBadge className="p-2" imgClassName="h-8 w-auto" />
-          <p className="text-muted-foreground text-sm">© {year} ARS Dream Sports · Manila, Philippines</p>
+          <p className="text-muted-foreground text-sm">© {year} ARS Dream Sports · Manila, Philippines · v{__APP_VERSION__}</p>
           <Button variant="secondary" size="sm" asChild>
             <Link to="/sign-in">Sign In</Link>
           </Button>

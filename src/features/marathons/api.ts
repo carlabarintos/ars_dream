@@ -19,6 +19,11 @@ import { db, functions, storage } from '@/firebase/config'
 import type { Marathon, MarathonPackage, MarathonQuestion, MarathonStatus } from '@/types'
 import type { MarathonRestoreInput } from '@/features/admin/export-import/serialize'
 
+/** A package's description, falling back to its legacy label/value `details` for packages saved before descriptions existed. */
+export function getPackageDescription(pkg: MarathonPackage): string {
+  return pkg.description ?? (pkg.details ?? []).map((detail) => `${detail.label}: ${detail.value}`).join('\n')
+}
+
 const marathonsRef = collection(db, 'marathons')
 
 export function subscribeToPublishedMarathons(onData: (marathons: Marathon[]) => void) {
