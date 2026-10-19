@@ -227,6 +227,7 @@ export function QueueReviewPage() {
       <OfferChatDialog
         registration={reviewingOffer}
         marathon={marathon ?? null}
+        profile={reviewingOffer ? profiles[reviewingOffer.userId] : undefined}
         onClose={() => setReviewingOffer(null)}
       />
     </div>

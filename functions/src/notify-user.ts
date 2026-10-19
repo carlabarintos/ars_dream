@@ -1,9 +1,10 @@
 import { FieldValue } from 'firebase-admin/firestore'
 
 import { db, messaging } from './admin.js'
-import { renderEmailHtml, sendEmail } from './send-email.js'
+import { APP_URL, renderEmailHtml } from './email-template.js'
+import { sendEmail } from './send-email.js'
 
-export const APP_URL = 'https://arsdreamsports.com'
+export { APP_URL }
 
 /**
  * Best-effort push + email notification to one user, extracted from
@@ -18,7 +19,7 @@ export async function notifyUser({
   emailBody,
   ctaLabel = 'Open ARS Dream',
   ctaUrl = APP_URL,
-  imageUrl,
+  emailHtml,
   cc,
 }: {
   userId: string
@@ -28,7 +29,8 @@ export async function notifyUser({
   emailBody: string
   ctaLabel?: string
   ctaUrl?: string
-  imageUrl?: string
+  /** Fully rendered email, overriding the default title/body/CTA layout (e.g. the acceptance email). */
+  emailHtml?: string
   cc?: string[]
 }): Promise<void> {
   const userDoc = await db.collection('users').doc(userId).get()
@@ -56,7 +58,7 @@ export async function notifyUser({
       to: email,
       cc,
       subject: emailSubject,
-      html: renderEmailHtml({ title: pushTitle, body: emailBody, ctaLabel, ctaUrl, imageUrl }),
+      html: emailHtml ?? renderEmailHtml({ title: pushTitle, body: emailBody, ctaLabel, ctaUrl }),
     })
   }
 }
