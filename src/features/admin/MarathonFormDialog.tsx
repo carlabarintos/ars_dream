@@ -65,6 +65,7 @@ interface PackageRow {
   name: string
   priceAmount: string
   priceCurrency: string
+  depositAmount: string
   description: string
   photos: PackagePhotoRow[]
   offer: PackageOfferRow | null
@@ -103,6 +104,7 @@ function toPackageRows(packages: MarathonPackage[] | undefined): PackageRow[] {
     name: pkg.name,
     priceAmount: pkg.priceAmount.toString(),
     priceCurrency: pkg.priceCurrency,
+    depositAmount: pkg.depositAmount?.toString() ?? '',
     description: getPackageDescription(pkg),
     photos: (pkg.photoUrls ?? []).map((url) => ({ id: nextRowId++, url, file: null })),
     offer: pkg.offerImageUrl ? { url: pkg.offerImageUrl, file: null } : null,
@@ -143,6 +145,8 @@ export function MarathonFormDialog({
   const [questionRows, setQuestionRows] = useState<QuestionRow[]>(() => toQuestionRows(marathon?.questions))
   const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [bannerPreviewUrl, setBannerPreviewUrl] = useState<string | undefined>(marathon?.bannerImageUrl)
+  const [hotelFile, setHotelFile] = useState<File | null>(null)
+  const [hotelPreviewUrl, setHotelPreviewUrl] = useState<string | undefined>(marathon?.hotelImageUrl || undefined)
   const [feedDeadline, setFeedDeadline] = useState(
     marathon?.feedDeadline ? toDateInputValue(marathon.feedDeadline.toDate()) : '',
   )
@@ -210,6 +214,7 @@ export function MarathonFormDialog({
         name: '',
         priceAmount: '',
         priceCurrency: 'PHP',
+        depositAmount: '',
         description: '',
         photos: [],
         offer: null,
@@ -222,7 +227,7 @@ export function MarathonFormDialog({
     setPackageRows((rows) => rows.filter((row) => row.id !== packageId))
   }
 
-  function updatePackageField(packageId: number, field: 'name' | 'priceAmount' | 'priceCurrency' | 'description', text: string) {
+  function updatePackageField(packageId: number, field: 'name' | 'priceAmount' | 'priceCurrency' | 'depositAmount' | 'description', text: string) {
     setPackageRows((rows) =>
       rows.map((row) => (row.id === packageId ? { ...row, [field]: text } : row)),
     )
@@ -389,6 +394,8 @@ export function MarathonFormDialog({
     setIsSubmitting(true)
     try {
       const bannerImageUrl = bannerFile ? await uploadMarathonBanner(bannerFile) : marathon!.bannerImageUrl
+      // ponytail: reuses the public, admin-only marathon-banners storage path; add a hotel-images rule if they need separating
+      const hotelImageUrl = hotelFile ? await uploadMarathonBanner(hotelFile) : (hotelPreviewUrl ?? '')
 
       const photoUrlsByPackage = await Promise.all(
         validPackageRows.map((row) =>
@@ -410,6 +417,7 @@ export function MarathonFormDialog({
         name: row.name.trim(),
         priceAmount: Number(row.priceAmount) || 0,
         priceCurrency: row.priceCurrency.trim() || 'PHP',
+        ...(Number(row.depositAmount) > 0 ? { depositAmount: Number(row.depositAmount) } : {}),
         description: row.description.trim(),
         photoUrls: photoUrlsByPackage[index],
         ...(offerUrlByPackage[index] ? { offerImageUrl: offerUrlByPackage[index]! } : {}),
@@ -435,6 +443,13 @@ export function MarathonFormDialog({
         paymentInstructions: String(form.get('paymentInstructions')),
         sharedInclusions: String(form.get('sharedInclusions') ?? '').trim(),
         packageNotes: String(form.get('packageNotes') ?? '').trim(),
+        hotelDetails: String(form.get('hotelDetails') ?? '').trim(),
+        hotelImageUrl,
+        offerAcceptanceDeadline: form.get('offerAcceptanceDeadline')
+          ? new Date(String(form.get('offerAcceptanceDeadline')))
+          : null,
+        depositDueDays: Number(form.get('depositDueDays')) || null,
+        balanceDeadline: form.get('balanceDeadline') ? new Date(String(form.get('balanceDeadline'))) : null,
         packages,
         questions,
         feedDeadline: feedDeadline ? new Date(feedDeadline) : null,
@@ -449,6 +464,8 @@ export function MarathonFormDialog({
         setQuestionRows([])
         setBannerFile(null)
         setBannerPreviewUrl(undefined)
+        setHotelFile(null)
+        setHotelPreviewUrl(undefined)
         setFeedDeadline('')
       }
       setOpen(false)
@@ -548,6 +565,75 @@ export function MarathonFormDialog({
               defaultValue={marathon?.paymentInstructions}
             />
           </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Field
+              label="Accept offer by (optional)"
+              name="offerAcceptanceDeadline"
+              type="date"
+              defaultValue={
+                marathon?.offerAcceptanceDeadline && toDateInputValue(marathon.offerAcceptanceDeadline.toDate())
+              }
+            />
+            <Field
+              label="Deposit due, days after acceptance (optional)"
+              name="depositDueDays"
+              type="number"
+              defaultValue={(marathon?.depositDueDays ?? 1).toString()}
+            />
+            <Field
+              label="Remaining balance due (optional)"
+              name="balanceDeadline"
+              type="date"
+              defaultValue={marathon?.balanceDeadline && toDateInputValue(marathon.balanceDeadline.toDate())}
+            />
+          </div>
+          <p className="text-muted-foreground -mt-1 text-xs">
+            The deposit falls due that many days after the registrant accepts their offer. Accept-by and deposit
+            terms appear in the offer email; deposit and balance due dates on the invoice. Set each package's
+            deposit amount below.
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="hotelDetails">Hotel details (optional)</Label>
+            <Textarea
+              id="hotelDetails"
+              name="hotelDetails"
+              placeholder={'One per line (each becomes a bullet)\nHotel name & address\nRoom type, check-in/out dates'}
+              rows={3}
+              defaultValue={marathon?.hotelDetails}
+            />
+            {hotelPreviewUrl && (
+              <div className="flex items-start gap-2">
+                <img src={hotelPreviewUrl} alt="" className="h-32 flex-1 rounded-md border border-border object-cover" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setHotelFile(null)
+                    setHotelPreviewUrl(undefined)
+                  }}
+                  aria-label="Remove hotel image"
+                >
+                  <XIcon className="size-4" />
+                </Button>
+              </div>
+            )}
+            <Input
+              type="file"
+              accept="image/*"
+              aria-label="Hotel image"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (!file) return
+                setHotelFile(file)
+                setHotelPreviewUrl(URL.createObjectURL(file))
+              }}
+            />
+            <p className="text-muted-foreground text-xs">
+              Shown only in the offer email, below the notes — not on the marathon page.
+            </p>
+          </div>
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="sharedInclusions">Included in every package (optional)</Label>
@@ -603,6 +689,14 @@ export function MarathonFormDialog({
                     value={pkg.priceCurrency}
                     onChange={(e) => updatePackageField(pkg.id, 'priceCurrency', e.target.value)}
                     className="w-20"
+                  />
+                  <Input
+                    placeholder="Deposit"
+                    type="number"
+                    aria-label="Deposit amount"
+                    value={pkg.depositAmount}
+                    onChange={(e) => updatePackageField(pkg.id, 'depositAmount', e.target.value)}
+                    className="w-28"
                   />
                   <Button
                     type="button"

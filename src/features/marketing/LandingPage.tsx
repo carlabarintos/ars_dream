@@ -28,7 +28,7 @@ const DESTINATIONS: { city: string; medalCity: MedalCity; country: string; note:
 
 const STEPS = [
   { icon: ClipboardListIcon, title: 'Join the Queue', description: 'Apply for a tour package and hold your place in a transparent, first-come queue.' },
-  { icon: CheckCircle2Icon, title: 'Get Accepted', description: 'Our team reviews applications and confirms your slot as capacity allows.' },
+  { icon: CheckCircle2Icon, title: 'Get an Offer', description: 'Our team reviews applications and offers you a slot as capacity allows.' },
   { icon: FileTextIcon, title: 'Accept Terms', description: 'Review your tour terms and, if the event needs it, answer a short questionnaire.' },
   { icon: CreditCardIcon, title: 'Submit Payment', description: 'Send proof of payment for our team to verify against your package.' },
   { icon: TrophyIcon, title: 'Confirmed', description: "You're booked. We'll see you at the start line." },

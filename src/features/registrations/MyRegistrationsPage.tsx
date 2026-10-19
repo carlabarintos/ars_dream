@@ -70,7 +70,7 @@ const COUNTDOWN_HIDDEN_STATUSES: RegistrationStatus[] = ['rejected', 'cancelled'
 
 // Mirrors the registrations.status pipeline documented in CLAUDE.md — the
 // happy-path progression a booking moves through from queue to confirmation.
-const PIPELINE_STEPS = ['Queued', 'Accepted', 'Terms', 'Payment', 'Confirmed'] as const
+const PIPELINE_STEPS = ['Queued', 'Offered', 'Invoiced', 'Payment', 'Confirmed'] as const
 
 const PIPELINE_INDEX: Partial<Record<RegistrationStatus, number>> = {
   queued: 0,

@@ -42,6 +42,19 @@ export function RegistrationWizard({
   const pendingStep = getPendingActionStep(registration, marathon)
   const step = pendingStep ?? (registration.status === 'payment_submitted' ? 'payment' : 'done')
 
+  const total =
+    registration.packagePriceAmount + (registration.selectedAddOns ?? []).reduce((sum, addOn) => sum + addOn.priceAmount, 0)
+  const deposit = Math.min(marathon?.packages?.find((p) => p.id === registration.packageId)?.depositAmount ?? 0, total)
+  const money = (amount: number) => `${registration.packagePriceCurrency} ${amount.toLocaleString()}`
+  const formatDue = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const dueDate = (date: Date | undefined) => (date ? ` · due ${formatDue(date)}` : '')
+  // Only relevant when the package has a deposit; defaults to 1 day.
+  const depositDueDays = deposit > 0 ? (marathon?.depositDueDays ?? 1) : undefined
+  const depositDeadline =
+    depositDueDays && registration.termsAcceptedAt
+      ? new Date(registration.termsAcceptedAt.toMillis() + depositDueDays * 86_400_000)
+      : undefined
+
   async function handleSubmitTerms() {
     const missingRequired = items.some(
       (item) => item.required && !isQuestionAnswered(item, answerValues[item.id]),
@@ -90,15 +103,34 @@ export function RegistrationWizard({
           <DialogTitle>{marathon?.title ?? 'Complete Your Registration'}</DialogTitle>
           <DialogDescription>
             {step === 'terms'
-              ? "You've been accepted! Review and accept the terms & conditions to continue."
+              ? "You've received an offer! Review and accept the terms & conditions to accept it."
               : step === 'payment'
-                ? 'Send payment using the instructions below, then upload your proof of payment.'
+                ? 'Your invoice is below. Send payment using the instructions, then upload your proof of payment.'
                 : ''}
           </DialogDescription>
         </DialogHeader>
 
         {step === 'terms' && (
           <div className="flex flex-col gap-4">
+            {(marathon?.offerAcceptanceDeadline || depositDueDays) && (
+              <div className="bg-muted/50 flex flex-col gap-1 rounded-md border border-border p-3 text-sm">
+                {marathon?.offerAcceptanceDeadline && (
+                  <p>
+                    Accept this offer by{' '}
+                    <span className="font-semibold">{formatDue(marathon.offerAcceptanceDeadline.toDate())}</span>
+                  </p>
+                )}
+                {depositDueDays && (
+                  <p>
+                    Deposit due within{' '}
+                    <span className="font-semibold">
+                      {depositDueDays} day{depositDueDays === 1 ? '' : 's'}
+                    </span>{' '}
+                    of accepting this offer
+                  </p>
+                )}
+              </div>
+            )}
             {items.length === 0 && (
               <p className="text-muted-foreground text-sm">
                 No additional information is required. Click Continue to accept the terms & conditions
@@ -169,6 +201,26 @@ export function RegistrationWizard({
                 wrong file.
               </div>
             )}
+            <div className="flex flex-col gap-1 rounded-md border border-border p-3 text-sm">
+              <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Invoice</p>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total</span>
+                <span className="font-semibold">{money(total)}</span>
+              </div>
+              {deposit > 0 && (
+                <div className="flex justify-between">
+                  <span>Deposit{dueDate(depositDeadline)}</span>
+                  <span className="font-semibold">{money(deposit)}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span>
+                  {deposit > 0 ? 'Remaining balance' : 'Amount due'}
+                  {dueDate(marathon?.balanceDeadline?.toDate())}
+                </span>
+                <span className="font-semibold">{money(total - deposit)}</span>
+              </div>
+            </div>
             <div className="text-muted-foreground rounded-md border border-border p-3 text-sm whitespace-pre-line">
               {marathon?.paymentInstructions ?? 'Payment instructions will be provided here.'}
             </div>

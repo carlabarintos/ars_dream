@@ -29,11 +29,11 @@ const STATUS_BADGE_VARIANT: Record<Exclude<Registration['status'], 'queued'>, 's
 }
 
 const STATUS_BADGE_LABEL: Record<Exclude<Registration['status'], 'queued'>, string> = {
-  accepted: 'Accepted',
+  accepted: 'Offered',
   rejected: 'Rejected',
-  terms_accepted: 'Accepted',
-  payment_submitted: 'Accepted',
-  confirmed: 'Accepted',
+  terms_accepted: 'Offered',
+  payment_submitted: 'Offered',
+  confirmed: 'Offered',
   payment_rejected: 'Rejected',
   cancelled: 'Cancelled',
 }
@@ -57,7 +57,7 @@ type StatusFilter = 'all' | 'queued' | 'accepted' | 'rejected' | 'cancelled'
 const STATUS_FILTER_LABEL: Record<StatusFilter, string> = {
   all: 'All statuses',
   queued: 'Queued',
-  accepted: 'Accepted',
+  accepted: 'Offered',
   rejected: 'Rejected',
   cancelled: 'Cancelled',
 }
@@ -103,7 +103,7 @@ export function QueueReviewPage() {
     setDecidingKey(`${id}-${decision}`)
     try {
       await decideQueueRegistration(id, decision)
-      toast.success(decision === 'accepted' ? 'Registration accepted.' : 'Registration rejected.')
+      toast.success(decision === 'accepted' ? 'Offer sent.' : 'Registration rejected.')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
     } finally {
@@ -193,7 +193,7 @@ export function QueueReviewPage() {
                   {registration.status === 'queued' ? (
                     <>
                       <Button size="sm" onClick={() => setReviewingOffer(registration)}>
-                        Accept
+                        Offer
                       </Button>
                       <Button
                         variant="destructive"

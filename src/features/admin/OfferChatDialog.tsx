@@ -84,9 +84,9 @@ export function OfferChatDialog({
       await decideQueueRegistration(registration.id, 'accepted', finalImageUrl)
       try {
         await sendPersonalMessage(registration.userId, adminUid, 'admin', text.trim(), finalImageUrl)
-        toast.success('Registration accepted and offer sent.')
+        toast.success('Offer sent.')
       } catch {
-        toast.error('Registration accepted, but the offer message failed to send.')
+        toast.error('Offer sent, but the chat message failed to send.')
       }
       onClose()
     } catch (error) {
@@ -100,7 +100,7 @@ export function OfferChatDialog({
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && !isSubmitting && onClose()}>
       <DialogContent className={cn('max-h-[90vh] overflow-y-auto', step === 'preview' && 'sm:max-w-3xl')}>
         <DialogHeader>
-          <DialogTitle>{step === 'compose' ? 'Send Standard Offer' : 'Review Acceptance Email'}</DialogTitle>
+          <DialogTitle>{step === 'compose' ? 'Send Standard Offer' : 'Review Offer & Invoice Email'}</DialogTitle>
         </DialogHeader>
 
         {step === 'compose' ? (
@@ -139,14 +139,20 @@ export function OfferChatDialog({
           registration && (
             <div className="flex flex-col gap-1.5">
               <p className="text-muted-foreground text-sm">
-                This is the email {profile?.email ?? 'the registrant'} will receive once you accept.
+                This is the email {profile?.email ?? 'the registrant'} will receive once you send the offer.
               </p>
               <iframe
-                title="Acceptance email preview"
+                title="Offer email preview"
                 className="h-[65vh] w-full rounded-md border border-border bg-white"
                 srcDoc={
                   buildAcceptanceEmail({
-                    marathon: marathon ? { ...marathon, eventDate: marathon.eventDate?.toDate() } : undefined,
+                    marathon: marathon
+                      ? {
+                          ...marathon,
+                          eventDate: marathon.eventDate?.toDate(),
+                          offerAcceptanceDeadline: marathon.offerAcceptanceDeadline?.toDate(),
+                        }
+                      : undefined,
                     pkg,
                     registration,
                     offerImageUrl: imagePreviewUrl,
@@ -174,7 +180,7 @@ export function OfferChatDialog({
                 Back
               </Button>
               <Button type="button" onClick={handleProceed} loading={isSubmitting}>
-                {isSubmitting ? 'Accepting…' : 'Accept & send'}
+                {isSubmitting ? 'Sending offer…' : 'Send offer'}
               </Button>
             </>
           )}

@@ -37,7 +37,7 @@ export function TermsOfServicePage() {
         <h2>1. How registration works</h2>
         <p>
           Tour packages have limited capacity. Joining a marathon's queue does not guarantee a spot.
-          Your registration moves through review (queued → accepted → terms accepted → payment submitted
+          Your registration moves through review (queued → offered → terms accepted → payment submitted
           → confirmed) at ARS Dream's discretion, based on available capacity. ARS Dream may reject an
           application at the queue-review stage, or reject submitted proof of payment, without being
           obligated to disclose its internal review criteria.

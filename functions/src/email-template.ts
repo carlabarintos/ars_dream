@@ -79,9 +79,12 @@ export interface EmailContent {
   ctaUrl: string
 }
 
+const formatDate = (date: Date) =>
+  date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' })
+
 export const ACCEPTED_COPY = {
-  title: "You're accepted!",
-  body: 'Open ARS Dream to accept the terms and submit your proof of payment.',
+  title: "You've got an offer!",
+  body: 'Open ARS Dream to accept the terms and submit your proof of deposit payment.',
 }
 
 /** The bits of a marathon/package/registration the acceptance email shows — plain types so both the Admin SDK and the web SDK side can fill them in. */
@@ -93,12 +96,17 @@ export interface AcceptanceEmailInput {
     bannerImageUrl?: string
     sharedInclusions?: string
     packageNotes?: string
+    hotelDetails?: string
+    hotelImageUrl?: string
+    offerAcceptanceDeadline?: Date
+    depositDueDays?: number
   }
   /** The marathon's current package matching the registration's packageId, for its description and photo. */
   pkg?: {
     description?: string
     details?: { label: string; value: string }[]
     photoUrls?: string[]
+    depositAmount?: number
   }
   /** Price/add-on snapshot from the registration, so the email shows what the registrant actually picked. */
   registration: {
@@ -134,18 +142,16 @@ export function buildAcceptanceEmail({
   const photoUrl = pkg?.photoUrls?.[0]
   const sharedInclusions = toBulletLines(marathon?.sharedInclusions)
   const packageNotes = toBulletLines(marathon?.packageNotes)
-  const eventDate = marathon?.eventDate?.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'Asia/Manila',
-  })
+  const eventDate = marathon?.eventDate && formatDate(marathon.eventDate)
+  const depositDueDays = marathon?.depositDueDays ?? 1
+  const hotelLines = toBulletLines(marathon?.hotelDetails)
+  const hotelImageUrl = marathon?.hotelImageUrl
   const ctaUrl = `${APP_URL}/my-registrations`
   const name = (recipient?.firstName || recipient?.displayName || '').trim()
-  const cardTitle = name ? `You're accepted, ${escapeHtml(name)}!` : ACCEPTED_COPY.title
+  const cardTitle = name ? `You've got an offer, ${escapeHtml(name)}!` : ACCEPTED_COPY.title
   const body =
-    (name ? `Hi ${name}, your` : 'Your') +
-    (title ? ` registration for the ${title} tour has been accepted. ` : ' registration has been accepted. ') +
+    (name ? `Hi ${name}, we're` : "We're") +
+    (title ? ` offering you a slot on the ${title} tour. ` : ' offering you a slot on this tour. ') +
     ACCEPTED_COPY.body
 
   const banner = marathon?.bannerImageUrl ? escapeHtml(marathon.bannerImageUrl) : ''
@@ -185,13 +191,15 @@ export function buildAcceptanceEmail({
         <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin: 0 0 16px;">
           <tr>
             <td style="font-family: ${DISPLAY}; font-size: 26px; line-height: 1; letter-spacing: 1px;">${cardTitle}</td>
-            <td style="text-align: right; vertical-align: top;">${pill('Accepted', SUCCESS, '#ffffff')}</td>
+            <td style="text-align: right; vertical-align: top;">${pill('Offered', SUCCESS, '#ffffff')}</td>
           </tr>
         </table>
         ${lineItem(escapeHtml(body))}
         ${lineItem(`Package: ${escapeHtml(registration.packageName)} (${currency} ${registration.packagePriceAmount.toLocaleString()})`)}
         ${addOns.length > 0 ? lineItem(`Add-ons: ${addOns.map((addOn) => escapeHtml(addOn.name)).join(', ')}`) : ''}
         ${addOns.length > 0 ? lineItem(`Total: ${currency} ${total.toLocaleString()}`, true) : ''}
+        ${marathon?.offerAcceptanceDeadline ? lineItem(`Accept this offer by: ${formatDate(marathon.offerAcceptanceDeadline)}`, true) : ''}
+        ${pkg?.depositAmount ? lineItem(`Deposit due: within ${depositDueDays} day${depositDueDays === 1 ? '' : 's'} of accepting this offer`, true) : ''}
       </div>
       <div style="border-top: 1px solid ${BORDER}; padding: 16px 20px 20px;">
         <a href="${ctaUrl}" style="display: block; text-align: center; background: ${PRIMARY}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 20px; border-radius: 10px;">Complete my booking</a>
@@ -248,6 +256,17 @@ export function buildAcceptanceEmail({
       </div>
     </div>`
 
+  const hotelHtml =
+    hotelLines.length > 0 || hotelImageUrl
+      ? infoBox(
+          eyebrow('🏨 Hotel') +
+            (hotelImageUrl
+              ? `<img src="${escapeHtml(hotelImageUrl)}" alt="" style="width: 100%; border-radius: 10px; margin: 0 0 12px; display: block;" />`
+              : '') +
+            (hotelLines.length > 0 ? bulletTable(hotelLines, '•', MUTED, FOREGROUND) : ''),
+        )
+      : ''
+
   const html = `
     <div style="background: ${PAGE_BG}; font-family: ${SANS}; color: ${FOREGROUND};">
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -265,6 +284,7 @@ export function buildAcceptanceEmail({
         ${inclusionsHtml}
         ${packageCardHtml}
         ${packageNotes.length > 0 ? infoBox(eyebrow('Notes') + bulletTable(packageNotes, '•', MUTED, MUTED)) : ''}
+        ${hotelHtml}
         ${offerImageUrl ? `<img src="${escapeHtml(offerImageUrl)}" alt="" style="width: 100%; border-radius: 16px; margin: 0 0 24px; display: block;" />` : ''}
 
         <p style="margin: 8px 0 0; text-align: center; font-size: 12px; color: ${MUTED};">
@@ -278,6 +298,79 @@ export function buildAcceptanceEmail({
     body,
     html,
   }
+}
+
+export const INVOICE_COPY = {
+  title: 'Your invoice is ready',
+  body: 'Pay your deposit using the payment instructions, then upload your proof of payment in ARS Dream.',
+}
+
+export interface InvoiceEmailInput {
+  marathon?: {
+    title?: string
+    paymentInstructions?: string
+    /** Computed by the caller: offer acceptance time + `depositDueDays`. */
+    depositDeadline?: Date
+    balanceDeadline?: Date
+  }
+  /** The package's current deposit amount; absent/0 means the full amount is due by the balance deadline. */
+  depositAmount?: number
+  registration: AcceptanceEmailInput['registration']
+  recipient?: AcceptanceEmailInput['recipient']
+}
+
+/** Sent once the registrant accepts their offer (status → terms_accepted): the price breakdown with deposit and balance due dates. */
+export function buildInvoiceEmail({ marathon, depositAmount, registration, recipient }: InvoiceEmailInput): {
+  subject: string
+  body: string
+  html: string
+} {
+  const title = marathon?.title
+  const currency = escapeHtml(registration.packagePriceCurrency)
+  const money = (amount: number) => `${currency} ${amount.toLocaleString()}`
+  const addOns = registration.selectedAddOns ?? []
+  const total = registration.packagePriceAmount + addOns.reduce((sum, addOn) => sum + addOn.priceAmount, 0)
+  const deposit = Math.min(depositAmount ?? 0, total)
+  const name = (recipient?.firstName || recipient?.displayName || '').trim()
+  const body = (name ? `Hi ${name}, thanks` : 'Thanks') + ` for accepting your offer${title ? ` for the ${title} tour` : ''}. ` + INVOICE_COPY.body
+
+  const row = (label: string, amount: string, strong = false) =>
+    `<tr><td style="padding: 6px 0; font-size: 14px; ${strong ? 'font-weight: 700;' : `color: ${MUTED};`}">${label}</td><td style="padding: 6px 0; text-align: right; font-size: 14px; white-space: nowrap; ${strong ? 'font-weight: 700;' : ''}">${amount}</td></tr>`
+  const dueRow = (label: string, date: Date | undefined, amount: number) =>
+    row(`${label}${date ? ` <span style="font-weight: 400; color: ${MUTED};">· due ${formatDate(date)}</span>` : ''}`, money(amount), true)
+  const instructions = toBulletLines(marathon?.paymentInstructions)
+
+  const html = `
+    <div style="background: ${PAGE_BG}; font-family: ${SANS}; color: ${FOREGROUND};">
+      <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+      ${HEADER_HTML}
+      <div style="max-width: 640px; margin: 0 auto; padding: 32px 16px;">
+        <div style="background: #ffffff; border: 1px solid ${BORDER}; border-radius: 16px; padding: 20px; margin: 0 0 24px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin: 0 0 12px;">
+            <tr>
+              <td style="font-family: ${DISPLAY}; font-size: 26px; line-height: 1; letter-spacing: 1px;">Invoice${title ? ` — ${escapeHtml(title)}` : ''}</td>
+              <td style="text-align: right; vertical-align: top;">${pill('Invoiced', PRIMARY, '#ffffff')}</td>
+            </tr>
+          </table>
+          <p style="margin: 0 0 16px; font-size: 14px; line-height: 1.5; color: ${MUTED};">${escapeHtml(body)}</p>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+            ${row(`${escapeHtml(registration.packageName)} package`, money(registration.packagePriceAmount))}
+            ${addOns.map((addOn) => row(`Add-on: ${escapeHtml(addOn.name)}`, money(addOn.priceAmount))).join('')}
+            <tr><td colspan="2" style="border-top: 1px solid ${BORDER}; height: 0; line-height: 0;"></td></tr>
+            ${row('Total', money(total), true)}
+            ${deposit > 0 ? dueRow('Deposit', marathon?.depositDeadline, deposit) : ''}
+            ${dueRow(deposit > 0 ? 'Remaining balance' : 'Amount due', marathon?.balanceDeadline, total - deposit)}
+          </table>
+        </div>
+        ${instructions.length > 0 ? infoBox(eyebrow('Payment instructions') + bulletTable(instructions, '•', MUTED, FOREGROUND)) : ''}
+        <a href="${APP_URL}/my-registrations" style="display: block; text-align: center; background: ${PRIMARY}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 20px; border-radius: 10px; margin: 0 0 24px;">Submit proof of payment</a>
+        <p style="margin: 8px 0 0; text-align: center; font-size: 12px; color: ${MUTED};">
+          ARS Dream Sports · <a href="${APP_URL}" style="color: ${MUTED};">arsdreamsports.com</a>
+        </p>
+      </div>
+    </div>`
+
+  return { subject: title ? `${INVOICE_COPY.title} — ${title}` : INVOICE_COPY.title, body, html }
 }
 
 /** Simple branded layout, reused for every other status-change email. */

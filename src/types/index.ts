@@ -45,6 +45,8 @@ export interface MarathonPackage {
   name: string
   priceAmount: number
   priceCurrency: string
+  /** Up-front deposit due `Marathon.depositDueDays` after the offer is accepted, in `priceCurrency`; the rest is due by `Marathon.balanceDeadline`. Absent means no deposit split — the full amount is due. */
+  depositAmount?: number
   /** Free-text package details, e.g. inclusions. Line breaks are preserved when shown. */
   description?: string
   /** @deprecated Legacy label/value rows; read via `getPackageDescription`, never written anymore. */
@@ -94,6 +96,16 @@ export interface Marathon {
   sharedInclusions?: string
   /** Event-wide notes (e.g. visa reminders, exclusions), one per line. Shown once below the package cards. */
   packageNotes?: string
+  /** Hotel name/address/room details, one per line. Shown only in the offer email (below the notes), not on the marathon page. */
+  hotelDetails?: string
+  /** Optional hotel photo shown with `hotelDetails` in the offer email. Empty/absent means none. */
+  hotelImageUrl?: string
+  /** Shown in the offer email and offer step as the date to accept the offer by. Display only — not enforced. */
+  offerAcceptanceDeadline?: Timestamp
+  /** Days after the registrant accepts their offer (`Registration.termsAcceptedAt`) that each package's `depositAmount` is due. */
+  depositDueDays?: number
+  /** When the remaining balance (total minus deposit) is due. */
+  balanceDeadline?: Timestamp
   /** Selectable packages for this event (e.g. Standard, VIP). Absent on events created before this field existed. */
   packages?: MarathonPackage[]
   /** Registration questions a registrant must complete before payment (e.g. an agreement checkbox, emergency contact, dietary restrictions). Absent on events created before this field existed. May originate from a QuestionnaireTemplate copied in at authoring time, but is independent of it thereafter. */

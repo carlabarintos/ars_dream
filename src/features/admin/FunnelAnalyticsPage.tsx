@@ -20,7 +20,7 @@ const EXIT_STATUSES: RegistrationStatus[] = ['rejected', 'payment_rejected', 'ca
 
 const STATUS_LABELS: Record<RegistrationStatus, string> = {
   queued: 'Queued',
-  accepted: 'Accepted',
+  accepted: 'Offered',
   terms_accepted: 'Terms Accepted',
   payment_submitted: 'Payment Submitted',
   confirmed: 'Confirmed',

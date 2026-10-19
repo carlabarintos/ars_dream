@@ -8,7 +8,7 @@ import type { AuditAction, AuditLogEntry } from '@/types'
 import { useAuditLog } from './audit-log/use-audit-log'
 
 const ACTION_LABEL: Record<AuditAction, string> = {
-  registration_accepted: 'Accepted registration',
+  registration_accepted: 'Sent offer',
   registration_rejected: 'Rejected registration',
   payment_confirmed: 'Confirmed payment',
   payment_rejected: 'Rejected payment',

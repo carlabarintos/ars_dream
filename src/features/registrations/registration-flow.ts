@@ -19,9 +19,9 @@ export function getRegistrationStatusMessage(registration: Registration) {
       }
       return "You're in the waiting list. We'll notify you once a spot opens up."
     case 'accepted':
-      return "You've been accepted! Review and accept the terms & conditions to continue."
+      return "You've received an offer! Review and accept it to receive your invoice."
     case 'terms_accepted':
-      return 'Send payment using the instructions provided, then upload your proof of payment.'
+      return 'Your invoice is ready. Pay your deposit using the instructions provided, then upload your proof of payment.'
     case 'payment_submitted':
       return "Your payment is under review. We'll notify you once it's confirmed."
     case 'payment_rejected':
@@ -96,8 +96,8 @@ export function canReRegister(registration: Registration) {
 export type PendingActionStep = 'terms' | 'payment'
 
 export const PENDING_ACTION_LABEL: Record<PendingActionStep, string> = {
-  terms: 'Accept Terms & Conditions',
-  payment: 'Submit Proof of Payment',
+  terms: 'Accept Offer',
+  payment: 'View Invoice & Pay',
 }
 
 /** What the registrant still needs to do next, or null if nothing is required of them right now. */

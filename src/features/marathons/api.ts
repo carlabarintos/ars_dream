@@ -90,17 +90,28 @@ export interface MarathonInput {
   paymentInstructions: string
   sharedInclusions: string
   packageNotes: string
+  hotelDetails: string
+  /** Empty string means no hotel image. */
+  hotelImageUrl: string
   packages: MarathonPackage[]
   questions: MarathonQuestion[]
   /** null clears an existing deadline; undefined/omitted leaves it unset (create) or untouched (update is not possible this way — pass null to clear). */
   feedDeadline?: Date | null
+  /** Same null-clears semantics as feedDeadline. */
+  offerAcceptanceDeadline?: Date | null
+  /** null clears it. */
+  depositDueDays?: number | null
+  balanceDeadline?: Date | null
 }
 
 export async function createMarathon(input: MarathonInput, createdBy: string) {
-  const { feedDeadline, ...rest } = input
+  const { feedDeadline, offerAcceptanceDeadline, depositDueDays, balanceDeadline, ...rest } = input
   await addDoc(marathonsRef, {
     ...rest,
     ...(feedDeadline ? { feedDeadline } : {}),
+    ...(offerAcceptanceDeadline ? { offerAcceptanceDeadline } : {}),
+    ...(depositDueDays ? { depositDueDays } : {}),
+    ...(balanceDeadline ? { balanceDeadline } : {}),
     confirmedCount: 0,
     cycle: 1,
     status: 'draft' satisfies MarathonStatus,
@@ -110,8 +121,14 @@ export async function createMarathon(input: MarathonInput, createdBy: string) {
 }
 
 export async function updateMarathon(marathonId: string, input: MarathonInput) {
-  const { feedDeadline, ...rest } = input
-  await updateDoc(doc(db, 'marathons', marathonId), { ...rest, feedDeadline: feedDeadline ?? deleteField() })
+  const { feedDeadline, offerAcceptanceDeadline, depositDueDays, balanceDeadline, ...rest } = input
+  await updateDoc(doc(db, 'marathons', marathonId), {
+    ...rest,
+    feedDeadline: feedDeadline ?? deleteField(),
+    offerAcceptanceDeadline: offerAcceptanceDeadline ?? deleteField(),
+    depositDueDays: depositDueDays || deleteField(),
+    balanceDeadline: balanceDeadline ?? deleteField(),
+  })
 }
 
 export async function setMarathonStatus(marathonId: string, status: MarathonStatus) {
