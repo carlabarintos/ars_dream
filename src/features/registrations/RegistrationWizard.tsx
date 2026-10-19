@@ -112,9 +112,9 @@ export function RegistrationWizard({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto p-5 sm:p-8">
         <DialogHeader>
-          <DialogTitle>{marathon?.title ?? 'Complete Your Registration'}</DialogTitle>
+          <DialogTitle className="px-6 sm:px-0 sm:pr-6">{marathon?.title ?? 'Complete Your Registration'}</DialogTitle>
           <DialogDescription>
             {step === 'terms'
               ? "You've received an offer! Review and accept the terms & conditions to accept it."
