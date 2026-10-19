@@ -213,11 +213,10 @@ export function buildAcceptanceEmail({
           </tr>
         </table>
         ${lineItem(escapeHtml(body))}
-        ${lineItem(`Package: ${escapeHtml(registration.packageName)} (${currency} ${registration.packagePriceAmount.toLocaleString()})`)}
+        ${lineItem(`Package: ${escapeHtml(registration.packageName)}`)}
         ${addOns.length > 0 ? lineItem(`Add-ons: ${addOns.map((addOn) => escapeHtml(addOn.name)).join(', ')}`) : ''}
-        ${addOns.length > 0 ? lineItem(`Total: ${currency} ${total.toLocaleString()}`, true) : ''}
+        ${pkg?.depositAmount ? lineItem(`Deposit: ${currency} ${Math.min(pkg.depositAmount, total).toLocaleString()} — due within ${depositDueDays} day${depositDueDays === 1 ? '' : 's'} of accepting this offer`, true) : ''}
         ${marathon?.offerAcceptanceDeadline ? lineItem(`Accept this offer by: ${formatDateTime(marathon.offerAcceptanceDeadline)} (Manila time)`, true) : ''}
-        ${pkg?.depositAmount ? lineItem(`Deposit due: within ${depositDueDays} day${depositDueDays === 1 ? '' : 's'} of accepting this offer`, true) : ''}
       </div>
       <div style="border-top: 1px solid ${BORDER}; padding: 16px 20px 20px;">
         <a href="${ctaUrl}" style="display: block; text-align: center; background: ${PRIMARY}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 20px; border-radius: 10px;">Accept Offer</a>
@@ -251,8 +250,12 @@ export function buildAcceptanceEmail({
             <td style="text-align: right; vertical-align: top;">${pill('Your package', SECONDARY, FOREGROUND)}</td>
           </tr>
         </table>
-        <p style="margin: 10px 0 0; font-family: ${DISPLAY}; font-size: 32px; line-height: 1.1; letter-spacing: 1px;">${currency} ${total.toLocaleString()}</p>
-        ${addOns.length > 0 ? `<p style="margin: 2px 0 0; font-size: 12px; color: ${MUTED};">Base package ${currency} ${registration.packagePriceAmount.toLocaleString()}</p>` : ''}
+        ${
+          pkg?.depositAmount
+            ? `<p style="margin: 10px 0 0; font-family: ${DISPLAY}; font-size: 32px; line-height: 1.1; letter-spacing: 1px;">${currency} ${Math.min(pkg.depositAmount, total).toLocaleString()}</p>
+               <p style="margin: 2px 0 0; font-size: 12px; color: ${MUTED};">Deposit</p>`
+            : ''
+        }
       </div>
       <div style="padding: 16px 20px 20px;">
         ${descriptionLines.length > 0 ? bulletTable(descriptionLines, '•', MUTED, MUTED) : ''}
@@ -264,7 +267,7 @@ export function buildAcceptanceEmail({
                   ${addOns
                     .map(
                       (addOn) =>
-                        `<tr><td style="padding: 0 0 6px; font-size: 14px;"><span style="color: ${PRIMARY}; font-weight: 700;">✓</span>&nbsp; ${escapeHtml(addOn.name)}</td><td style="padding: 0 0 6px; text-align: right; font-size: 12px; font-weight: 700; color: ${MUTED}; white-space: nowrap;">+${currency} ${addOn.priceAmount.toLocaleString()}</td></tr>`,
+                        `<tr><td style="padding: 0 0 6px; font-size: 14px;"><span style="color: ${PRIMARY}; font-weight: 700;">✓</span>&nbsp; ${escapeHtml(addOn.name)}</td></tr>`,
                     )
                     .join('')}
                 </table>
