@@ -673,27 +673,6 @@ export function MarathonFormDialog({
                     onChange={(e) => updatePackageField(pkg.id, 'name', e.target.value)}
                     className="flex-1"
                   />
-                  <Input
-                    placeholder="Price"
-                    type="number"
-                    value={pkg.priceAmount}
-                    onChange={(e) => updatePackageField(pkg.id, 'priceAmount', e.target.value)}
-                    className="w-28"
-                  />
-                  <Input
-                    placeholder="Currency"
-                    value={pkg.priceCurrency}
-                    onChange={(e) => updatePackageField(pkg.id, 'priceCurrency', e.target.value)}
-                    className="w-20"
-                  />
-                  <Input
-                    placeholder="Deposit"
-                    type="number"
-                    aria-label="Deposit amount"
-                    value={pkg.depositAmount}
-                    onChange={(e) => updatePackageField(pkg.id, 'depositAmount', e.target.value)}
-                    className="w-28"
-                  />
                   <Button
                     type="button"
                     variant="ghost"
@@ -703,6 +682,41 @@ export function MarathonFormDialog({
                   >
                     <XIcon className="size-4" />
                   </Button>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor={`pkg-price-${pkg.id}`} className="text-muted-foreground text-xs">
+                      Price
+                    </Label>
+                    <Input
+                      id={`pkg-price-${pkg.id}`}
+                      type="number"
+                      value={pkg.priceAmount}
+                      onChange={(e) => updatePackageField(pkg.id, 'priceAmount', e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor={`pkg-currency-${pkg.id}`} className="text-muted-foreground text-xs">
+                      Currency
+                    </Label>
+                    <Input
+                      id={`pkg-currency-${pkg.id}`}
+                      value={pkg.priceCurrency}
+                      onChange={(e) => updatePackageField(pkg.id, 'priceCurrency', e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor={`pkg-deposit-${pkg.id}`} className="text-muted-foreground text-xs">
+                      Deposit (optional)
+                    </Label>
+                    <Input
+                      id={`pkg-deposit-${pkg.id}`}
+                      type="number"
+                      placeholder="No deposit"
+                      value={pkg.depositAmount}
+                      onChange={(e) => updatePackageField(pkg.id, 'depositAmount', e.target.value)}
+                    />
+                  </div>
                 </div>
 
                 <Textarea
