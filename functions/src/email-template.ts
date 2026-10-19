@@ -202,7 +202,7 @@ export function buildAcceptanceEmail({
         ${pkg?.depositAmount ? lineItem(`Deposit due: within ${depositDueDays} day${depositDueDays === 1 ? '' : 's'} of accepting this offer`, true) : ''}
       </div>
       <div style="border-top: 1px solid ${BORDER}; padding: 16px 20px 20px;">
-        <a href="${ctaUrl}" style="display: block; text-align: center; background: ${PRIMARY}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 20px; border-radius: 10px;">Complete my booking</a>
+        <a href="${ctaUrl}" style="display: block; text-align: center; background: ${PRIMARY}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 20px; border-radius: 10px;">Accept Offer</a>
       </div>
     </div>`
 
