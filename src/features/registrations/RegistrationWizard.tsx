@@ -151,7 +151,10 @@ export function RegistrationWizard({
             )}
             {items.map((item) => (
               <div key={item.id} className="flex flex-col gap-1.5">
-                <Label htmlFor={item.id} className={item.type === 'bool' ? 'font-normal' : undefined}>
+                <Label
+                  htmlFor={item.id}
+                  className={`block whitespace-pre-line leading-snug ${item.type === 'bool' ? 'font-normal' : ''}`}
+                >
                   {item.label}
                   {item.type !== 'bool' && item.required && <span className="text-destructive"> *</span>}
                 </Label>
