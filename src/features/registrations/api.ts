@@ -7,6 +7,7 @@ import {
   onSnapshot,
   query,
   serverTimestamp,
+  Timestamp,
   updateDoc,
   where,
   writeBatch,
@@ -15,7 +16,14 @@ import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 import { httpsCallable } from 'firebase/functions'
 
 import { db, functions, storage } from '@/firebase/config'
-import type { MarathonPackage, MarathonPackageAddOn, QuestionAnswer, Registration, SelectedAddOn } from '@/types'
+import type {
+  InvoiceLineItem,
+  MarathonPackage,
+  MarathonPackageAddOn,
+  QuestionAnswer,
+  Registration,
+  SelectedAddOn,
+} from '@/types'
 import type { RegistrationRestorePatch } from '@/features/admin/export-import/serialize'
 import { canChangePackage, canReRegister } from '@/features/registrations/registration-flow'
 import { UserFacingError } from '@/lib/user-facing-error'
@@ -121,6 +129,10 @@ export async function joinQueue(
         proofSubmittedAt: null,
         adminNote: null,
         cancelledAt: null,
+        depositPaidAt: deleteField(),
+        depositProofUrls: deleteField(),
+        finalInvoice: deleteField(),
+        finalTermsAcceptedAt: deleteField(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
@@ -192,6 +204,34 @@ export async function submitProofOfPayment(registrationId: string, files: File[]
     status: 'payment_submitted' satisfies Registration['status'],
     proofOfPaymentUrls: urls,
     proofSubmittedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/** Balance proof against the final invoice. From 'final_invoiced' this also records T&C acceptance; a resubmit after rejection doesn't re-ask. */
+export async function submitFinalPayment(registration: Registration, files: File[]) {
+  const urls = await Promise.all(
+    files.map(async (file, index) => {
+      const storageRef = ref(storage, `proof-of-payment/${registration.id}/${Date.now()}-balance-${index}-${file.name}`)
+      await uploadBytes(storageRef, file)
+      return getDownloadURL(storageRef)
+    }),
+  )
+
+  await updateDoc(doc(db, 'registrations', registration.id), {
+    status: 'payment_submitted' satisfies Registration['status'],
+    proofOfPaymentUrls: urls,
+    proofSubmittedAt: serverTimestamp(),
+    ...(registration.status === 'final_invoiced' ? { finalTermsAcceptedAt: serverTimestamp() } : {}),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/** Admin-only (plain update, allowed by the admin rule): issue or re-issue the final invoice. No capacity check needed — the seat was already counted at deposit. */
+export async function issueFinalInvoice(registrationId: string, items: InvoiceLineItem[], dueDate: Date) {
+  await updateDoc(doc(db, 'registrations', registrationId), {
+    status: 'final_invoiced' satisfies Registration['status'],
+    finalInvoice: { items, dueDate: Timestamp.fromDate(dueDate), issuedAt: serverTimestamp() },
     updatedAt: serverTimestamp(),
   })
 }

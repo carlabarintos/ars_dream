@@ -5,13 +5,39 @@ export function needsPackageUpdate(registration: Registration) {
   return registration.packageUpdateRequired === true
 }
 
-/** Package base price plus any selected add-ons — the actual amount the registrant owes. */
+/** Whether this registration is paying its balance against the final invoice rather than its deposit. */
+export function isOnFinalInvoice(registration: Registration) {
+  return registration.finalInvoice != null
+}
+
+/** Sum of the final invoice's lines — what's still owed after the deposit credit. */
+export function getFinalInvoiceBalance(registration: Registration) {
+  return (registration.finalInvoice?.items ?? []).reduce((sum, item) => sum + item.amount, 0)
+}
+
+/** Package base price plus any selected add-ons — the actual amount the registrant owes. Once a final invoice exists, its lines (minus the deposit credit) replace that. */
 export function getRegistrationTotalAmount(registration: Registration) {
+  if (registration.finalInvoice) {
+    return registration.finalInvoice.items.filter((item) => !item.isDeposit).reduce((sum, item) => sum + item.amount, 0)
+  }
   const addOnsTotal = (registration.selectedAddOns ?? []).reduce((sum, addOn) => sum + addOn.priceAmount, 0)
   return registration.packagePriceAmount + addOnsTotal
 }
 
+/** Flagged by flagOverdueRegistrations and still sitting in the status it went overdue in. */
+export function isOverdue(registration: Registration) {
+  return registration.overdueStatus === registration.status
+}
+
 export function getRegistrationStatusMessage(registration: Registration) {
+  if (isOverdue(registration)) {
+    if (registration.status === 'accepted') {
+      return 'Overdue: the window to accept your offer has passed. Accept it now — your slot may be cancelled otherwise.'
+    }
+    return registration.status === 'final_invoiced'
+      ? 'Overdue: your final invoice due date has passed. Pay your balance and upload your proof now — your slot may be cancelled otherwise.'
+      : 'Overdue: your deposit due date has passed. Submit your proof of payment now — your slot may be cancelled otherwise.'
+  }
   switch (registration.status) {
     case 'queued':
       if (needsPackageUpdate(registration)) {
@@ -24,6 +50,10 @@ export function getRegistrationStatusMessage(registration: Registration) {
       return 'Your invoice is ready. Pay your deposit using the instructions provided, then upload your proof of payment.'
     case 'payment_submitted':
       return "Your payment is under review. We'll notify you once it's confirmed."
+    case 'deposit_paid':
+      return "Deposit received — your slot is locked in. We'll go over add-ons with you in this booking's messages, then send your final invoice."
+    case 'final_invoiced':
+      return 'Your final invoice is ready. Review it, accept the terms & conditions, and upload your proof of payment for the balance.'
     case 'payment_rejected':
       return registration.adminNote
         ? `Your payment proof was rejected: ${registration.adminNote} Please resubmit.`
@@ -35,7 +65,7 @@ export function getRegistrationStatusMessage(registration: Registration) {
         ? `Your registration wasn't accepted: ${registration.adminNote} You can register again below.`
         : "Unfortunately, your registration wasn't accepted this time. You can register again below."
     case 'cancelled':
-      return "You've cancelled this registration. You can register again below if you've changed your mind."
+      return "This registration was cancelled. You can register again below if you've changed your mind."
   }
 }
 
@@ -65,7 +95,7 @@ export function isConfirmedAndQuestionnaireComplete(registration: Registration, 
 const PACKAGE_EDITABLE_STATUSES: RegistrationStatus[] = ['queued', 'accepted', 'terms_accepted', 'payment_rejected']
 
 export function canChangePackage(registration: Registration) {
-  return PACKAGE_EDITABLE_STATUSES.includes(registration.status)
+  return PACKAGE_EDITABLE_STATUSES.includes(registration.status) && !isOnFinalInvoice(registration)
 }
 
 // Mirrors CANCELLABLE_STATUSES in functions/src/cancel-registration.ts — every
@@ -77,6 +107,8 @@ const CANCELLABLE_STATUSES: RegistrationStatus[] = [
   'terms_accepted',
   'payment_submitted',
   'payment_rejected',
+  'deposit_paid',
+  'final_invoiced',
   'confirmed',
 ]
 
@@ -93,11 +125,12 @@ export function canReRegister(registration: Registration) {
   return REREGISTERABLE_STATUSES.includes(registration.status)
 }
 
-export type PendingActionStep = 'terms' | 'payment'
+export type PendingActionStep = 'terms' | 'payment' | 'final_payment'
 
 export const PENDING_ACTION_LABEL: Record<PendingActionStep, string> = {
   terms: 'Accept Offer',
   payment: 'View Invoice & Pay',
+  final_payment: 'View Final Invoice & Pay',
 }
 
 /** What the registrant still needs to do next, or null if nothing is required of them right now. */
@@ -106,7 +139,9 @@ export function getPendingActionStep(
   _marathon: Marathon | undefined,
 ): PendingActionStep | null {
   if (registration.status === 'accepted') return 'terms'
-  if (registration.status === 'terms_accepted' || registration.status === 'payment_rejected') return 'payment'
+  if (registration.status === 'final_invoiced') return 'final_payment'
+  if (registration.status === 'payment_rejected') return isOnFinalInvoice(registration) ? 'final_payment' : 'payment'
+  if (registration.status === 'terms_accepted') return 'payment'
   return null
 }
 

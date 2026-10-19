@@ -100,6 +100,7 @@ service cloud.firestore {
         request.resource.data.userId == resource.data.userId &&
         request.resource.data.status == resource.data.status &&
         resource.data.status in ['queued', 'accepted', 'terms_accepted', 'payment_rejected'] &&
+        !('finalInvoice' in resource.data) &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly([
             'packageId', 'packageName', 'packagePriceAmount', 'packagePriceCurrency',
@@ -124,6 +125,7 @@ service cloud.firestore {
             'packageId', 'packageName', 'packagePriceAmount', 'packagePriceCurrency',
             'selectedAddOns', 'status', 'queuePosition', 'termsAcceptedAt', 'answers',
             'proofOfPaymentUrls', 'proofSubmittedAt', 'adminNote', 'cancelledAt',
+            'depositPaidAt', 'depositProofUrls', 'finalInvoice', 'finalTermsAcceptedAt',
             'createdAt', 'updatedAt',
           ]);
 
@@ -146,7 +148,13 @@ service cloud.firestore {
           (resource.data.status in ['terms_accepted', 'payment_rejected'] &&
             request.resource.data.status == 'payment_submitted' &&
             request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['status', 'proofOfPaymentUrls', 'proofSubmittedAt', 'updatedAt']))
+              .hasOnly(['status', 'proofOfPaymentUrls', 'proofSubmittedAt', 'updatedAt'])) ||
+          // Balance proof against the final invoice, accepting its T&C in the same write.
+          (resource.data.status == 'final_invoiced' &&
+            request.resource.data.status == 'payment_submitted' &&
+            request.resource.data.finalTermsAcceptedAt == request.time &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'proofOfPaymentUrls', 'proofSubmittedAt', 'finalTermsAcceptedAt', 'updatedAt']))
         );
 
       allow update: if isAdmin();

@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
 import { useMarathon } from '@/features/marathons/use-marathons'
 import { confirmPayment, rejectPayment } from '@/features/registrations/api'
+import { getFinalInvoiceBalance, isOnFinalInvoice } from '@/features/registrations/registration-flow'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
 import type { Registration } from '@/types'
@@ -50,7 +51,11 @@ export function PaymentReviewPage() {
     setConfirmingId(registration.id)
     try {
       await confirmPayment(registration.id)
-      toast.success('Payment confirmed — registration complete.')
+      toast.success(
+        isOnFinalInvoice(registration)
+          ? 'Balance confirmed — registration complete.'
+          : 'Deposit confirmed — slot locked. Next: agree add-ons and send the final invoice.',
+      )
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
     } finally {
@@ -103,8 +108,17 @@ export function PaymentReviewPage() {
                     <CardTitle>{formatUserName(profile)}</CardTitle>
                     <p className="text-muted-foreground text-sm">{profile?.email ?? '—'}</p>
                     <p className="text-sm">
-                      {registration.packageName} · {registration.packagePriceCurrency}{' '}
-                      {totalDue(registration).toLocaleString()}
+                      {isOnFinalInvoice(registration) ? (
+                        <>
+                          <span className="font-semibold">Balance</span> · {registration.packagePriceCurrency}{' '}
+                          {getFinalInvoiceBalance(registration).toLocaleString()} (final invoice)
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-semibold">Deposit</span> · {registration.packageName} ·{' '}
+                          {registration.packagePriceCurrency} {totalDue(registration).toLocaleString()} total
+                        </>
+                      )}
                     </p>
                     <p className="text-muted-foreground text-xs">
                       Submitted {registration.proofSubmittedAt?.toDate().toLocaleString() ?? '—'}

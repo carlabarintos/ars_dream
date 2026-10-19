@@ -5,6 +5,7 @@ import { db } from './admin.js'
 export type AuditAction =
   | 'registration_accepted'
   | 'registration_rejected'
+  | 'registration_cancelled'
   | 'payment_confirmed'
   | 'payment_rejected'
   | 'marathon_reopened'

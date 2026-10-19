@@ -7,15 +7,20 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
 import { useMarathon } from '@/features/marathons/use-marathons'
-import { decideQueueRegistration } from '@/features/registrations/api'
+import { BookingChatDialog } from '@/features/messages/BookingChatDialog'
+import { cancelRegistration, decideQueueRegistration } from '@/features/registrations/api'
+import { isOverdue } from '@/features/registrations/registration-flow'
+import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
 import type { Registration } from '@/types'
 
 import { exportQueueCsv } from './export-import/full-export'
 import { ImportDialog } from './export-import/ImportDialog'
+import { FinalInvoiceDialog } from './FinalInvoiceDialog'
 import { OfferChatDialog } from './OfferChatDialog'
 
 const STATUS_BADGE_VARIANT: Record<Exclude<Registration['status'], 'queued'>, 'success' | 'destructive' | 'secondary'> = {
@@ -23,6 +28,8 @@ const STATUS_BADGE_VARIANT: Record<Exclude<Registration['status'], 'queued'>, 's
   rejected: 'destructive',
   terms_accepted: 'success',
   payment_submitted: 'success',
+  deposit_paid: 'success',
+  final_invoiced: 'success',
   confirmed: 'success',
   payment_rejected: 'destructive',
   cancelled: 'secondary',
@@ -33,6 +40,8 @@ const STATUS_BADGE_LABEL: Record<Exclude<Registration['status'], 'queued'>, stri
   rejected: 'Rejected',
   terms_accepted: 'Offered',
   payment_submitted: 'Offered',
+  deposit_paid: 'Deposit Paid',
+  final_invoiced: 'Final Invoiced',
   confirmed: 'Offered',
   payment_rejected: 'Rejected',
   cancelled: 'Cancelled',
@@ -47,17 +56,21 @@ const ALL_DECIDED_STATUSES: Registration['status'][] = [
   'rejected',
   'terms_accepted',
   'payment_submitted',
+  'deposit_paid',
+  'final_invoiced',
   'confirmed',
   'payment_rejected',
   'cancelled',
 ]
 
-type StatusFilter = 'all' | 'queued' | 'accepted' | 'rejected' | 'cancelled'
+type StatusFilter = 'all' | 'overdue' | 'queued' | 'accepted' | 'deposit_paid' | 'rejected' | 'cancelled'
 
 const STATUS_FILTER_LABEL: Record<StatusFilter, string> = {
   all: 'All statuses',
+  overdue: 'Overdue',
   queued: 'Queued',
   accepted: 'Offered',
+  deposit_paid: 'Deposit Paid',
   rejected: 'Rejected',
   cancelled: 'Cancelled',
 }
@@ -66,10 +79,16 @@ function matchesStatusFilter(registration: Registration, filter: StatusFilter) {
   switch (filter) {
     case 'all':
       return true
+    case 'overdue':
+      return isOverdue(registration)
     case 'queued':
       return registration.status === 'queued'
     case 'accepted':
-      return ['accepted', 'terms_accepted', 'payment_submitted', 'confirmed'].includes(registration.status)
+      return ['accepted', 'terms_accepted', 'payment_submitted', 'deposit_paid', 'final_invoiced', 'confirmed'].includes(
+        registration.status,
+      )
+    case 'deposit_paid':
+      return registration.status === 'deposit_paid'
     case 'rejected':
       return ['rejected', 'payment_rejected'].includes(registration.status)
     case 'cancelled':
@@ -87,6 +106,12 @@ export function QueueReviewPage() {
   const profiles = useUserProfilesByIds(orderedRegistrations.map((registration) => registration.userId))
   const [decidingKey, setDecidingKey] = useState<string | null>(null)
   const [reviewingOffer, setReviewingOffer] = useState<Registration | null>(null)
+  const adminUid = useAuthStore((state) => state.firebaseUser?.uid)
+  // Ids, re-derived live from the subscription, so an open dialog never acts on a stale snapshot.
+  const [chatRegistrationId, setChatRegistrationId] = useState<string | null>(null)
+  const [invoiceRegistrationId, setInvoiceRegistrationId] = useState<string | null>(null)
+  const chatRegistration = registrations.find((r) => r.id === chatRegistrationId)
+  const invoiceRegistration = registrations.find((r) => r.id === invoiceRegistrationId)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const statusFilteredRegistrations = orderedRegistrations.filter((registration) =>
     matchesStatusFilter(registration, statusFilter),
@@ -104,6 +129,20 @@ export function QueueReviewPage() {
     try {
       await decideQueueRegistration(id, decision)
       toast.success(decision === 'accepted' ? 'Offer sent.' : 'Registration rejected.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setDecidingKey(null)
+    }
+  }
+
+  async function handleCancel(registration: Registration) {
+    const name = formatUserName(profiles[registration.userId])
+    if (!confirm(`Cancel ${name}'s registration? They'll be notified and their slot freed up.`)) return
+    setDecidingKey(`${registration.id}-cancelled`)
+    try {
+      await cancelRegistration(registration.id)
+      toast.success('Registration cancelled.')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
     } finally {
@@ -204,6 +243,18 @@ export function QueueReviewPage() {
                         Reject
                       </Button>
                     </>
+                  ) : isOverdue(registration) ? (
+                    <>
+                      <StatusBadge status={registration.status} overdue />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        loading={decidingKey === `${registration.id}-cancelled`}
+                        onClick={() => handleCancel(registration)}
+                      >
+                        Cancel
+                      </Button>
+                    </>
                   ) : (
                     <Badge
                       variant={
@@ -213,6 +264,14 @@ export function QueueReviewPage() {
                       {STATUS_BADGE_LABEL[registration.status as Exclude<Registration['status'], 'queued'>]}
                     </Badge>
                   )}
+                  {(registration.status === 'deposit_paid' || registration.status === 'final_invoiced') && (
+                    <Button size="sm" onClick={() => setInvoiceRegistrationId(registration.id)}>
+                      {registration.finalInvoice ? 'Edit Final Invoice' : 'Final Invoice'}
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => setChatRegistrationId(registration.id)}>
+                    Chat
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -230,6 +289,23 @@ export function QueueReviewPage() {
         profile={reviewingOffer ? profiles[reviewingOffer.userId] : undefined}
         onClose={() => setReviewingOffer(null)}
       />
+      {chatRegistration && adminUid && (
+        <BookingChatDialog
+          registration={chatRegistration}
+          marathonTitle={marathon?.title ?? 'Booking'}
+          viewerId={adminUid}
+          viewerRole="admin"
+          otherPartyLabel={formatUserName(profiles[chatRegistration.userId])}
+          onClose={() => setChatRegistrationId(null)}
+        />
+      )}
+      {invoiceRegistration && (
+        <FinalInvoiceDialog
+          registration={invoiceRegistration}
+          marathon={marathon ?? null}
+          onClose={() => setInvoiceRegistrationId(null)}
+        />
+      )}
     </div>
   )
 }

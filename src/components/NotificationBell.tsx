@@ -26,6 +26,7 @@ import { useUserRegistrations } from '@/features/registrations/use-registrations
 const ACTION_LABEL: Record<PendingActionStep, string> = {
   terms: 'Accept Terms & Conditions',
   payment: 'Submit Proof of Payment',
+  final_payment: 'Pay Final Invoice',
 }
 
 export function NotificationBell() {
@@ -42,7 +43,7 @@ export function NotificationBell() {
     : null
 
   const needsAction = registrations.filter(
-    (r) => ['accepted', 'terms_accepted', 'payment_rejected'].includes(r.status) || needsPackageUpdate(r),
+    (r) => ['accepted', 'terms_accepted', 'final_invoiced', 'payment_rejected'].includes(r.status) || needsPackageUpdate(r),
   )
   const marathons = useMarathonsByIds(needsAction.map((r) => r.marathonId))
 

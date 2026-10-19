@@ -64,7 +64,11 @@ function PersonalThreadDialog({ thread, adminUid }: { thread: PersonalThread; ad
           messages={messages}
           isLoading={isLoading}
           currentUserId={adminUid}
-          getSenderLabel={(message) => (message.senderRole === 'admin' ? 'You' : userName)}
+          getSenderLabel={(message) =>
+            (message.senderRole === 'admin' ? 'You' : userName) +
+            (message.registrationLabel ? ` · re: ${message.registrationLabel}` : '')
+          }
+          showEventLabels
           placeholder="Reply to this user…"
           onSend={(text) => sendPersonalMessage(thread.userId, adminUid, 'admin', text)}
         />

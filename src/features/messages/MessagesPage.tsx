@@ -31,7 +31,11 @@ function SupportTab({ uid }: { uid: string }) {
       messages={messages}
       isLoading={isLoading}
       currentUserId={uid}
-      getSenderLabel={(message) => (message.senderRole === 'admin' ? 'Support team' : 'You')}
+      getSenderLabel={(message) =>
+        (message.senderRole === 'admin' ? 'Support team' : 'You') +
+        (message.registrationLabel ? ` · re: ${message.registrationLabel}` : '')
+      }
+      showEventLabels
       placeholder="Ask us anything about your booking…"
       emptyMessage="No messages yet — send us a question and our team will get back to you."
       onSend={(text) => sendPersonalMessage(uid, uid, 'user', text)}

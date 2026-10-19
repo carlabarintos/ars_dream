@@ -36,12 +36,15 @@ export async function sendPersonalMessage(
   senderRole: MessageSenderRole,
   text: string,
   imageUrl?: string,
+  /** Tags the message to a booking so it also shows in that booking's chat. */
+  about?: { registrationId: string; registrationLabel: string },
 ) {
   await addDoc(personalMessagesRef(userId), {
     senderId,
     senderRole,
     text,
     ...(imageUrl ? { imageUrl } : {}),
+    ...about,
     createdAt: serverTimestamp(),
   })
 

@@ -10,6 +10,7 @@ import { useAuditLog } from './audit-log/use-audit-log'
 const ACTION_LABEL: Record<AuditAction, string> = {
   registration_accepted: 'Sent offer',
   registration_rejected: 'Rejected registration',
+  registration_cancelled: 'Cancelled registration',
   payment_confirmed: 'Confirmed payment',
   payment_rejected: 'Rejected payment',
   marathon_published: 'Published marathon',
@@ -22,6 +23,7 @@ const ACTION_LABEL: Record<AuditAction, string> = {
 const ACTION_VARIANT: Record<AuditAction, 'success' | 'destructive' | 'secondary' | 'warning'> = {
   registration_accepted: 'success',
   registration_rejected: 'destructive',
+  registration_cancelled: 'destructive',
   payment_confirmed: 'success',
   payment_rejected: 'destructive',
   marathon_published: 'success',

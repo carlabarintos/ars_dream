@@ -1,10 +1,13 @@
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore'
 
 import { db } from './admin.js'
+import { describeStatusEvent, logBookingEvent } from './booking-event.js'
 import {
   ACCEPTED_COPY,
+  FINAL_INVOICE_COPY,
   INVOICE_COPY,
   buildAcceptanceEmail,
+  buildFinalInvoiceEmail,
   buildInvoiceEmail,
   getOfferAcceptanceDeadline,
 } from './email-template.js'
@@ -19,9 +22,14 @@ const NOTIFICATION_COPY: Record<string, { title: string; body: string }> = {
     title: 'Registration update',
     body: "We weren't able to offer you a slot on this marathon this time.",
   },
+  deposit_paid: {
+    title: 'Deposit received',
+    body: "Your deposit was verified and your slot is locked in. We'll go over add-ons with you in your booking's messages, then send your final invoice.",
+  },
+  final_invoiced: FINAL_INVOICE_COPY,
   confirmed: {
     title: "You're confirmed!",
-    body: 'Your payment was verified — your spot is locked in.',
+    body: "Your final payment was verified — you're all set for race day.",
   },
   payment_rejected: {
     title: 'Proof of payment rejected',
@@ -34,15 +42,27 @@ export const onRegistrationStatusChange = onDocumentUpdated(
   withSentry(async (event) => {
     const before = event.data?.before.data()
     const after = event.data?.after.data()
-    if (!before || !after || before.status === after.status) return
+    if (!before || !after) return
+    // An edited final invoice is re-issued without a status change — resend it too.
+    const finalInvoiceReissued =
+      after.status === 'final_invoiced' &&
+      before.finalInvoice?.issuedAt?.toMillis() !== after.finalInvoice?.issuedAt?.toMillis()
+    if (before.status === after.status && !finalInvoiceReissued) return
+
+    const marathonDoc = await db.collection('marathons').doc(after.marathonId).get()
+    await logBookingEvent(
+      event.params.registrationId,
+      after,
+      describeStatusEvent(after, before.status === after.status),
+      marathonDoc.data()?.title,
+    )
 
     const copy = NOTIFICATION_COPY[after.status as string]
     if (!copy) return
 
-    const [marathonDoc, settingsDoc, userDoc] = await Promise.all([
-      db.collection('marathons').doc(after.marathonId).get(),
+    const [settingsDoc, userDoc] = await Promise.all([
       db.collection('settings').doc('notifications').get(),
-      after.status === 'accepted' || after.status === 'terms_accepted'
+      after.status === 'accepted' || after.status === 'terms_accepted' || after.status === 'final_invoiced'
         ? db.collection('users').doc(after.userId).get()
         : undefined,
     ])
@@ -108,6 +128,26 @@ export const onRegistrationStatusChange = onDocumentUpdated(
           packagePriceCurrency: after.packagePriceCurrency,
           selectedAddOns: after.selectedAddOns,
         },
+        recipient: userDoc?.data(),
+      })
+      await notifyUser({
+        userId: after.userId,
+        pushTitle: copy.title,
+        pushBody: copy.body,
+        emailSubject: subject,
+        emailBody: body,
+        emailHtml: html,
+        cc: ccEmails,
+      })
+      return
+    }
+
+    if (after.status === 'final_invoiced') {
+      const { subject, body, html } = buildFinalInvoiceEmail({
+        marathon: marathon && { title: marathon.title, paymentInstructions: marathon.paymentInstructions },
+        currency: after.packagePriceCurrency,
+        items: after.finalInvoice?.items ?? [],
+        dueDate: after.finalInvoice?.dueDate?.toDate(),
         recipient: userDoc?.data(),
       })
       await notifyUser({

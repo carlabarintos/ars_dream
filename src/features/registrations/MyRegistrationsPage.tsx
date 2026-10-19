@@ -8,6 +8,7 @@ import {
   ClockIcon,
   type LucideIcon,
   MapPinIcon,
+  MessageCircleIcon,
   PartyPopperIcon,
   TicketIcon,
   XCircleIcon,
@@ -22,8 +23,9 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { useMarathonsByIds } from '@/features/marathons/use-marathons'
+import { BookingChatDialog } from '@/features/messages/BookingChatDialog'
 import { cn } from '@/lib/utils'
-import type { RegistrationStatus } from '@/types'
+import type { Registration, RegistrationStatus } from '@/types'
 
 import { CancelRegistrationButton } from './CancelRegistrationButton'
 import {
@@ -33,6 +35,8 @@ import {
   getRegistrationStatusMessage,
   getRegistrationTotalAmount,
   getWizardButtonLabel,
+  isOnFinalInvoice,
+  isOverdue,
   needsPackageUpdate,
 } from './registration-flow'
 import { RegistrationWizard } from './RegistrationWizard'
@@ -49,6 +53,8 @@ const STATUS_ICON: Record<RegistrationStatus, LucideIcon> = {
   terms_accepted: AlertCircleIcon,
   payment_submitted: ClockIcon,
   payment_rejected: AlertCircleIcon,
+  deposit_paid: MessageCircleIcon,
+  final_invoiced: AlertCircleIcon,
   confirmed: CheckCircle2Icon,
   rejected: XCircleIcon,
   cancelled: BanIcon,
@@ -60,6 +66,8 @@ const STATUS_ICON_BG: Record<RegistrationStatus, string> = {
   terms_accepted: 'bg-warning text-warning-foreground',
   payment_submitted: 'bg-secondary text-secondary-foreground',
   payment_rejected: 'bg-destructive text-destructive-foreground',
+  deposit_paid: 'bg-success text-success-foreground',
+  final_invoiced: 'bg-warning text-warning-foreground',
   confirmed: 'bg-success text-success-foreground',
   rejected: 'bg-destructive text-destructive-foreground',
   cancelled: 'bg-secondary text-secondary-foreground',
@@ -70,7 +78,7 @@ const COUNTDOWN_HIDDEN_STATUSES: RegistrationStatus[] = ['rejected', 'cancelled'
 
 // Mirrors the registrations.status pipeline documented in CLAUDE.md — the
 // happy-path progression a booking moves through from queue to confirmation.
-const PIPELINE_STEPS = ['Queued', 'Offered', 'Invoiced', 'Payment', 'Confirmed'] as const
+const PIPELINE_STEPS = ['Queued', 'Offered', 'Invoiced', 'Deposit', 'Balance', 'Confirmed'] as const
 
 const PIPELINE_INDEX: Partial<Record<RegistrationStatus, number>> = {
   queued: 0,
@@ -78,13 +86,18 @@ const PIPELINE_INDEX: Partial<Record<RegistrationStatus, number>> = {
   terms_accepted: 2,
   payment_submitted: 3,
   payment_rejected: 3,
-  confirmed: 4,
+  deposit_paid: 3,
+  final_invoiced: 4,
+  confirmed: 5,
 }
 
 /** Compact step tracker for the happy-path pipeline; renders nothing for terminal off-path statuses (rejected/cancelled) where a linear step count no longer applies. */
-function PipelineTracker({ status }: { status: RegistrationStatus }) {
-  const currentIndex = PIPELINE_INDEX[status]
-  if (currentIndex === undefined) return null
+function PipelineTracker({ registration }: { registration: Registration }) {
+  const { status } = registration
+  const baseIndex = PIPELINE_INDEX[status]
+  if (baseIndex === undefined) return null
+  // payment_submitted/payment_rejected are reused for the balance once a final invoice exists.
+  const currentIndex = baseIndex === 3 && isOnFinalInvoice(registration) ? 4 : baseIndex
   const isDerailed = status === 'payment_rejected'
 
   return (
@@ -176,6 +189,8 @@ export function MyRegistrationsPage() {
   const marathonIds = registrations.map((r) => r.marathonId)
   const marathons = useMarathonsByIds(marathonIds)
   const [activeRegistrationId, setActiveRegistrationId] = useState<string | null>(null)
+  const [chatRegistrationId, setChatRegistrationId] = useState<string | null>(null)
+  const chatRegistration = registrations.find((r) => r.id === chatRegistrationId)
   // Re-derived live from the subscription every render (not captured once into
   // state) so the wizard always acts on the current server-side status — a
   // frozen copy would let a status change while the dialog is open (e.g. an
@@ -279,7 +294,11 @@ export function MyRegistrationsPage() {
                     <div className="from-primary to-brand-navy absolute inset-0 bg-gradient-to-br" />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-brand-navy/25 to-transparent" />
-                  <StatusBadge status={registration.status} className="absolute top-3 right-3" />
+                  <StatusBadge
+                    status={registration.status}
+                    overdue={isOverdue(registration)}
+                    className="absolute top-3 right-3"
+                  />
                   {marathon &&
                     marathon.eventDate.toDate().getTime() > Date.now() &&
                     !COUNTDOWN_HIDDEN_STATUSES.includes(registration.status) && (
@@ -330,7 +349,7 @@ export function MyRegistrationsPage() {
                     </div>
                   </div>
 
-                  <PipelineTracker status={registration.status} />
+                  <PipelineTracker registration={registration} />
 
                   <div className="bg-muted/50 flex items-start gap-2.5 rounded-lg p-3 text-sm">
                     <span
@@ -361,6 +380,10 @@ export function MyRegistrationsPage() {
                       <Link to={`/marathons/${registration.marathonId}/packages`}>Register Again</Link>
                     </Button>
                   )}
+                  <Button variant="outline" className="w-full" onClick={() => setChatRegistrationId(registration.id)}>
+                    <MessageCircleIcon className="size-4" />
+                    Messages
+                  </Button>
                   <CancelRegistrationButton registration={registration} />
                 </CardFooter>
               </Card>
@@ -374,6 +397,16 @@ export function MyRegistrationsPage() {
           registration={activeRegistration}
           marathon={marathons[activeRegistration.marathonId]}
           onClose={() => setActiveRegistrationId(null)}
+        />
+      )}
+      {chatRegistration && uid && (
+        <BookingChatDialog
+          registration={chatRegistration}
+          marathonTitle={marathons[chatRegistration.marathonId]?.title ?? 'Your booking'}
+          viewerId={uid}
+          viewerRole="user"
+          otherPartyLabel="Support team"
+          onClose={() => setChatRegistrationId(null)}
         />
       )}
     </>

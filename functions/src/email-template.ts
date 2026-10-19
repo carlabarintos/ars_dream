@@ -394,6 +394,64 @@ export function buildInvoiceEmail({ marathon, depositAmount, registration, recip
   return { subject: title ? `${INVOICE_COPY.title} — ${title}` : INVOICE_COPY.title, body, html }
 }
 
+export const FINAL_INVOICE_COPY = {
+  title: 'Your final invoice is ready',
+  body: 'Review it, accept the terms & conditions, and upload your proof of payment for the balance in ARS Dream.',
+}
+
+export interface FinalInvoiceEmailInput {
+  marathon?: { title?: string; paymentInstructions?: string }
+  currency: string
+  items: { label: string; amount: number }[]
+  dueDate?: Date
+  recipient?: AcceptanceEmailInput['recipient']
+}
+
+/** Sent when the admin issues the final invoice (status → final_invoiced): the itemized balance with its due date. */
+export function buildFinalInvoiceEmail({ marathon, currency, items, dueDate, recipient }: FinalInvoiceEmailInput): {
+  subject: string
+  body: string
+  html: string
+} {
+  const title = marathon?.title
+  const money = (amount: number) => `${amount < 0 ? '−' : ''}${escapeHtml(currency)} ${Math.abs(amount).toLocaleString()}`
+  const balance = items.reduce((sum, item) => sum + item.amount, 0)
+  const name = (recipient?.firstName || recipient?.displayName || '').trim()
+  const body = (name ? `Hi ${name}, your` : 'Your') + ` final invoice${title ? ` for the ${title} tour` : ''} is ready. ` + FINAL_INVOICE_COPY.body
+  const row = (label: string, amount: string, strong = false) =>
+    `<tr><td style="padding: 6px 0; font-size: 14px; ${strong ? 'font-weight: 700;' : `color: ${MUTED};`}">${label}</td><td style="padding: 6px 0; text-align: right; font-size: 14px; white-space: nowrap; ${strong ? 'font-weight: 700;' : ''}">${amount}</td></tr>`
+  const instructions = toBulletLines(marathon?.paymentInstructions)
+
+  const html = `
+    <div style="background: ${PAGE_BG}; font-family: ${SANS}; color: ${FOREGROUND};">
+      <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+      ${HEADER_HTML}
+      <div style="max-width: 640px; margin: 0 auto; padding: 32px 16px;">
+        <div style="background: #ffffff; border: 1px solid ${BORDER}; border-radius: 16px; padding: 20px; margin: 0 0 24px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin: 0 0 12px;">
+            <tr>
+              <td style="font-family: ${DISPLAY}; font-size: 26px; line-height: 1; letter-spacing: 1px;">Final Invoice${title ? ` — ${escapeHtml(title)}` : ''}</td>
+              <td style="text-align: right; vertical-align: top;">${pill('Final', PRIMARY, '#ffffff')}</td>
+            </tr>
+          </table>
+          <p style="margin: 0 0 16px; font-size: 14px; line-height: 1.5; color: ${MUTED};">${escapeHtml(body)}</p>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+            ${items.map((item) => row(escapeHtml(item.label), money(item.amount))).join('')}
+            <tr><td colspan="2" style="border-top: 1px solid ${BORDER}; height: 0; line-height: 0;"></td></tr>
+            ${row(`Balance due${dueDate ? ` <span style="font-weight: 400; color: ${MUTED};">· due ${formatDate(dueDate)}</span>` : ''}`, money(balance), true)}
+          </table>
+        </div>
+        ${instructions.length > 0 ? infoBox(eyebrow('Payment instructions') + bulletTable(instructions, '•', MUTED, FOREGROUND)) : ''}
+        <a href="${APP_URL}/my-registrations" style="display: block; text-align: center; background: ${PRIMARY}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 20px; border-radius: 10px; margin: 0 0 24px;">View final invoice</a>
+        <p style="margin: 8px 0 0; text-align: center; font-size: 12px; color: ${MUTED};">
+          ARS Dream Sports · <a href="${APP_URL}" style="color: ${MUTED};">arsdreamsports.com</a>
+        </p>
+      </div>
+    </div>`
+
+  return { subject: title ? `${FINAL_INVOICE_COPY.title} — ${title}` : FINAL_INVOICE_COPY.title, body, html }
+}
+
 /** Simple branded layout, reused for every other status-change email. */
 export function renderEmailHtml({ title, body, ctaLabel, ctaUrl }: EmailContent): string {
   return `

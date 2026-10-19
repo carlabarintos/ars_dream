@@ -83,7 +83,10 @@ export function OfferChatDialog({
       const finalImageUrl = imageFile ? await uploadMarathonPackageOffer(imageFile) : pkg?.offerImageUrl
       await decideQueueRegistration(registration.id, 'accepted', finalImageUrl)
       try {
-        await sendPersonalMessage(registration.userId, adminUid, 'admin', text.trim(), finalImageUrl)
+        await sendPersonalMessage(registration.userId, adminUid, 'admin', text.trim(), finalImageUrl, {
+          registrationId: registration.id,
+          registrationLabel: marathon.title,
+        })
         toast.success('Offer sent.')
       } catch {
         toast.error('Offer sent, but the chat message failed to send.')

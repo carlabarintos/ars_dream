@@ -23,6 +23,7 @@ export const confirmPayment = onCall<ConfirmPaymentInput>(
     const uid = await requireAdmin(request)
     const { registrationId, decision, adminNote } = request.data
     let loggedTarget: { marathonId: string; userId: string } | undefined
+    let approvedStatus = 'confirmed'
 
     await db.runTransaction(async (transaction) => {
       const registrationRef = db.collection('registrations').doc(registrationId)
@@ -35,6 +36,8 @@ export const confirmPayment = onCall<ConfirmPaymentInput>(
         throw new HttpsError('failed-precondition', 'No payment proof awaiting review.')
       }
       loggedTarget = { marathonId: registration.marathonId as string, userId: registration.userId as string }
+      // Balance proof against the final invoice — the seat was already counted when the deposit was approved.
+      const isBalance = registration.finalInvoice != null
 
       if (decision === 'rejected') {
         transaction.update(registrationRef, {
@@ -44,6 +47,12 @@ export const confirmPayment = onCall<ConfirmPaymentInput>(
         })
         return
       }
+
+      if (isBalance) {
+        transaction.update(registrationRef, { status: 'confirmed', adminNote: null, updatedAt: new Date() })
+        return
+      }
+      approvedStatus = 'deposit_paid'
 
       const marathonRef = db.collection('marathons').doc(registration.marathonId)
       const marathonSnap = await transaction.get(marathonRef)
@@ -56,7 +65,9 @@ export const confirmPayment = onCall<ConfirmPaymentInput>(
       }
 
       transaction.update(registrationRef, {
-        status: 'confirmed',
+        status: 'deposit_paid',
+        depositPaidAt: new Date(),
+        depositProofUrls: registration.proofOfPaymentUrls ?? [],
         adminNote: null,
         updatedAt: new Date(),
       })
@@ -73,6 +84,6 @@ export const confirmPayment = onCall<ConfirmPaymentInput>(
       })
     }
 
-    return { status: decision === 'confirmed' ? 'confirmed' : 'payment_rejected' }
+    return { status: decision === 'confirmed' ? approvedStatus : 'payment_rejected' }
   }),
 )

@@ -7,8 +7,10 @@ export { reopenMarathon } from './reopen-marathon.js'
 export { clearOperationalData } from './clear-operational-data.js'
 export { onRegistrationStatusChange } from './on-registration-status-change.js'
 export { onRegistrationQueueChange } from './on-registration-queue-change.js'
+export { onRegistrationCreated } from './booking-event.js'
 export { onNewPersonalMessage } from './on-new-personal-message.js'
 export { onAnnouncementCreated } from './on-announcement-created.js'
+export { flagOverdueRegistrations } from './flag-overdue-registrations.js'
 
 // Kept exported (unlike a plain removal) so the code stays intact, but
 // deploy.yml deliberately excludes this one from its --only functions:... list

@@ -100,7 +100,7 @@ export interface Marathon {
   hotelDetails?: string
   /** Optional hotel photo shown with `hotelDetails` in the offer email. Empty/absent means none. */
   hotelImageUrl?: string
-  /** Days after the offer is sent (`Registration.offeredAt`) that the registrant has to accept it; absent means 1. Shown in the offer email and offer step. Display only — not enforced. */
+  /** Days after the offer is sent (`Registration.offeredAt`) that the registrant has to accept it; absent means 1. Shown in the offer email and offer step. Past it, flagOverdueRegistrations flags the registration overdue (an admin decides whether to cancel). */
   offerAcceptanceDays?: number
   /** Days after the registrant accepts their offer (`Registration.termsAcceptedAt`) that each package's `depositAmount` is due. */
   depositDueDays?: number
@@ -125,6 +125,10 @@ export type RegistrationStatus =
   | 'rejected'
   | 'terms_accepted'
   | 'payment_submitted'
+  /** Deposit approved (slot locked, counted in confirmedCount); add-ons are worked out over the booking's chat until the admin issues `finalInvoice`. */
+  | 'deposit_paid'
+  /** Admin issued `finalInvoice`; the registrant accepts the T&C and submits balance proof, which goes back through payment_submitted/payment_rejected. */
+  | 'final_invoiced'
   | 'confirmed'
   | 'payment_rejected'
   | 'cancelled'
@@ -141,6 +145,21 @@ export interface SelectedAddOn {
   addOnId: string
   name: string
   priceAmount: number
+}
+
+/** One line on a final invoice; negative amounts are credits (e.g. the deposit already paid, discounts). */
+export interface InvoiceLineItem {
+  label: string
+  amount: number
+  /** Marks the prefilled "deposit paid" credit, so the booking total (getRegistrationTotalAmount) can exclude it. */
+  isDeposit?: boolean
+}
+
+/** Admin-built final invoice, in the registration's `packagePriceCurrency`. Balance due = sum of `items`. */
+export interface FinalInvoice {
+  items: InvoiceLineItem[]
+  dueDate: Timestamp
+  issuedAt: Timestamp
 }
 
 export interface Registration {
@@ -167,12 +186,25 @@ export interface Registration {
   offerImageUrl?: string
   /** When the admin sent the offer (status → 'accepted'), set by acceptRegistration. Absent on offers sent before this field existed. */
   offeredAt?: Timestamp
+  /** Set by flagOverdueRegistrations to the status the registration went overdue in ('accepted' = offer not accepted in time, 'terms_accepted' = deposit not paid in time). Only meaningful while it still equals `status` — see `isOverdue`. */
+  overdueStatus?: RegistrationStatus
+  overdueAt?: Timestamp
   /** Set when the registrant self-cancels (see 'cancelled' status). Absent/null otherwise. */
   cancelledAt?: Timestamp | null
+  /** Who cancelled, set by cancelRegistration alongside `cancelledAt`. Only meaningful while status is 'cancelled'. */
+  cancelledBy?: 'user' | 'admin'
   /** Which of the marathon's registration rounds this belongs to (see Marathon.cycle). Absent means cycle 1 (predates this field). */
   cycle?: number
   /** Set by reopenMarathon when this carried-forward registration's package no longer exists in the marathon's current packages list. Cleared (false/absent) once the registrant picks a new package via the existing swap flow. Only ever true while status is 'queued'. */
   packageUpdateRequired?: boolean
+  /** Set by confirmPayment when the deposit is approved (→ 'deposit_paid'). Its presence means this registration holds a counted seat. */
+  depositPaidAt?: Timestamp
+  /** The deposit's proof, copied out of `proofOfPaymentUrls` by confirmPayment so balance proof can reuse that field. */
+  depositProofUrls?: string[]
+  /** Present once the admin issues the final invoice (→ 'final_invoiced'). A payment_submitted/payment_rejected registration with this set is on its balance payment, not its deposit. */
+  finalInvoice?: FinalInvoice
+  /** When the registrant accepted the T&C on the final invoice. */
+  finalTermsAcceptedAt?: Timestamp
   createdAt: Timestamp
   updatedAt: Timestamp
 }
@@ -193,10 +225,15 @@ export interface PersonalThread {
 export interface PersonalMessage {
   id: string
   senderId: string
-  senderRole: MessageSenderRole
+  /** 'system' = a booking history entry (status change, overdue flag) written by Cloud Functions — see functions/src/booking-event.ts. */
+  senderRole: MessageSenderRole | 'system'
   text: string
   /** Optional image attached to this message, e.g. a package's standard offer sent alongside registration acceptance. */
   imageUrl?: string
+  /** Set when sent from a booking's chat, so the message also shows on that booking (see BookingChatDialog). */
+  registrationId?: string
+  /** Snapshot of the booking's marathon title, shown as a "re:" tag in the full thread. */
+  registrationLabel?: string
   createdAt: Timestamp
 }
 
@@ -235,6 +272,7 @@ export interface GroupMessage {
 export type AuditAction =
   | 'registration_accepted'
   | 'registration_rejected'
+  | 'registration_cancelled'
   | 'payment_confirmed'
   | 'payment_rejected'
   | 'marathon_published'

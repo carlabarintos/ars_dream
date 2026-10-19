@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { SendIcon } from 'lucide-react'
+import { HistoryIcon, SendIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Timestamp } from 'firebase/firestore'
 
@@ -13,7 +13,9 @@ import type { MessageSenderRole } from '@/types'
 interface ThreadMessage {
   id: string
   senderId: string
-  senderRole: MessageSenderRole
+  senderRole: MessageSenderRole | 'system'
+  /** Shown on system entries in the full thread, so it's clear which booking they belong to. */
+  registrationLabel?: string
   text: string
   imageUrl?: string
   createdAt: Timestamp | null
@@ -37,6 +39,8 @@ interface ThreadViewProps<TMessage extends ThreadMessage> {
   onSend: (text: string) => Promise<void>
   placeholder?: string
   emptyMessage?: string
+  /** Prefix system entries with their booking — for full threads that mix several bookings. */
+  showEventLabels?: boolean
 }
 
 export function ThreadView<TMessage extends ThreadMessage>({
@@ -47,6 +51,7 @@ export function ThreadView<TMessage extends ThreadMessage>({
   onSend,
   placeholder = 'Write a message…',
   emptyMessage = 'No messages yet — say hello.',
+  showEventLabels = false,
 }: ThreadViewProps<TMessage>) {
   const [text, setText] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -87,6 +92,20 @@ export function ThreadView<TMessage extends ThreadMessage>({
           <p className="text-muted-foreground text-sm">{emptyMessage}</p>
         ) : (
           messages.map((message) => {
+            if (message.senderRole === 'system') {
+              return (
+                <div key={message.id} className="flex flex-col items-center gap-0.5 py-1 text-center">
+                  <span className="bg-muted text-muted-foreground inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium">
+                    <HistoryIcon className="size-3.5 shrink-0" />
+                    {message.text}
+                  </span>
+                  <span className="text-muted-foreground text-[11px]">
+                    {showEventLabels && message.registrationLabel ? `${message.registrationLabel} · ` : ''}
+                    {formatMessageTime(message.createdAt)}
+                  </span>
+                </div>
+              )
+            }
             const isOwn = message.senderId === currentUserId
             return (
               <div key={message.id} className={cn('flex flex-col gap-1', isOwn ? 'items-end' : 'items-start')}>

@@ -1,3 +1,4 @@
+import { FieldValue } from 'firebase-admin/firestore'
 import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https'
 
 import { db } from './admin.js'
@@ -5,7 +6,7 @@ import { logAuditEntry } from './audit-log.js'
 import { requireAdmin } from './require-admin.js'
 import { withSentry } from './sentry.js'
 
-const PIPELINE_STATUSES = ['accepted', 'terms_accepted', 'payment_submitted', 'confirmed']
+const PIPELINE_STATUSES = ['accepted', 'terms_accepted', 'payment_submitted', 'deposit_paid', 'final_invoiced', 'confirmed']
 
 // The Functions emulator has no real App Check backend to attest against
 // (the local demo- project isn't a real Firebase project), so enforcement
@@ -87,6 +88,9 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
         status: 'accepted',
         offeredAt: new Date(),
         updatedAt: new Date(),
+        // A re-registered doc may still carry a flag from an earlier overdue offer.
+        overdueStatus: FieldValue.delete(),
+        overdueAt: FieldValue.delete(),
         ...(offerImageUrl ? { offerImageUrl } : {}),
       })
     })

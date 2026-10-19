@@ -13,6 +13,8 @@ const PIPELINE_STATUSES: RegistrationStatus[] = [
   'accepted',
   'terms_accepted',
   'payment_submitted',
+  'deposit_paid',
+  'final_invoiced',
   'confirmed',
 ]
 
@@ -23,6 +25,8 @@ const STATUS_LABELS: Record<RegistrationStatus, string> = {
   accepted: 'Offered',
   terms_accepted: 'Terms Accepted',
   payment_submitted: 'Payment Submitted',
+  deposit_paid: 'Deposit Paid',
+  final_invoiced: 'Final Invoiced',
   confirmed: 'Confirmed',
   rejected: 'Rejected',
   payment_rejected: 'Payment Rejected',
