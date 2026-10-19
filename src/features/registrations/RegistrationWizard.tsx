@@ -112,7 +112,7 @@ export function RegistrationWizard({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto p-5 sm:p-8">
+      <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl grid-cols-[minmax(0,1fr)] overflow-x-hidden overflow-y-auto p-5 sm:p-8">
         <DialogHeader>
           <DialogTitle className="px-6 sm:px-0 sm:pr-6">{marathon?.title ?? 'Complete Your Registration'}</DialogTitle>
           <DialogDescription>
@@ -183,10 +183,10 @@ export function RegistrationWizard({
                     value={answerValues[item.id] ?? ''}
                     onValueChange={(value) => setAnswerValues((values) => ({ ...values, [item.id]: value }))}
                   >
-                    <SelectTrigger id={item.id}>
+                    <SelectTrigger id={item.id} className="h-auto min-h-10 text-left whitespace-normal">
                       <SelectValue placeholder="Select…" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-w-[var(--radix-select-trigger-width)]">
                       {(item.options ?? []).map((option) => (
                         <SelectItem key={option} value={option}>
                           {option}

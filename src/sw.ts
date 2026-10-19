@@ -1,9 +1,14 @@
 /// <reference lib="webworker" />
+import { clientsClaim } from 'workbox-core'
 import { precacheAndRoute } from 'workbox-precaching'
 import { initializeApp } from 'firebase/app'
 import { getMessaging, onBackgroundMessage } from 'firebase/messaging/sw'
 
 declare const self: ServiceWorkerGlobalScope
+
+// registerType 'autoUpdate' with injectManifest needs these, or a new deploy waits until every tab is closed.
+self.skipWaiting()
+clientsClaim()
 
 precacheAndRoute(self.__WB_MANIFEST)
 

@@ -12,21 +12,40 @@ import { usePersonalThreadMessages } from './use-messages'
  * final invoice. Messages are tagged with the registration, so they still show (with a "re:" tag)
  * in the full thread on the client's Messages page and the admin inbox.
  */
-export function BookingChatDialog({
-  registration,
-  marathonTitle,
-  viewerId,
-  viewerRole,
-  otherPartyLabel,
-  onClose,
-}: {
+interface BookingChatProps {
   registration: Registration
   marathonTitle: string
   viewerId: string
   viewerRole: MessageSenderRole
   otherPartyLabel: string
-  onClose: () => void
-}) {
+  className?: string
+}
+
+export function BookingChatDialog({ onClose, ...props }: BookingChatProps & { onClose: () => void }) {
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{props.marathonTitle}</DialogTitle>
+          <DialogDescription>
+            Messages about this booking, along with its full status history.
+          </DialogDescription>
+        </DialogHeader>
+        <BookingChat {...props} />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** The booking's chat + status history on its own, for embedding inline (e.g. on My Bookings, CRM-notes style). */
+export function BookingChat({
+  registration,
+  marathonTitle,
+  viewerId,
+  viewerRole,
+  otherPartyLabel,
+  className,
+}: BookingChatProps) {
   const { messages, isLoading } = usePersonalThreadMessages(registration.userId)
   const bookingMessages = messages.filter((message) => message.registrationId === registration.id)
 
@@ -35,28 +54,19 @@ export function BookingChatDialog({
   }, [registration.userId, viewerRole, bookingMessages.length])
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>{marathonTitle}</DialogTitle>
-          <DialogDescription>
-            Messages about this booking, along with its full status history.
-          </DialogDescription>
-        </DialogHeader>
-        <ThreadView
-          messages={bookingMessages}
-          isLoading={isLoading}
-          currentUserId={viewerId}
-          getSenderLabel={(message) => (message.senderRole === viewerRole ? 'You' : otherPartyLabel)}
-          emptyMessage="No messages or status updates for this booking yet."
-          onSend={(text) =>
-            sendPersonalMessage(registration.userId, viewerId, viewerRole, text, undefined, {
-              registrationId: registration.id,
-              registrationLabel: marathonTitle,
-            })
-          }
-        />
-      </DialogContent>
-    </Dialog>
+    <ThreadView
+      className={className}
+      messages={bookingMessages}
+      isLoading={isLoading}
+      currentUserId={viewerId}
+      getSenderLabel={(message) => (message.senderRole === viewerRole ? 'You' : otherPartyLabel)}
+      emptyMessage="No messages or status updates for this booking yet."
+      onSend={(text) =>
+        sendPersonalMessage(registration.userId, viewerId, viewerRole, text, undefined, {
+          registrationId: registration.id,
+          registrationLabel: marathonTitle,
+        })
+      }
+    />
   )
 }

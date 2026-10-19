@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -16,14 +16,20 @@ import { Textarea } from '@/components/ui/textarea'
 import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
 import { useMarathon } from '@/features/marathons/use-marathons'
 import { confirmPayment, rejectPayment } from '@/features/registrations/api'
-import { getFinalInvoiceBalance, isOnFinalInvoice } from '@/features/registrations/registration-flow'
+import {
+  getFinalInvoiceBalance,
+  getRegistrationTotalAmount,
+  isOnFinalInvoice,
+} from '@/features/registrations/registration-flow'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
-import type { Registration } from '@/types'
+import type { Marathon, Registration } from '@/types'
 
-function totalDue(registration: Registration) {
-  const addOnsTotal = (registration.selectedAddOns ?? []).reduce((sum, addOn) => sum + addOn.priceAmount, 0)
-  return registration.packagePriceAmount + addOnsTotal
+/** The deposit this proof should cover — the full total when the package has no deposit split (same rule as FinalInvoiceDialog). */
+function depositDue(registration: Registration, marathon: Marathon | null) {
+  const total = getRegistrationTotalAmount(registration)
+  const depositAmount = marathon?.packages?.find((p) => p.id === registration.packageId)?.depositAmount
+  return Math.min(depositAmount ?? total, total)
 }
 
 export function PaymentReviewPage() {
@@ -81,6 +87,13 @@ export function PaymentReviewPage() {
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
       <h1 className="font-display text-3xl tracking-wide">Payment Review</h1>
+      <p className="text-sm text-muted-foreground">
+        Approved deposits leave this list and move to{' '}
+        <Link to={`/admin/marathons/${marathonId}/queue`} className="underline">
+          the Queue page
+        </Link>
+        , where you issue the Final Invoice.
+      </p>
 
       {registrations.length > 0 && (
         <Input
@@ -116,7 +129,7 @@ export function PaymentReviewPage() {
                       ) : (
                         <>
                           <span className="font-semibold">Deposit</span> · {registration.packageName} ·{' '}
-                          {registration.packagePriceCurrency} {totalDue(registration).toLocaleString()} total
+                          {registration.packagePriceCurrency} {depositDue(registration, marathon).toLocaleString()}
                         </>
                       )}
                     </p>

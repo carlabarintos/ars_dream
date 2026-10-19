@@ -23,7 +23,7 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { useMarathonsByIds } from '@/features/marathons/use-marathons'
-import { BookingChatDialog } from '@/features/messages/BookingChatDialog'
+import { BookingChat } from '@/features/messages/BookingChatDialog'
 import { cn } from '@/lib/utils'
 import type { Registration, RegistrationStatus } from '@/types'
 
@@ -189,8 +189,6 @@ export function MyRegistrationsPage() {
   const marathonIds = registrations.map((r) => r.marathonId)
   const marathons = useMarathonsByIds(marathonIds)
   const [activeRegistrationId, setActiveRegistrationId] = useState<string | null>(null)
-  const [chatRegistrationId, setChatRegistrationId] = useState<string | null>(null)
-  const chatRegistration = registrations.find((r) => r.id === chatRegistrationId)
   // Re-derived live from the subscription every render (not captured once into
   // state) so the wizard always acts on the current server-side status — a
   // frozen copy would let a status change while the dialog is open (e.g. an
@@ -362,6 +360,23 @@ export function MyRegistrationsPage() {
                     </span>
                     <span>{getRegistrationStatusMessage(registration)}</span>
                   </div>
+
+                  {uid && (
+                    <div className="flex flex-col gap-2">
+                      <div className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase">
+                        <MessageCircleIcon className="size-3.5" />
+                        Messages &amp; History
+                      </div>
+                      <BookingChat
+                        registration={registration}
+                        marathonTitle={marathon?.title ?? 'Your booking'}
+                        viewerId={uid}
+                        viewerRole="user"
+                        otherPartyLabel="Support team"
+                        className="h-80"
+                      />
+                    </div>
+                  )}
                 </CardContent>
 
                 <CardFooter className="border-border flex flex-col gap-2 border-t pt-4 pb-5">
@@ -380,10 +395,6 @@ export function MyRegistrationsPage() {
                       <Link to={`/marathons/${registration.marathonId}/packages`}>Register Again</Link>
                     </Button>
                   )}
-                  <Button variant="outline" className="w-full" onClick={() => setChatRegistrationId(registration.id)}>
-                    <MessageCircleIcon className="size-4" />
-                    Messages
-                  </Button>
                   <CancelRegistrationButton registration={registration} />
                 </CardFooter>
               </Card>
@@ -397,16 +408,6 @@ export function MyRegistrationsPage() {
           registration={activeRegistration}
           marathon={marathons[activeRegistration.marathonId]}
           onClose={() => setActiveRegistrationId(null)}
-        />
-      )}
-      {chatRegistration && uid && (
-        <BookingChatDialog
-          registration={chatRegistration}
-          marathonTitle={marathons[chatRegistration.marathonId]?.title ?? 'Your booking'}
-          viewerId={uid}
-          viewerRole="user"
-          otherPartyLabel="Support team"
-          onClose={() => setChatRegistrationId(null)}
         />
       )}
     </>

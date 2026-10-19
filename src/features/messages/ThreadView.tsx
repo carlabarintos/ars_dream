@@ -41,6 +41,8 @@ interface ThreadViewProps<TMessage extends ThreadMessage> {
   emptyMessage?: string
   /** Prefix system entries with their booking — for full threads that mix several bookings. */
   showEventLabels?: boolean
+  /** Overrides the default 60vh height, e.g. when embedded inline instead of in a dialog. */
+  className?: string
 }
 
 export function ThreadView<TMessage extends ThreadMessage>({
@@ -52,6 +54,7 @@ export function ThreadView<TMessage extends ThreadMessage>({
   placeholder = 'Write a message…',
   emptyMessage = 'No messages yet — say hello.',
   showEventLabels = false,
+  className,
 }: ThreadViewProps<TMessage>) {
   const [text, setText] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -79,7 +82,7 @@ export function ThreadView<TMessage extends ThreadMessage>({
   }
 
   return (
-    <div className="flex h-[60vh] flex-col gap-3">
+    <div className={cn('flex h-[60vh] flex-col gap-3', className)}>
       <div
         ref={scrollRef}
         className="border-border bg-card flex flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border p-3 shadow-sm [scrollbar-gutter:stable]"
