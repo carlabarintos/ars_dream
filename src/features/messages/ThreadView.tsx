@@ -18,6 +18,7 @@ interface ThreadMessage {
   registrationLabel?: string
   text: string
   imageUrl?: string
+  attachmentUrls?: string[]
   createdAt: Timestamp | null
 }
 
@@ -102,6 +103,17 @@ export function ThreadView<TMessage extends ThreadMessage>({
                     <HistoryIcon className="size-3.5 shrink-0" />
                     {message.text}
                   </span>
+                  {message.attachmentUrls?.map((url, index) => (
+                    <a
+                      key={url}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary text-xs underline underline-offset-2"
+                    >
+                      View proof of payment{message.attachmentUrls!.length > 1 ? ` ${index + 1}` : ''}
+                    </a>
+                  ))}
                   <span className="text-muted-foreground text-[11px]">
                     {showEventLabels && message.registrationLabel ? `${message.registrationLabel} · ` : ''}
                     {formatMessageTime(message.createdAt)}

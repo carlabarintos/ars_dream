@@ -53,7 +53,7 @@ export function describeStatusEvent(registration: FirebaseFirestore.DocumentData
  * the rules only let clients create 'user'/'admin' messages, so these can't be forged. Leaves the
  * thread's unread/lastMessage fields alone: the status email/push already notified them.
  */
-export async function logBookingEvent(registrationId: string, registration: FirebaseFirestore.DocumentData, text: string, marathonTitle?: string) {
+export async function logBookingEvent(registrationId: string, registration: FirebaseFirestore.DocumentData, text: string, marathonTitle?: string, attachmentUrls?: string[]) {
   await db
     .collection('personalThreads')
     .doc(registration.userId)
@@ -64,6 +64,7 @@ export async function logBookingEvent(registrationId: string, registration: Fire
       text,
       registrationId,
       ...(marathonTitle ? { registrationLabel: marathonTitle } : {}),
+      ...(attachmentUrls?.length ? { attachmentUrls } : {}),
       createdAt: FieldValue.serverTimestamp(),
     })
 }

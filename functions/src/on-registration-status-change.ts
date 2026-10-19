@@ -55,6 +55,8 @@ export const onRegistrationStatusChange = onDocumentUpdated(
       after,
       describeStatusEvent(after, before.status === after.status),
       marathonDoc.data()?.title,
+      // Link the submitted proof so both sides can reopen it from the booking's history.
+      after.status === 'payment_submitted' ? after.proofOfPaymentUrls : undefined,
     )
 
     const copy = NOTIFICATION_COPY[after.status as string]

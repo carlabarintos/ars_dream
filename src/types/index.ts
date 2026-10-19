@@ -230,6 +230,8 @@ export interface PersonalMessage {
   text: string
   /** Optional image attached to this message, e.g. a package's standard offer sent alongside registration acceptance. */
   imageUrl?: string
+  /** On system 'proof submitted' entries: the proof-of-payment files submitted at that point. */
+  attachmentUrls?: string[]
   /** Set when sent from a booking's chat, so the message also shows on that booking (see BookingChatDialog). */
   registrationId?: string
   /** Snapshot of the booking's marathon title, shown as a "re:" tag in the full thread. */
