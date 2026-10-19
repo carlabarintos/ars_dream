@@ -1,7 +1,13 @@
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore'
 
 import { db } from './admin.js'
-import { ACCEPTED_COPY, INVOICE_COPY, buildAcceptanceEmail, buildInvoiceEmail } from './email-template.js'
+import {
+  ACCEPTED_COPY,
+  INVOICE_COPY,
+  buildAcceptanceEmail,
+  buildInvoiceEmail,
+  getOfferAcceptanceDeadline,
+} from './email-template.js'
 import { notifyUser } from './notify-user.js'
 import { resendApiKey } from './send-email.js'
 import { withSentry } from './sentry.js'
@@ -56,7 +62,10 @@ export const onRegistrationStatusChange = onDocumentUpdated(
           packageNotes: marathon.packageNotes,
           hotelDetails: marathon.hotelDetails,
           hotelImageUrl: marathon.hotelImageUrl,
-          offerAcceptanceDeadline: marathon.offerAcceptanceDeadline?.toDate(),
+          offerAcceptanceDeadline: getOfferAcceptanceDeadline(
+            after.offeredAt?.toDate() ?? new Date(),
+            marathon.offerAcceptanceDays,
+          ),
           depositDueDays: marathon.depositDueDays,
         },
         pkg: marathon?.packages?.find((p: { id: string }) => p.id === after.packageId),

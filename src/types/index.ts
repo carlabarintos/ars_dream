@@ -100,8 +100,8 @@ export interface Marathon {
   hotelDetails?: string
   /** Optional hotel photo shown with `hotelDetails` in the offer email. Empty/absent means none. */
   hotelImageUrl?: string
-  /** Shown in the offer email and offer step as the date to accept the offer by. Display only — not enforced. */
-  offerAcceptanceDeadline?: Timestamp
+  /** Days after the offer is sent (`Registration.offeredAt`) that the registrant has to accept it; absent means 1. Shown in the offer email and offer step. Display only — not enforced. */
+  offerAcceptanceDays?: number
   /** Days after the registrant accepts their offer (`Registration.termsAcceptedAt`) that each package's `depositAmount` is due. */
   depositDueDays?: number
   /** When the remaining balance (total minus deposit) is due. */
@@ -165,6 +165,8 @@ export interface Registration {
   adminNote: string | null
   /** The package's standard offer image, snapshotted at accept time (see OfferChatDialog) — included in the acceptance email and chat message. Absent if no offer image was set/attached. */
   offerImageUrl?: string
+  /** When the admin sent the offer (status → 'accepted'), set by acceptRegistration. Absent on offers sent before this field existed. */
+  offeredAt?: Timestamp
   /** Set when the registrant self-cancels (see 'cancelled' status). Absent/null otherwise. */
   cancelledAt?: Timestamp | null
   /** Which of the marathon's registration rounds this belongs to (see Marathon.cycle). Absent means cycle 1 (predates this field). */

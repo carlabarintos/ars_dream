@@ -20,6 +20,7 @@ import type { Marathon, QuestionAnswer, Registration } from '@/types'
 
 import { submitProofOfPayment, submitTermsAndConditions } from './api'
 import { getPendingActionStep, isQuestionAnswered } from './registration-flow'
+import { getOfferAcceptanceDeadline } from '../../../functions/src/email-template'
 
 export function RegistrationWizard({
   registration,
@@ -48,6 +49,9 @@ export function RegistrationWizard({
   const money = (amount: number) => `${registration.packagePriceCurrency} ${amount.toLocaleString()}`
   const formatDue = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   const dueDate = (date: Date | undefined) => (date ? ` · due ${formatDue(date)}` : '')
+  const offerAcceptanceDeadline = registration.offeredAt
+    ? getOfferAcceptanceDeadline(registration.offeredAt.toDate(), marathon?.offerAcceptanceDays)
+    : undefined
   // Only relevant when the package has a deposit; defaults to 1 day.
   const depositDueDays = deposit > 0 ? (marathon?.depositDueDays ?? 1) : undefined
   const depositDeadline =
@@ -112,12 +116,20 @@ export function RegistrationWizard({
 
         {step === 'terms' && (
           <div className="flex flex-col gap-4">
-            {(marathon?.offerAcceptanceDeadline || depositDueDays) && (
+            {(offerAcceptanceDeadline || depositDueDays) && (
               <div className="bg-muted/50 flex flex-col gap-1 rounded-md border border-border p-3 text-sm">
-                {marathon?.offerAcceptanceDeadline && (
+                {offerAcceptanceDeadline && (
                   <p>
                     Accept this offer by{' '}
-                    <span className="font-semibold">{formatDue(marathon.offerAcceptanceDeadline.toDate())}</span>
+                    <span className="font-semibold">
+                      {offerAcceptanceDeadline.toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </span>
                   </p>
                 )}
                 {depositDueDays && (

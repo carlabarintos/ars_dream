@@ -98,18 +98,19 @@ export interface MarathonInput {
   /** null clears an existing deadline; undefined/omitted leaves it unset (create) or untouched (update is not possible this way — pass null to clear). */
   feedDeadline?: Date | null
   /** Same null-clears semantics as feedDeadline. */
-  offerAcceptanceDeadline?: Date | null
+  /** null clears it (falls back to the 1-day default). */
+  offerAcceptanceDays?: number | null
   /** null clears it. */
   depositDueDays?: number | null
   balanceDeadline?: Date | null
 }
 
 export async function createMarathon(input: MarathonInput, createdBy: string) {
-  const { feedDeadline, offerAcceptanceDeadline, depositDueDays, balanceDeadline, ...rest } = input
+  const { feedDeadline, offerAcceptanceDays, depositDueDays, balanceDeadline, ...rest } = input
   await addDoc(marathonsRef, {
     ...rest,
     ...(feedDeadline ? { feedDeadline } : {}),
-    ...(offerAcceptanceDeadline ? { offerAcceptanceDeadline } : {}),
+    ...(offerAcceptanceDays ? { offerAcceptanceDays } : {}),
     ...(depositDueDays ? { depositDueDays } : {}),
     ...(balanceDeadline ? { balanceDeadline } : {}),
     confirmedCount: 0,
@@ -121,11 +122,11 @@ export async function createMarathon(input: MarathonInput, createdBy: string) {
 }
 
 export async function updateMarathon(marathonId: string, input: MarathonInput) {
-  const { feedDeadline, offerAcceptanceDeadline, depositDueDays, balanceDeadline, ...rest } = input
+  const { feedDeadline, offerAcceptanceDays, depositDueDays, balanceDeadline, ...rest } = input
   await updateDoc(doc(db, 'marathons', marathonId), {
     ...rest,
     feedDeadline: feedDeadline ?? deleteField(),
-    offerAcceptanceDeadline: offerAcceptanceDeadline ?? deleteField(),
+    offerAcceptanceDays: offerAcceptanceDays || deleteField(),
     depositDueDays: depositDueDays || deleteField(),
     balanceDeadline: balanceDeadline ?? deleteField(),
   })

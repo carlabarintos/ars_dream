@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 import type { Marathon, Registration, UserProfile } from '@/types'
 
 // Same template the onRegistrationStatusChange function sends, so the preview can't drift from the real email.
-import { buildAcceptanceEmail } from '../../../functions/src/email-template'
+import { buildAcceptanceEmail, getOfferAcceptanceDeadline } from '../../../functions/src/email-template'
 
 function buildDefaultOfferMessage(marathonTitle: string, packageName: string) {
   return `Congratulations! Here's your standard offer for ${marathonTitle} — ${packageName}.`
@@ -150,7 +150,8 @@ export function OfferChatDialog({
                       ? {
                           ...marathon,
                           eventDate: marathon.eventDate?.toDate(),
-                          offerAcceptanceDeadline: marathon.offerAcceptanceDeadline?.toDate(),
+                          // The offer goes out when "Send offer" is clicked, so preview the deadline from now.
+                          offerAcceptanceDeadline: getOfferAcceptanceDeadline(new Date(), marathon.offerAcceptanceDays),
                         }
                       : undefined,
                     pkg,

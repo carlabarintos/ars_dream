@@ -85,6 +85,7 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
 
       transaction.update(registrationRef, {
         status: 'accepted',
+        offeredAt: new Date(),
         updatedAt: new Date(),
         ...(offerImageUrl ? { offerImageUrl } : {}),
       })

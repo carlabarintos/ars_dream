@@ -445,9 +445,7 @@ export function MarathonFormDialog({
         packageNotes: String(form.get('packageNotes') ?? '').trim(),
         hotelDetails: String(form.get('hotelDetails') ?? '').trim(),
         hotelImageUrl,
-        offerAcceptanceDeadline: form.get('offerAcceptanceDeadline')
-          ? new Date(String(form.get('offerAcceptanceDeadline')))
-          : null,
+        offerAcceptanceDays: Number(form.get('offerAcceptanceDays')) || null,
         depositDueDays: Number(form.get('depositDueDays')) || null,
         balanceDeadline: form.get('balanceDeadline') ? new Date(String(form.get('balanceDeadline'))) : null,
         packages,
@@ -567,12 +565,10 @@ export function MarathonFormDialog({
           </div>
           <div className="grid grid-cols-3 gap-3">
             <Field
-              label="Accept offer by (optional)"
-              name="offerAcceptanceDeadline"
-              type="date"
-              defaultValue={
-                marathon?.offerAcceptanceDeadline && toDateInputValue(marathon.offerAcceptanceDeadline.toDate())
-              }
+              label="Accept offer within, days"
+              name="offerAcceptanceDays"
+              type="number"
+              defaultValue={(marathon?.offerAcceptanceDays ?? 1).toString()}
             />
             <Field
               label="Deposit due, days after acceptance (optional)"
@@ -588,8 +584,8 @@ export function MarathonFormDialog({
             />
           </div>
           <p className="text-muted-foreground -mt-1 text-xs">
-            The deposit falls due that many days after the registrant accepts their offer. Accept-by and deposit
-            terms appear in the offer email; deposit and balance due dates on the invoice. Set each package's
+            The offer must be accepted within that many days of being sent, and the deposit falls due that many
+            days after it's accepted. Both appear in the offer email; deposit and balance due dates on the invoice. Set each package's
             deposit amount below.
           </p>
           <div className="flex flex-col gap-1.5">

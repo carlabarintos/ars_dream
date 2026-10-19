@@ -82,6 +82,23 @@ export interface EmailContent {
 const formatDate = (date: Date) =>
   date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' })
 
+const formatDateTime = (date: Date) =>
+  date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'Asia/Manila',
+  })
+
+const DAY_MS = 86_400_000
+
+/** offeredAt + the marathon's acceptance window (default 1 day). Shared by onRegistrationStatusChange, the admin preview and the registrant's offer step. */
+export function getOfferAcceptanceDeadline(offeredAt: Date, offerAcceptanceDays: number | undefined): Date {
+  return new Date(offeredAt.getTime() + (offerAcceptanceDays ?? 1) * DAY_MS)
+}
+
 export const ACCEPTED_COPY = {
   title: "You've got an offer!",
   body: 'Open ARS Dream to accept the terms and submit your proof of deposit payment.',
@@ -98,6 +115,7 @@ export interface AcceptanceEmailInput {
     packageNotes?: string
     hotelDetails?: string
     hotelImageUrl?: string
+    /** Computed by the caller via getOfferAcceptanceDeadline. */
     offerAcceptanceDeadline?: Date
     depositDueDays?: number
   }
@@ -198,7 +216,7 @@ export function buildAcceptanceEmail({
         ${lineItem(`Package: ${escapeHtml(registration.packageName)} (${currency} ${registration.packagePriceAmount.toLocaleString()})`)}
         ${addOns.length > 0 ? lineItem(`Add-ons: ${addOns.map((addOn) => escapeHtml(addOn.name)).join(', ')}`) : ''}
         ${addOns.length > 0 ? lineItem(`Total: ${currency} ${total.toLocaleString()}`, true) : ''}
-        ${marathon?.offerAcceptanceDeadline ? lineItem(`Accept this offer by: ${formatDate(marathon.offerAcceptanceDeadline)}`, true) : ''}
+        ${marathon?.offerAcceptanceDeadline ? lineItem(`Accept this offer by: ${formatDateTime(marathon.offerAcceptanceDeadline)} (Manila time)`, true) : ''}
         ${pkg?.depositAmount ? lineItem(`Deposit due: within ${depositDueDays} day${depositDueDays === 1 ? '' : 's'} of accepting this offer`, true) : ''}
       </div>
       <div style="border-top: 1px solid ${BORDER}; padding: 16px 20px 20px;">
