@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { TicketSeam } from '@/components/TicketSeam'
+import { canReRegister } from '@/features/registrations/registration-flow'
 import type { Marathon, Registration } from '@/types'
 
 import { AVAILABILITY_PILL, getMarathonAvailability } from './marathon-status'
@@ -73,7 +74,7 @@ export function MarathonCard({
       </CardContent>
 
       <CardFooter className="mt-1 pt-4 border-t border-border">
-        {myRegistration ? (
+        {myRegistration && !canReRegister(myRegistration) ? (
           myRegistration.status === 'queued' ? (
             <span className="text-muted-foreground text-sm">You're in the waiting list.</span>
           ) : (

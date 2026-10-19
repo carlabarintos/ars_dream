@@ -40,7 +40,8 @@ export function TimelinePage() {
   const [availabilityFilter, setAvailabilityFilter] = useState<MarathonAvailability | 'all'>('all')
 
   const isLoading = isLoadingMarathons || isLoadingAnnouncements
-  const registrationByMarathon = new Map(registrations.map((r) => [r.marathonId, r]))
+  // Keyed by marathon+cycle so a booking from a previous run of the event doesn't count for the current one
+  const registrationByMarathon = new Map(registrations.map((r) => [`${r.marathonId}_${r.cycle ?? 1}`, r]))
 
   const visibleMarathons = marathons
     .filter(isBeforeFeedDeadline)
@@ -165,7 +166,7 @@ export function TimelinePage() {
                 <MarathonCard
                   key={marathon.id}
                   marathon={marathon}
-                  myRegistration={registrationByMarathon.get(marathon.id)}
+                  myRegistration={registrationByMarathon.get(`${marathon.id}_${marathon.cycle ?? 1}`)}
                 />
               ))}
             </div>
