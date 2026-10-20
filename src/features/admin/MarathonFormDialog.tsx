@@ -368,11 +368,6 @@ export function MarathonFormDialog({
 
     const validPackageRows = packageRows.filter((row) => row.name.trim())
 
-    if (validPackageRows.length === 0) {
-      toast.error('Add at least one package.')
-      return
-    }
-
     const questions: MarathonQuestion[] = questionRows
       .filter((row) => row.label.trim())
       .map((row) => ({
@@ -436,7 +431,8 @@ export function MarathonFormDialog({
         description: String(form.get('description')),
         bannerImageUrl,
         location: String(form.get('location')),
-        eventDate: new Date(String(form.get('eventDate'))),
+        code: String(form.get('code') ?? '').trim(),
+        eventDate: form.get('eventDate') ? new Date(String(form.get('eventDate'))) : null,
         registrationOpensAt: new Date(String(form.get('registrationOpensAt'))),
         registrationClosesAt: new Date(String(form.get('registrationClosesAt'))),
         capacity: Number(form.get('capacity')),
@@ -510,13 +506,13 @@ export function MarathonFormDialog({
             <Input id="bannerFile" type="file" accept="image/*" onChange={handleBannerFileChange} />
           </div>
           <Field label="Location" name="location" required defaultValue={marathon?.location} />
+          <Field label="Internal code (optional, not shown to customers)" name="code" defaultValue={marathon?.code} />
           <div className="grid grid-cols-3 gap-3">
             <Field
               label="Event date"
               name="eventDate"
               type="date"
-              required
-              defaultValue={marathon && toDateInputValue(marathon.eventDate.toDate())}
+              defaultValue={marathon?.eventDate ? toDateInputValue(marathon.eventDate.toDate()) : undefined}
             />
             <Field
               label="Registration opens"
@@ -691,6 +687,7 @@ export function MarathonFormDialog({
                     <Input
                       id={`pkg-price-${pkg.id}`}
                       type="number"
+                      placeholder="TBA"
                       value={pkg.priceAmount}
                       onChange={(e) => updatePackageField(pkg.id, 'priceAmount', e.target.value)}
                     />

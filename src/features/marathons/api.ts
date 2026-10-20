@@ -83,7 +83,8 @@ export interface MarathonInput {
   description: string
   bannerImageUrl: string
   location: string
-  eventDate: Date
+  code: string
+  eventDate: Date | null
   registrationOpensAt: Date
   registrationClosesAt: Date
   capacity: number

@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getFriendlyErrorMessage } from '@/lib/friendly-error'
-import { cn } from '@/lib/utils'
+import { cn, formatPackagePrice } from '@/lib/utils'
 import type { Marathon, QuestionAnswer, Registration } from '@/types'
 
 import { submitFinalPayment, submitProofOfPayment, submitTermsAndConditions } from './api'
@@ -209,7 +209,7 @@ export function RegistrationWizard({
                       <span className="font-semibold">{pkg.name}</span>
                       <span className="text-right tabular-nums">
                         <span className="font-semibold">
-                          {pkg.priceCurrency} {pkg.priceAmount.toLocaleString()}
+                          {formatPackagePrice(pkg.priceCurrency, pkg.priceAmount)}
                         </span>
                         {pkg.depositAmount ? (
                           <span className="text-muted-foreground block text-xs">

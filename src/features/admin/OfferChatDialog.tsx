@@ -11,7 +11,7 @@ import { useAuthStore } from '@/features/auth/auth-store'
 import { uploadMarathonPackageOffer } from '@/features/marathons/api'
 import { sendPersonalMessage } from '@/features/messages/api'
 import { decideQueueRegistration } from '@/features/registrations/api'
-import { cn } from '@/lib/utils'
+import { cn, formatPackagePrice } from '@/lib/utils'
 import type { Marathon, Registration, UserProfile } from '@/types'
 
 // Same template the onRegistrationStatusChange function sends, so the preview can't drift from the real email.
@@ -138,7 +138,7 @@ export function OfferChatDialog({
                       {p.name}
                     </Label>
                     <span className="text-muted-foreground text-xs tabular-nums">
-                      {p.priceCurrency} {p.priceAmount.toLocaleString()}
+                      {formatPackagePrice(p.priceCurrency, p.priceAmount)}
                     </span>
                   </div>
                 ))

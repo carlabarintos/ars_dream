@@ -80,6 +80,7 @@ export const MARATHON_COLUMNS = [
   'description',
   'bannerImageUrl',
   'location',
+  'code',
   'eventDate',
   'registrationOpensAt',
   'registrationClosesAt',
@@ -104,7 +105,8 @@ export interface MarathonRestoreInput {
   description: string
   bannerImageUrl: string
   location: string
-  eventDate: Timestamp
+  code: string
+  eventDate: Timestamp | null
   registrationOpensAt: Timestamp
   registrationClosesAt: Timestamp
   capacity: number
@@ -126,7 +128,8 @@ export function marathonToRow(marathon: Marathon): MarathonRow {
     description: marathon.description,
     bannerImageUrl: marathon.bannerImageUrl,
     location: marathon.location,
-    eventDate: isoOf(marathon.eventDate),
+    code: marathon.code ?? '',
+    eventDate: isoOfNullable(marathon.eventDate),
     registrationOpensAt: isoOf(marathon.registrationOpensAt),
     registrationClosesAt: isoOf(marathon.registrationClosesAt),
     capacity: String(marathon.capacity),
@@ -150,7 +153,9 @@ export function rowToMarathonRestoreInput(row: MarathonRow): RowResult<MarathonR
     description: row.description,
     bannerImageUrl: row.bannerImageUrl,
     location: row.location,
-    eventDate: parseIso(row.eventDate, 'eventDate'),
+    // Absent in backups exported before this column existed.
+    code: row.code ?? '',
+    eventDate: parseIsoNullable(row.eventDate, 'eventDate'),
     registrationOpensAt: parseIso(row.registrationOpensAt, 'registrationOpensAt'),
     registrationClosesAt: parseIso(row.registrationClosesAt, 'registrationClosesAt'),
     capacity: Number(row.capacity),

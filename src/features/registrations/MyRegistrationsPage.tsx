@@ -43,7 +43,8 @@ import { RegistrationWizard } from './RegistrationWizard'
 import { StatusBadge } from './StatusBadge'
 import { useUserRegistrations } from './use-registrations'
 
-function formatDate(date: Date) {
+function formatDate(date: Date | undefined) {
+  if (!date) return 'TBA'
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
@@ -298,6 +299,7 @@ export function MyRegistrationsPage() {
                     className="absolute top-3 right-3"
                   />
                   {marathon &&
+                    marathon.eventDate &&
                     marathon.eventDate.toDate().getTime() > Date.now() &&
                     !COUNTDOWN_HIDDEN_STATUSES.includes(registration.status) && (
                       <BibCountdown target={marathon.eventDate.toDate()} className="absolute top-3 left-3" />
@@ -314,7 +316,7 @@ export function MyRegistrationsPage() {
                         </span>
                         <span className="flex items-center gap-1">
                           <CalendarIcon className="size-3.5" />
-                          {formatDate(marathon.eventDate.toDate())}
+                          {formatDate(marathon.eventDate?.toDate())}
                         </span>
                       </div>
                     )}

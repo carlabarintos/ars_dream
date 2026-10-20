@@ -1,3 +1,4 @@
+import { formatPackagePrice } from '@/lib/utils'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -60,7 +61,7 @@ export function ChangePackageDialog({
           <SelectContent>
             {packages.map((p) => (
               <SelectItem key={p.id} value={p.id}>
-                {p.name} — {p.priceCurrency} {p.priceAmount.toLocaleString()}
+                {p.name} — {formatPackagePrice(p.priceCurrency, p.priceAmount)}
               </SelectItem>
             ))}
           </SelectContent>

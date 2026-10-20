@@ -11,7 +11,8 @@ import type { Marathon, Registration } from '@/types'
 
 import { AVAILABILITY_PILL, getMarathonAvailability } from './marathon-status'
 
-function formatDate(date: Date) {
+function formatDate(date: Date | undefined) {
+  if (!date) return 'TBA'
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
@@ -22,7 +23,7 @@ export function MarathonCard({
   marathon: Marathon
   myRegistration?: Registration
 }) {
-  const eventDate = marathon.eventDate.toDate()
+  const eventDate = marathon.eventDate?.toDate()
   const spotsLeft = Math.max(marathon.capacity - marathon.confirmedCount, 0)
   const percentFull = marathon.capacity > 0 ? (marathon.confirmedCount / marathon.capacity) * 100 : 0
   const closesAt = marathon.registrationClosesAt.toDate()

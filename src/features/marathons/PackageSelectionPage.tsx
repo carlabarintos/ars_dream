@@ -34,19 +34,20 @@ import { RegistrationWizard } from '@/features/registrations/RegistrationWizard'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
 import { getFriendlyErrorMessage } from '@/lib/friendly-error'
-import { cn } from '@/lib/utils'
+import { cn, formatPackagePrice } from '@/lib/utils'
 import type { MarathonPackage } from '@/types'
 
 import { AVAILABILITY_PILL, getMarathonAvailability } from './marathon-status'
 import { PackagePhotoCarousel } from './PackagePhotoCarousel'
 import { useMarathon } from './use-marathons'
 
-function formatDate(date: Date) {
+function formatDate(date: Date | undefined) {
+  if (!date) return 'TBA'
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function formatPrice(pkg: MarathonPackage) {
-  return `${pkg.priceCurrency} ${pkg.priceAmount.toLocaleString()}`
+  return formatPackagePrice(pkg.priceCurrency, pkg.priceAmount)
 }
 
 export function PackageSelectionPage() {
@@ -109,7 +110,7 @@ export function PackageSelectionPage() {
     )
   }
 
-  const eventDate = marathon.eventDate.toDate()
+  const eventDate = marathon.eventDate?.toDate()
   const percentFull = marathon.capacity > 0 ? (marathon.confirmedCount / marathon.capacity) * 100 : 0
   const statusPill = AVAILABILITY_PILL[getMarathonAvailability(marathon)]
   const sharedInclusions = toBulletLines(marathon.sharedInclusions)

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Progress } from '@/components/ui/progress'
 import { toBulletLines } from '@/features/marathons/api'
 import { PackagePhotoCarousel } from '@/features/marathons/PackagePhotoCarousel'
-import { cn } from '@/lib/utils'
+import { cn, formatPackagePrice } from '@/lib/utils'
 import type { QuestionType } from '@/types'
 
 export interface PreviewPackage {
@@ -51,12 +51,12 @@ const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
 }
 
 function formatDate(date: Date | null) {
-  if (!date || Number.isNaN(date.getTime())) return '—'
+  if (!date || Number.isNaN(date.getTime())) return 'TBA'
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function formatPrice(pkg: PreviewPackage) {
-  return `${pkg.priceCurrency || 'PHP'} ${pkg.priceAmount.toLocaleString()}`
+  return formatPackagePrice(pkg.priceCurrency || 'PHP', pkg.priceAmount)
 }
 
 export function MarathonPreviewDialog({

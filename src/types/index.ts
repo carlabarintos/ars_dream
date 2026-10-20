@@ -86,7 +86,10 @@ export interface Marathon {
   description: string
   bannerImageUrl: string
   location: string
-  eventDate: Timestamp
+  /** Admin-only reference code for matching rows in bulk imports, e.g. "TOKYO-2027". Never shown to registrants. Empty/absent means none. */
+  code?: string
+  /** null means the date hasn't been announced yet (shown as TBA). Stored as null rather than omitted so orderBy('eventDate') still returns it. */
+  eventDate: Timestamp | null
   registrationOpensAt: Timestamp
   registrationClosesAt: Timestamp
   capacity: number

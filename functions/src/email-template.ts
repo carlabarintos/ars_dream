@@ -28,7 +28,7 @@ const HEADER_HTML = `
     </div>
   </div>`
 
-function escapeHtml(text: string): string {
+export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -241,7 +241,7 @@ export function buildAcceptanceEmail({
       }
       <div style="padding: 20px 20px 0;">
         <p style="margin: 0; font-family: ${DISPLAY}; font-size: 26px; line-height: 1; letter-spacing: 1px;">${escapeHtml(pkg.name)}</p>
-        <p style="margin: 10px 0 0; font-family: ${DISPLAY}; font-size: 32px; line-height: 1.1; letter-spacing: 1px;">${currency} ${pkg.priceAmount.toLocaleString()}</p>
+        <p style="margin: 10px 0 0; font-family: ${DISPLAY}; font-size: 32px; line-height: 1.1; letter-spacing: 1px;">${pkg.priceAmount ? `${currency} ${pkg.priceAmount.toLocaleString()}` : 'TBA'}</p>
         ${pkg.depositAmount ? `<p style="margin: 2px 0 0; font-size: 12px; color: ${MUTED};">Deposit ${currency} ${Math.min(pkg.depositAmount, pkg.priceAmount).toLocaleString()}</p>` : ''}
       </div>
       <div style="padding: 16px 20px 20px;">
