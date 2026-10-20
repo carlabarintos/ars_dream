@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { MarathonBanner } from '@/components/MarathonBanner'
 import { TicketSeam } from '@/components/TicketSeam'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { getPackageDescription, toBulletLines } from '@/features/marathons/api'
@@ -133,9 +134,10 @@ export function PackageSelectionPage() {
       </Breadcrumb>
 
       <div className="border-border overflow-hidden rounded-2xl border shadow-sm">
-        <div
-          className="relative h-56 w-full bg-cover bg-center sm:h-64"
-          style={{ backgroundImage: `url(${marathon.bannerImageUrl})` }}
+        <MarathonBanner
+          url={marathon.bannerImageUrl}
+          vertical={marathon.bannerVertical}
+          className="h-56 w-full sm:h-64"
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
           <Badge variant={statusPill.variant} className="absolute top-4 right-4">
@@ -150,7 +152,7 @@ export function PackageSelectionPage() {
               {marathon.location}
             </div>
           </div>
-        </div>
+        </MarathonBanner>
 
         <div className="bg-card divide-border border-border grid grid-cols-2 divide-x border-t">
           <div className="flex flex-col gap-1 p-4">
@@ -173,7 +175,7 @@ export function PackageSelectionPage() {
         </div>
       </div>
 
-      {myRegistration && (
+      {myRegistration && myRegistration.status !== 'cancelled' && (
         <Card>
           <CardHeader>
             <div className="flex items-start justify-between gap-3">
@@ -268,7 +270,7 @@ export function PackageSelectionPage() {
               )}
             >
               {marathon.packages!.map((pkg) => {
-                const isCurrentPackage = myRegistration?.packageId === pkg.id
+                const isCurrentPackage = myRegistration?.status !== 'cancelled' && myRegistration?.packageId === pkg.id
                 const hasPhotos = (pkg.photoUrls?.length ?? 0) > 0
 
                 return (

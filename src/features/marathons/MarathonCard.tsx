@@ -1,6 +1,7 @@
 import { MapPinIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
+import { MarathonBanner } from '@/components/MarathonBanner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
@@ -33,24 +34,27 @@ export function MarathonCard({
 
   return (
     <Card className="group overflow-hidden py-0 gap-0 transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg">
-      <Link to={`/marathons/${marathon.id}/packages`} className="relative block h-44 w-full overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
-          style={{ backgroundImage: `url(${marathon.bannerImageUrl})` }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-brand-navy/25 to-transparent" />
-        <Badge variant={statusPill.variant} className="absolute top-3 right-3">
-          {statusPill.label}
-        </Badge>
-        <div className="absolute right-4 bottom-4 left-4 flex flex-col gap-1">
-          <h3 className="font-display text-2xl leading-none tracking-wide text-white drop-shadow hover:underline">
-            {marathon.title}
-          </h3>
-          <div className="flex items-center gap-1.5 text-xs text-white/80">
-            <MapPinIcon className="size-3.5" />
-            {marathon.location}
+      <Link to={`/marathons/${marathon.id}/packages`} className="block">
+        <MarathonBanner
+          url={marathon.bannerImageUrl}
+          vertical={marathon.bannerVertical}
+          className="h-44 w-full"
+          imageClassName="transition-transform duration-300 group-hover:scale-105"
+        >
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-brand-navy/25 to-transparent" />
+          <Badge variant={statusPill.variant} className="absolute top-3 right-3">
+            {statusPill.label}
+          </Badge>
+          <div className="absolute right-4 bottom-4 left-4 flex flex-col gap-1">
+            <h3 className="font-display text-2xl leading-none tracking-wide text-white drop-shadow hover:underline">
+              {marathon.title}
+            </h3>
+            <div className="flex items-center gap-1.5 text-xs text-white/80">
+              <MapPinIcon className="size-3.5" />
+              {marathon.location}
+            </div>
           </div>
-        </div>
+        </MarathonBanner>
       </Link>
 
       <TicketSeam />

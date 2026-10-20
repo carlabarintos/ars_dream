@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 
 import { BibCountdown } from '@/components/BibCountdown'
+import { MarathonBanner } from '@/components/MarathonBanner'
 import { RouteLines } from '@/components/RouteLines'
 import { TicketSeam } from '@/components/TicketSeam'
 import { Button } from '@/components/ui/button'
@@ -283,13 +284,13 @@ export function MyRegistrationsPage() {
                 key={registration.id}
                 className="group gap-0 overflow-hidden py-0 transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg"
               >
-                <div className="relative h-36 w-full overflow-hidden sm:h-40">
-                  {marathon?.bannerImageUrl ? (
-                    <div
-                      className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
-                      style={{ backgroundImage: `url(${marathon.bannerImageUrl})` }}
-                    />
-                  ) : (
+                <MarathonBanner
+                  url={marathon?.bannerImageUrl}
+                  vertical={marathon?.bannerVertical && !!marathon.bannerImageUrl}
+                  className="h-36 w-full sm:h-40"
+                  imageClassName="transition-transform duration-300 group-hover:scale-105"
+                >
+                  {!marathon?.bannerImageUrl && (
                     <div className="from-primary to-brand-navy absolute inset-0 bg-gradient-to-br" />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-brand-navy/25 to-transparent" />
@@ -321,7 +322,7 @@ export function MyRegistrationsPage() {
                       </div>
                     )}
                   </div>
-                </div>
+                </MarathonBanner>
 
                 <TicketSeam />
 

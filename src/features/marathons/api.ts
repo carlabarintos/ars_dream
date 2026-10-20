@@ -4,6 +4,7 @@ import {
   deleteField,
   doc,
   getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -82,6 +83,7 @@ export interface MarathonInput {
   title: string
   description: string
   bannerImageUrl: string
+  bannerVertical: boolean
   location: string
   code: string
   eventDate: Date | null
@@ -135,6 +137,17 @@ export async function updateMarathon(marathonId: string, input: MarathonInput) {
 
 export async function setMarathonStatus(marathonId: string, status: MarathonStatus) {
   await updateDoc(doc(db, 'marathons', marathonId), { status })
+}
+
+/** Moves a published marathon back to draft, refusing once anyone has registered — drafts are unreadable to non-admins, so their bookings would lose the event's details. */
+export async function unpublishMarathon(marathonId: string) {
+  const existing = await getDocs(
+    query(collection(db, 'registrations'), where('marathonId', '==', marathonId), limit(1)),
+  )
+  if (!existing.empty) {
+    throw new Error('People have already joined this marathon. Close it instead so their bookings stay visible.')
+  }
+  await setMarathonStatus(marathonId, 'draft')
 }
 
 const reopenMarathonCallable = httpsCallable<{ marathonId: string }, { newCycle: number; carriedForward: number }>(

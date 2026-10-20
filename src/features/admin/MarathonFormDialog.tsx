@@ -145,6 +145,7 @@ export function MarathonFormDialog({
   const [questionRows, setQuestionRows] = useState<QuestionRow[]>(() => toQuestionRows(marathon?.questions))
   const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [bannerPreviewUrl, setBannerPreviewUrl] = useState<string | undefined>(marathon?.bannerImageUrl)
+  const [bannerVertical, setBannerVertical] = useState(marathon?.bannerVertical ?? false)
   const [hotelFile, setHotelFile] = useState<File | null>(null)
   const [hotelPreviewUrl, setHotelPreviewUrl] = useState<string | undefined>(marathon?.hotelImageUrl || undefined)
   const [feedDeadline, setFeedDeadline] = useState(
@@ -175,7 +176,12 @@ export function MarathonFormDialog({
     const file = event.target.files?.[0]
     if (!file) return
     setBannerFile(file)
-    setBannerPreviewUrl(URL.createObjectURL(file))
+    const url = URL.createObjectURL(file)
+    setBannerPreviewUrl(url)
+    // Guess the layout from the image's shape; the admin can still flip the checkbox.
+    const img = new Image()
+    img.onload = () => setBannerVertical(img.naturalHeight > img.naturalWidth)
+    img.src = url
   }
 
   function loadQuestionsFromTemplate(templateId: string) {
@@ -322,6 +328,7 @@ export function MarathonFormDialog({
       description: String(formData.get('description') ?? ''),
       location: String(formData.get('location') ?? ''),
       bannerImageUrl: bannerPreviewUrl ?? '',
+      bannerVertical,
       eventDate: dateFromField('eventDate'),
       registrationClosesAt: dateFromField('registrationClosesAt'),
       capacity: Number(formData.get('capacity')) || 0,
@@ -430,6 +437,7 @@ export function MarathonFormDialog({
         title: String(form.get('title')),
         description: String(form.get('description')),
         bannerImageUrl,
+        bannerVertical,
         location: String(form.get('location')),
         code: String(form.get('code') ?? '').trim(),
         eventDate: form.get('eventDate') ? new Date(String(form.get('eventDate'))) : null,
@@ -458,6 +466,7 @@ export function MarathonFormDialog({
         setQuestionRows([])
         setBannerFile(null)
         setBannerPreviewUrl(undefined)
+        setBannerVertical(false)
         setHotelFile(null)
         setHotelPreviewUrl(undefined)
         setFeedDeadline('')
@@ -500,10 +509,14 @@ export function MarathonFormDialog({
               <img
                 src={bannerPreviewUrl}
                 alt=""
-                className="h-32 w-full rounded-md border border-border object-cover"
+                className={`h-32 w-full rounded-md border border-border ${bannerVertical ? 'object-contain' : 'object-cover'}`}
               />
             )}
             <Input id="bannerFile" type="file" accept="image/*" onChange={handleBannerFileChange} />
+            <label className="flex items-center gap-1.5 text-xs">
+              <input type="checkbox" checked={bannerVertical} onChange={(e) => setBannerVertical(e.target.checked)} />
+              Vertical logo (show uncropped beside the title instead of filling the banner)
+            </label>
           </div>
           <Field label="Location" name="location" required defaultValue={marathon?.location} />
           <Field label="Internal code (optional, not shown to customers)" name="code" defaultValue={marathon?.code} />

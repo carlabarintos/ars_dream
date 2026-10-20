@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useAuthStore } from '@/features/auth/auth-store'
-import { reopenMarathon, setMarathonStatus } from '@/features/marathons/api'
+import { reopenMarathon, setMarathonStatus, unpublishMarathon } from '@/features/marathons/api'
 import { useAllMarathons } from '@/features/marathons/use-marathons'
 import type { Marathon, MarathonStatus } from '@/types'
 
@@ -42,13 +42,14 @@ export function AdminDashboard() {
   async function handleStatusChange(marathon: Marathon, status: MarathonStatus) {
     setUpdatingId(marathon.id)
     try {
-      await setMarathonStatus(marathon.id, status)
+      await (status === 'draft' ? unpublishMarathon(marathon.id) : setMarathonStatus(marathon.id, status))
       if (actorId) {
         await logAdminAction({
           actorId,
           actorName: actorProfile?.displayName ?? null,
           actorEmail: actorProfile?.email ?? null,
-          action: status === 'published' ? 'marathon_published' : 'marathon_closed',
+          action:
+            status === 'published' ? 'marathon_published' : status === 'draft' ? 'marathon_unpublished' : 'marathon_closed',
           targetType: 'marathon',
           targetId: marathon.id,
           targetLabel: marathon.title,
@@ -161,6 +162,16 @@ export function AdminDashboard() {
                   {marathon.status === 'closed' && (
                     <Button size="sm" onClick={() => setReopening(marathon)}>
                       Reopen
+                    </Button>
+                  )}
+                  {marathon.status === 'published' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={updatingId === marathon.id}
+                      onClick={() => handleStatusChange(marathon, 'draft')}
+                    >
+                      Back to draft
                     </Button>
                   )}
                   {marathon.status === 'published' && (

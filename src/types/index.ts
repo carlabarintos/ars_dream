@@ -85,6 +85,8 @@ export interface Marathon {
   title: string
   description: string
   bannerImageUrl: string
+  /** The banner is a portrait logo: shown uncropped in a side column instead of filling the box. Absent means a wide, cropped banner. */
+  bannerVertical?: boolean
   location: string
   /** Admin-only reference code for matching rows in bulk imports, e.g. "TOKYO-2027". Never shown to registrants. Empty/absent means none. */
   code?: string
@@ -286,6 +288,7 @@ export type AuditAction =
   | 'payment_rejected'
   | 'marathon_published'
   | 'marathon_closed'
+  | 'marathon_unpublished'
   | 'marathon_reopened'
   | 'user_role_changed'
   | 'operational_data_cleared'

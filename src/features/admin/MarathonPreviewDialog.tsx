@@ -1,5 +1,6 @@
 import { CheckIcon, MapPinIcon } from 'lucide-react'
 
+import { MarathonBanner } from '@/components/MarathonBanner'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -32,6 +33,7 @@ export interface MarathonPreviewData {
   description: string
   location: string
   bannerImageUrl: string
+  bannerVertical: boolean
   eventDate: Date | null
   registrationClosesAt: Date | null
   capacity: number
@@ -95,9 +97,10 @@ export function MarathonPreviewDialog({
 
         <div className="flex flex-col gap-6">
           <Card className="overflow-hidden py-0 gap-0">
-            <div
-              className="bg-muted relative block h-40 w-full bg-cover bg-center"
-              style={data.bannerImageUrl ? { backgroundImage: `url(${data.bannerImageUrl})` } : undefined}
+            <MarathonBanner
+              url={data.bannerImageUrl}
+              vertical={data.bannerVertical}
+              className="bg-muted h-40 w-full"
             >
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
               <Badge variant={statusPill.variant} className="absolute top-3 right-3">
@@ -106,7 +109,7 @@ export function MarathonPreviewDialog({
               <div className="font-display absolute bottom-3 left-4 text-4xl tracking-wide text-white drop-shadow">
                 {formatDate(data.eventDate)}
               </div>
-            </div>
+            </MarathonBanner>
 
             <CardContent className="flex flex-col gap-3 pt-5">
               <div>
