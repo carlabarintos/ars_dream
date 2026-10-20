@@ -106,10 +106,13 @@ export const bulkWaitlist = onCall<BulkWaitlistInput>(
         continue
       }
 
-      await db
-        .collection('pendingWaitlist')
-        .doc(email)
-        .set({ email, marathons: { [marathonId]: Timestamp.fromDate(joinedAt) } }, { merge: true })
+      // Already invited to this marathon — keep their original place in line.
+      const pendingRef = db.collection('pendingWaitlist').doc(email)
+      if ((await pendingRef.get()).data()?.marathons?.[marathonId]) {
+        result.alreadyListed++
+        continue
+      }
+      await pendingRef.set({ email, marathons: { [marathonId]: Timestamp.fromDate(joinedAt) } }, { merge: true })
       result.invited++
       await sendEmail({
         to: email,
