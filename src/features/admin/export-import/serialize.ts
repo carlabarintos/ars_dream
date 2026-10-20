@@ -108,7 +108,7 @@ export interface MarathonRestoreInput {
   code: string
   eventDate: Timestamp | null
   registrationOpensAt: Timestamp
-  registrationClosesAt: Timestamp
+  registrationClosesAt: Timestamp | null
   capacity: number
   paymentInstructions: string
   sharedInclusions: string
@@ -131,7 +131,7 @@ export function marathonToRow(marathon: Marathon): MarathonRow {
     code: marathon.code ?? '',
     eventDate: isoOfNullable(marathon.eventDate),
     registrationOpensAt: isoOf(marathon.registrationOpensAt),
-    registrationClosesAt: isoOf(marathon.registrationClosesAt),
+    registrationClosesAt: isoOfNullable(marathon.registrationClosesAt),
     capacity: String(marathon.capacity),
     confirmedCount: String(marathon.confirmedCount),
     paymentInstructions: marathon.paymentInstructions,
@@ -157,7 +157,7 @@ export function rowToMarathonRestoreInput(row: MarathonRow): RowResult<MarathonR
     code: row.code ?? '',
     eventDate: parseIsoNullable(row.eventDate, 'eventDate'),
     registrationOpensAt: parseIso(row.registrationOpensAt, 'registrationOpensAt'),
-    registrationClosesAt: parseIso(row.registrationClosesAt, 'registrationClosesAt'),
+    registrationClosesAt: parseIsoNullable(row.registrationClosesAt, 'registrationClosesAt'),
     capacity: Number(row.capacity),
     paymentInstructions: row.paymentInstructions,
     // Absent in backups exported before this column existed.

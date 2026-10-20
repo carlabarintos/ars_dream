@@ -26,9 +26,9 @@ export function MarathonCard({
   const eventDate = marathon.eventDate?.toDate()
   const spotsLeft = Math.max(marathon.capacity - marathon.confirmedCount, 0)
   const percentFull = marathon.capacity > 0 ? (marathon.confirmedCount / marathon.capacity) * 100 : 0
-  const closesAt = marathon.registrationClosesAt.toDate()
+  const closesAt = marathon.registrationClosesAt?.toDate()
   const isFull = spotsLeft <= 0
-  const isClosed = new Date() > closesAt
+  const isClosed = !!closesAt && new Date() > closesAt
   const statusPill = AVAILABILITY_PILL[getMarathonAvailability(marathon)]
 
   return (

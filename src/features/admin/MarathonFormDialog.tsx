@@ -434,7 +434,7 @@ export function MarathonFormDialog({
         code: String(form.get('code') ?? '').trim(),
         eventDate: form.get('eventDate') ? new Date(String(form.get('eventDate'))) : null,
         registrationOpensAt: new Date(String(form.get('registrationOpensAt'))),
-        registrationClosesAt: new Date(String(form.get('registrationClosesAt'))),
+        registrationClosesAt: form.get('registrationClosesAt') ? new Date(String(form.get('registrationClosesAt'))) : null,
         capacity: Number(form.get('capacity')),
         paymentInstructions: String(form.get('paymentInstructions')),
         sharedInclusions: String(form.get('sharedInclusions') ?? '').trim(),
@@ -525,8 +525,7 @@ export function MarathonFormDialog({
               label="Registration closes"
               name="registrationClosesAt"
               type="date"
-              required
-              defaultValue={marathon && toDateInputValue(marathon.registrationClosesAt.toDate())}
+              defaultValue={marathon?.registrationClosesAt ? toDateInputValue(marathon.registrationClosesAt.toDate()) : undefined}
             />
           </div>
           <Field

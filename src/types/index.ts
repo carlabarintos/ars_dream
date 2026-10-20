@@ -91,7 +91,8 @@ export interface Marathon {
   /** null means the date hasn't been announced yet (shown as TBA). Stored as null rather than omitted so orderBy('eventDate') still returns it. */
   eventDate: Timestamp | null
   registrationOpensAt: Timestamp
-  registrationClosesAt: Timestamp
+  /** null means no closing date — registration stays open until the admin closes the marathon or it fills up. */
+  registrationClosesAt: Timestamp | null
   capacity: number
   confirmedCount: number
   paymentInstructions: string

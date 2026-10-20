@@ -74,7 +74,7 @@ export function PackageSelectionPage() {
   // from MyRegistrationsPage, which doesn't filter by marathon status)
   // reaches a write the rules silently reject as permission-denied.
   const isClosed =
-    (marathon ? new Date() > marathon.registrationClosesAt.toDate() : false) ||
+    (marathon?.registrationClosesAt ? new Date() > marathon.registrationClosesAt.toDate() : false) ||
     marathon?.status !== 'published'
 
   async function handleJoinWaitlist() {
