@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { issueFinalInvoice } from '@/features/registrations/api'
-import { getFinalInvoiceBalance } from '@/features/registrations/registration-flow'
+import { getFinalInvoiceBalance, getPackageInvoiceLines, withCurrentPackageLines } from '@/features/registrations/registration-flow'
 import type { InvoiceLineItem, Marathon, Registration } from '@/types'
 
 /** On a confirmed booking the current balance was already paid — credit it so an amended invoice only bills the difference. */
@@ -28,8 +28,7 @@ function buildDefaultItems(registration: Registration, marathon: Marathon | null
   const deposit = Math.min(depositAmount ?? total, total)
   const existingCredits = (registration.finalInvoice?.items ?? []).filter((item) => item.isDeposit)
   return [
-    { label: `${registration.packageName} package`, amount: registration.packagePriceAmount },
-    ...addOns.map((addOn) => ({ label: `Add-on: ${addOn.name}`, amount: addOn.priceAmount })),
+    ...getPackageInvoiceLines(registration),
     ...(existingCredits.length > 0 ? existingCredits : [{ label: 'Deposit paid', amount: -deposit, isDeposit: true }]),
     ...paidBalanceCredit(registration),
   ]
@@ -51,7 +50,7 @@ export function FinalInvoiceDialog({
   const [items, setItems] = useState<InvoiceLineItem[]>(
     () =>
       registration.finalInvoice
-        ? [...registration.finalInvoice.items, ...paidBalanceCredit(registration)]
+        ? [...withCurrentPackageLines(registration.finalInvoice.items, registration), ...paidBalanceCredit(registration)]
         : buildDefaultItems(registration, marathon),
   )
   const [dueDate, setDueDate] = useState(() => {
@@ -73,7 +72,7 @@ export function FinalInvoiceDialog({
     try {
       // End of the chosen day, local time, so "due Nov 1" isn't flagged overdue at midnight.
       await issueFinalInvoice(
-        registration.id,
+        registration,
         items.map((item) => ({ ...item, label: item.label.trim() })),
         new Date(`${dueDate}T23:59:59`),
       )

@@ -13,7 +13,7 @@ import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-p
 import { useMarathon } from '@/features/marathons/use-marathons'
 import { BookingChatDialog } from '@/features/messages/BookingChatDialog'
 import { cancelRegistration, decideQueueRegistration, swapQueuePositions } from '@/features/registrations/api'
-import { hasChosenPackage, isOverdue } from '@/features/registrations/registration-flow'
+import { getPaymentProofs, hasChosenPackage, isOverdue } from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
@@ -25,6 +25,7 @@ import { ImportDialog } from './export-import/ImportDialog'
 import { ChangePackageDialog } from './ChangePackageDialog'
 import { FinalInvoiceDialog } from './FinalInvoiceDialog'
 import { OfferChatDialog } from './OfferChatDialog'
+import { PaymentProofsDialog } from './PaymentProofsDialog'
 
 const STATUS_BADGE_VARIANT: Record<Exclude<Registration['status'], 'queued'>, 'success' | 'destructive' | 'secondary'> = {
   accepted: 'success',
@@ -117,6 +118,8 @@ export function QueueReviewPage() {
   const invoiceRegistration = registrations.find((r) => r.id === invoiceRegistrationId)
   const [packageRegistrationId, setPackageRegistrationId] = useState<string | null>(null)
   const packageRegistration = registrations.find((r) => r.id === packageRegistrationId)
+  const [paymentsRegistrationId, setPaymentsRegistrationId] = useState<string | null>(null)
+  const paymentsRegistration = registrations.find((r) => r.id === paymentsRegistrationId)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const statusFilteredRegistrations = orderedRegistrations.filter((registration) =>
     matchesStatusFilter(registration, statusFilter),
@@ -334,6 +337,16 @@ export function QueueReviewPage() {
                       Change Package
                     </Button>
                   )}
+                  {(() => {
+                    const { approved, latest } = getPaymentProofs(registration)
+                    return (
+                      approved.length + latest.length > 0 && (
+                        <Button variant="outline" size="sm" onClick={() => setPaymentsRegistrationId(registration.id)}>
+                          Payments
+                        </Button>
+                      )
+                    )
+                  })()}
                   <Button variant="outline" size="sm" onClick={() => setChatRegistrationId(registration.id)}>
                     Chat
                   </Button>
@@ -369,6 +382,13 @@ export function QueueReviewPage() {
           registration={packageRegistration}
           marathon={marathon ?? null}
           onClose={() => setPackageRegistrationId(null)}
+        />
+      )}
+      {paymentsRegistration && (
+        <PaymentProofsDialog
+          registration={paymentsRegistration}
+          registrantName={formatUserName(profiles[paymentsRegistration.userId])}
+          onClose={() => setPaymentsRegistrationId(null)}
         />
       )}
       {invoiceRegistration && (

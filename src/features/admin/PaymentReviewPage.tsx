@@ -17,6 +17,7 @@ import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-p
 import { useMarathon } from '@/features/marathons/use-marathons'
 import { confirmPayment, rejectPayment } from '@/features/registrations/api'
 import {
+  getPaymentProofs,
   getFinalInvoiceBalance,
   getRegistrationTotalAmount,
   isOnFinalInvoice,
@@ -24,6 +25,8 @@ import {
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
 import type { Marathon, Registration } from '@/types'
+
+import { PaymentProofsDialog } from './PaymentProofsDialog'
 
 /** The deposit this proof should cover — the full total when the package has no deposit split (same rule as FinalInvoiceDialog). */
 function depositDue(registration: Registration, marathon: Marathon | null) {
@@ -41,6 +44,7 @@ export function PaymentReviewPage() {
   const [note, setNote] = useState('')
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [isRejecting, setIsRejecting] = useState(false)
+  const [viewingPayments, setViewingPayments] = useState<Registration | null>(null)
   const { query, setQuery, filtered, visible, hasMore, loadMore } = usePaginatedSearch(
     registrations,
     (registration, q) => {
@@ -138,7 +142,7 @@ export function PaymentReviewPage() {
                     </p>
                   </CardHeader>
                   <CardContent className="grid grid-cols-2 gap-2">
-                    {registration.proofOfPaymentUrls.map((url, index) => (
+                    {getPaymentProofs(registration).latest.map((url, index) => (
                       <a key={url} href={url} target="_blank" rel="noreferrer">
                         <img
                           src={url}
@@ -155,6 +159,11 @@ export function PaymentReviewPage() {
                     <Button variant="destructive" onClick={() => setRejecting(registration)}>
                       Reject
                     </Button>
+                    {getPaymentProofs(registration).approved.length > 0 && (
+                      <Button variant="outline" onClick={() => setViewingPayments(registration)}>
+                        Earlier Payments
+                      </Button>
+                    )}
                   </CardFooter>
                 </Card>
               )
@@ -188,6 +197,13 @@ export function PaymentReviewPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {viewingPayments && (
+        <PaymentProofsDialog
+          registration={viewingPayments}
+          registrantName={formatUserName(profiles[viewingPayments.userId])}
+          onClose={() => setViewingPayments(null)}
+        />
+      )}
     </div>
   )
 }

@@ -70,6 +70,8 @@ export function RegistrationWizard({
   const isFinal = step === 'final_payment'
   // T&C are accepted with the first balance submission; a resubmit after rejection doesn't re-ask.
   const needsFinalTerms = registration.status === 'final_invoiced'
+  // On a fresh final invoice, proofOfPaymentUrls still holds the already-approved payment's proof (kept in depositProofUrls) — not a submission to replace.
+  const currentProofs = needsFinalTerms ? [] : registration.proofOfPaymentUrls
   const finalBalance = getFinalInvoiceBalance(registration)
   const canSubmitPayment =
     (files.length > 0 || (isFinal && finalBalance <= 0)) && (!needsFinalTerms || finalTermsAccepted)
@@ -374,9 +376,9 @@ export function RegistrationWizard({
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="proof">Upload proof of payment (receipts/screenshots)</Label>
-              {registration.proofOfPaymentUrls.length > 0 && (
+              {currentProofs.length > 0 && (
                 <div className="flex flex-col gap-1">
-                  {registration.proofOfPaymentUrls.map((url, index) => (
+                  {currentProofs.map((url, index) => (
                     <a
                       key={url}
                       href={url}
@@ -384,7 +386,7 @@ export function RegistrationWizard({
                       rel="noreferrer"
                       className="text-primary text-sm underline underline-offset-2"
                     >
-                      View current submission {registration.proofOfPaymentUrls.length > 1 ? index + 1 : ''}
+                      View current submission {currentProofs.length > 1 ? index + 1 : ''}
                     </a>
                   ))}
                 </div>
@@ -415,7 +417,7 @@ export function RegistrationWizard({
               >
                 {files.length > 0
                   ? 'Add more files'
-                  : registration.proofOfPaymentUrls.length > 0
+                  : currentProofs.length > 0
                     ? 'Choose replacement files'
                     : 'Choose files'}
               </label>
@@ -452,7 +454,7 @@ export function RegistrationWizard({
                 Cancel
               </Button>
               <Button disabled={!canSubmitPayment} loading={isSubmitting} onClick={handleSubmitPayment}>
-                {registration.proofOfPaymentUrls.length > 0 ? 'Replace Payment Proof' : 'Submit Payment Proof'}
+                {currentProofs.length > 0 ? 'Replace Payment Proof' : 'Submit Payment Proof'}
               </Button>
             </DialogFooter>
           </div>

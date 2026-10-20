@@ -202,7 +202,7 @@ export interface Registration {
   cycle?: number
   /** Set by confirmPayment when the deposit is approved (→ 'deposit_paid'). Its presence means this registration holds a counted seat. */
   depositPaidAt?: Timestamp
-  /** The deposit's proof, copied out of `proofOfPaymentUrls` by confirmPayment so balance proof can reuse that field. */
+  /** Already-approved proofs (the deposit's, copied by confirmPayment; plus a paid balance's, archived by issueFinalInvoice on an Additional Invoice) so new balance proof can reuse `proofOfPaymentUrls`. */
   depositProofUrls?: string[]
   /** Present once the admin issues the final invoice (→ 'final_invoiced'). A payment_submitted/payment_rejected registration with this set is on its balance payment, not its deposit. */
   finalInvoice?: FinalInvoice

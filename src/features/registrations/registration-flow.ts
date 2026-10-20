@@ -1,4 +1,4 @@
-import type { Marathon, MarathonQuestion, Registration, RegistrationStatus } from '@/types'
+import type { InvoiceLineItem, Marathon, MarathonQuestion, Registration, RegistrationStatus } from '@/types'
 
 /** Whether a package has been picked yet — waitlist entries have none until the offer is accepted. */
 export function hasChosenPackage(registration: Registration) {
@@ -14,6 +14,33 @@ export function getOfferedPackages(registration: Registration, marathon: Maratho
 /** Whether this registration is paying its balance against the final invoice rather than its deposit. */
 export function isOnFinalInvoice(registration: Registration) {
   return registration.finalInvoice != null
+}
+
+/** The invoice lines for the registration's current package and add-ons. */
+export function getPackageInvoiceLines(registration: Pick<Registration, 'packageName' | 'packagePriceAmount' | 'selectedAddOns'>): InvoiceLineItem[] {
+  return [
+    { label: `${registration.packageName} package`, amount: registration.packagePriceAmount },
+    ...(registration.selectedAddOns ?? []).map((addOn) => ({ label: `Add-on: ${addOn.name}`, amount: addOn.priceAmount })),
+  ]
+}
+
+/**
+ * Swaps an invoice's package/add-on lines for the current ones after a package change, keeping custom lines and credits.
+ * ponytail: package lines are recognised by the labels getPackageInvoiceLines generates, so a hand-renamed one is kept as custom.
+ */
+export function withCurrentPackageLines(
+  items: InvoiceLineItem[],
+  registration: Pick<Registration, 'packageName' | 'packagePriceAmount' | 'selectedAddOns'>,
+): InvoiceLineItem[] {
+  const isPackageLine = (item: InvoiceLineItem) =>
+    !item.isDeposit && (item.label.endsWith(' package') || item.label.startsWith('Add-on: '))
+  return [...getPackageInvoiceLines(registration), ...items.filter((item) => !isPackageLine(item))]
+}
+
+/** Earlier approved proofs (depositProofUrls) and the latest submission, minus anything already archived. */
+export function getPaymentProofs(registration: Registration) {
+  const approved = registration.depositProofUrls ?? []
+  return { approved, latest: registration.proofOfPaymentUrls.filter((url) => !approved.includes(url)) }
 }
 
 /** Sum of the final invoice's lines — what's still owed after the deposit credit. */

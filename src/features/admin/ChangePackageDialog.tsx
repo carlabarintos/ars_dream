@@ -33,7 +33,7 @@ export function ChangePackageDialog({
     if (!pkg) return
     setIsSubmitting(true)
     try {
-      await changeRegistrationPackage(registration.id, pkg, addOns)
+      await changeRegistrationPackage(registration, pkg, addOns)
       toast.success('Package updated.')
       onClose()
     } catch (error) {
@@ -96,7 +96,9 @@ export function ChangePackageDialog({
         )}
         {registration.finalInvoice && (
           <p className="text-muted-foreground text-sm">
-            The final invoice already issued isn't changed — edit it afterwards to match.
+            {registration.status === 'confirmed'
+              ? "The paid invoice isn't changed — issue an Additional Invoice afterwards to bill the difference."
+              : 'The final invoice is updated to the new package and re-sent.'}
           </p>
         )}
 

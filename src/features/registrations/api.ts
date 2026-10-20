@@ -1,4 +1,5 @@
 import {
+  arrayUnion,
   collection,
   deleteField,
   doc,
@@ -25,7 +26,7 @@ import type {
   SelectedAddOn,
 } from '@/types'
 import type { RegistrationRestorePatch } from '@/features/admin/export-import/serialize'
-import { canReRegister } from '@/features/registrations/registration-flow'
+import { canReRegister, withCurrentPackageLines } from '@/features/registrations/registration-flow'
 import { UserFacingError } from '@/lib/user-facing-error'
 
 const registrationsRef = collection(db, 'registrations')
@@ -220,26 +221,47 @@ export async function submitFinalPayment(registration: Registration, files: File
   })
 }
 
-/** Admin-only (plain update, allowed by the admin rule): swap the package/add-ons at any stage. onRegistrationStatusChange logs it to the booking's history. */
+/**
+ * Admin-only (plain update, allowed by the admin rule): swap the package/add-ons at any stage. onRegistrationStatusChange logs it to the booking's history.
+ * An unpaid final invoice is amended and re-issued to match; a confirmed booking's paid invoice is left alone (bill the difference via an Additional Invoice).
+ */
 export async function changeRegistrationPackage(
-  registrationId: string,
+  registration: Registration,
   selectedPackage: MarathonPackage,
   selectedAddOns: MarathonPackageAddOn[],
 ) {
-  await updateDoc(doc(db, 'registrations', registrationId), {
+  const packageFields = {
     packageId: selectedPackage.id,
     packageName: selectedPackage.name,
     packagePriceAmount: selectedPackage.priceAmount,
     packagePriceCurrency: selectedPackage.priceCurrency,
     selectedAddOns: toSelectedAddOns(selectedAddOns),
+  }
+  const { finalInvoice } = registration
+  await updateDoc(doc(db, 'registrations', registration.id), {
+    ...packageFields,
+    ...(finalInvoice && registration.status !== 'confirmed'
+      ? {
+          finalInvoice: {
+            ...finalInvoice,
+            items: withCurrentPackageLines(finalInvoice.items, packageFields),
+            issuedAt: serverTimestamp(),
+          },
+        }
+      : {}),
     updatedAt: serverTimestamp(),
   })
 }
 
 /** Admin-only (plain update, allowed by the admin rule): issue or re-issue the final invoice. No capacity check needed — the seat was already counted at deposit. */
-export async function issueFinalInvoice(registrationId: string, items: InvoiceLineItem[], dueDate: Date) {
-  await updateDoc(doc(db, 'registrations', registrationId), {
+/** Approved proofs (deposit, or the paid balance on an Additional Invoice) are archived to depositProofUrls so the next balance upload doesn't overwrite them. */
+export async function issueFinalInvoice(registration: Registration, items: InvoiceLineItem[], dueDate: Date) {
+  const isPaid = registration.status === 'deposit_paid' || registration.status === 'confirmed'
+  await updateDoc(doc(db, 'registrations', registration.id), {
     status: 'final_invoiced' satisfies Registration['status'],
+    ...(isPaid && registration.proofOfPaymentUrls.length > 0
+      ? { depositProofUrls: arrayUnion(...registration.proofOfPaymentUrls) }
+      : {}),
     finalInvoice: { items, dueDate: Timestamp.fromDate(dueDate), issuedAt: serverTimestamp() },
     updatedAt: serverTimestamp(),
   })
