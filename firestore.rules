@@ -107,7 +107,7 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly([
             'packageId', 'packageName', 'packagePriceAmount', 'packagePriceCurrency',
-            'selectedAddOns', 'offeredPackageIds', 'status', 'queuePosition', 'termsAcceptedAt', 'answers',
+            'selectedAddOns', 'offeredPackageIds', 'status', 'queuePosition', 'queueSortAt', 'termsAcceptedAt', 'answers',
             'proofOfPaymentUrls', 'proofSubmittedAt', 'adminNote', 'cancelledAt',
             'depositPaidAt', 'depositProofUrls', 'finalInvoice', 'finalTermsAcceptedAt',
             'createdAt', 'updatedAt',

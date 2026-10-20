@@ -125,6 +125,7 @@ export async function joinQueue(userId: string, marathonId: string, cycle: numbe
       offeredPackageIds: deleteField(),
       status: 'queued' satisfies Registration['status'],
       queuePosition: null,
+      queueSortAt: deleteField(),
       termsAcceptedAt: null,
       answers: deleteField(),
       proofOfPaymentUrls: [],
@@ -257,6 +258,20 @@ const confirmPaymentCallable = httpsCallable<
   { registrationId: string; decision: 'confirmed' | 'rejected'; adminNote?: string },
   { status: string }
 >(functions, 'confirmPayment')
+
+/** Admin-only: swaps two adjacent queued registrations' places in line. */
+export async function swapQueuePositions(a: Registration, b: Registration) {
+  const batch = writeBatch(db)
+  batch.update(doc(db, 'registrations', a.id), {
+    queuePosition: b.queuePosition,
+    queueSortAt: b.queueSortAt ?? b.createdAt,
+  })
+  batch.update(doc(db, 'registrations', b.id), {
+    queuePosition: a.queuePosition,
+    queueSortAt: a.queueSortAt ?? a.createdAt,
+  })
+  await batch.commit()
+}
 
 export async function decideQueueRegistration(
   registrationId: string,

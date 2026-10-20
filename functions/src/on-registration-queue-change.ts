@@ -1,3 +1,4 @@
+import type { Timestamp } from 'firebase-admin/firestore'
 import { onDocumentWritten } from 'firebase-functions/v2/firestore'
 
 import { db } from './admin.js'
@@ -29,10 +30,14 @@ export const onRegistrationQueueChange = onDocumentWritten(
       .collection('registrations')
       .where('marathonId', '==', marathonId)
       .where('status', '==', 'queued')
-      .orderBy('createdAt', 'asc')
       .get()
 
-    const docsInCycle = queueSnap.docs.filter((doc) => ((doc.data().cycle as number | undefined) ?? 1) === cycle)
+    // queueSortAt is set when an admin moves someone up/down in Queue Review.
+    const sortKey = (doc: (typeof queueSnap.docs)[number]) =>
+      ((doc.data().queueSortAt ?? doc.data().createdAt) as Timestamp).toMillis()
+    const docsInCycle = queueSnap.docs
+      .filter((doc) => ((doc.data().cycle as number | undefined) ?? 1) === cycle)
+      .sort((a, b) => sortKey(a) - sortKey(b))
 
     const batch = db.batch()
     let pendingWrites = 0

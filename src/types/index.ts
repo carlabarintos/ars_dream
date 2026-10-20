@@ -177,6 +177,8 @@ export interface Registration {
   status: RegistrationStatus
   /** 1-based position in the marathon's waiting list; null while queued but not yet assigned, or once past the queue. */
   queuePosition: number | null
+  /** Admin-reordered sort key for the queue; falls back to createdAt when absent. */
+  queueSortAt?: Timestamp
   termsAcceptedAt: Timestamp | null
   /** Answers to the marathon's registration questions, submitted together with acceptance. Absent until submitted. */
   answers?: QuestionAnswer[]

@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -11,7 +12,7 @@ import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
 import { useMarathon } from '@/features/marathons/use-marathons'
 import { BookingChatDialog } from '@/features/messages/BookingChatDialog'
-import { cancelRegistration, decideQueueRegistration } from '@/features/registrations/api'
+import { cancelRegistration, decideQueueRegistration, swapQueuePositions } from '@/features/registrations/api'
 import { hasChosenPackage, isOverdue } from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
@@ -140,6 +141,23 @@ export function QueueReviewPage() {
     }
   }
 
+  // Neighbours come from the full queue, not the filtered/paginated view.
+  const queued = orderedRegistrations.filter((r) => r.status === 'queued' && r.queuePosition != null)
+
+  async function handleMove(registration: Registration, offset: -1 | 1) {
+    const index = queued.findIndex((r) => r.id === registration.id)
+    const neighbour = queued[index + offset]
+    if (index === -1 || !neighbour) return
+    setDecidingKey(`${registration.id}-move`)
+    try {
+      await swapQueuePositions(registration, neighbour)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setDecidingKey(null)
+    }
+  }
+
   async function handleCancel(registration: Registration) {
     const name = formatUserName(profiles[registration.userId])
     if (!confirm(`Cancel ${name}'s registration? They'll be notified and their slot freed up.`)) return
@@ -227,7 +245,35 @@ export function QueueReviewPage() {
           <TableBody>
             {visible.map((registration) => (
               <TableRow key={registration.id}>
-                <TableCell className="text-muted-foreground">{registration.queuePosition ?? '—'}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    {registration.queuePosition ?? '—'}
+                    {registration.status === 'queued' && registration.queuePosition != null && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6"
+                          aria-label="Move up"
+                          disabled={decidingKey !== null || queued[0]?.id === registration.id}
+                          onClick={() => handleMove(registration, -1)}
+                        >
+                          <ChevronUp />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6"
+                          aria-label="Move down"
+                          disabled={decidingKey !== null || queued.at(-1)?.id === registration.id}
+                          onClick={() => handleMove(registration, 1)}
+                        >
+                          <ChevronDown />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>{formatUserName(profiles[registration.userId])}</TableCell>
                 <TableCell className="text-muted-foreground">
                   {profiles[registration.userId]?.email ?? '—'}
