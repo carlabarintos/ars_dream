@@ -17,10 +17,17 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getFriendlyErrorMessage } from '@/lib/friendly-error'
+import { cn } from '@/lib/utils'
 import type { Marathon, QuestionAnswer, Registration } from '@/types'
 
 import { submitFinalPayment, submitProofOfPayment, submitTermsAndConditions } from './api'
-import { getFinalInvoiceBalance, getPendingActionStep, isOnFinalInvoice, isQuestionAnswered } from './registration-flow'
+import {
+  getFinalInvoiceBalance,
+  getOfferedPackages,
+  getPendingActionStep,
+  isOnFinalInvoice,
+  isQuestionAnswered,
+} from './registration-flow'
 import { getOfferAcceptanceDeadline } from '../../../functions/src/email-template'
 
 export function RegistrationWizard({
@@ -40,6 +47,20 @@ export function RegistrationWizard({
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [finalTermsAccepted, setFinalTermsAccepted] = useState(false)
+  const offeredPackages = getOfferedPackages(registration, marathon)
+  const [chosenPackageId, setChosenPackageId] = useState(() =>
+    offeredPackages.length === 1 ? offeredPackages[0].id : registration.packageId,
+  )
+  const [chosenAddOnIds, setChosenAddOnIds] = useState<string[]>(() =>
+    (registration.selectedAddOns ?? []).map((addOn) => addOn.addOnId),
+  )
+  const chosenPackage = offeredPackages.find((pkg) => pkg.id === chosenPackageId)
+  // Mandatory add-ons are always included, whatever was toggled.
+  const chosenAddOns = (chosenPackage?.addOns ?? []).filter(
+    (addOn) => addOn.mandatory || chosenAddOnIds.includes(addOn.id),
+  )
+  const chosenTotal = (chosenPackage?.priceAmount ?? 0) + chosenAddOns.reduce((sum, addOn) => sum + addOn.priceAmount, 0)
+  const chosenDeposit = Math.min(chosenPackage?.depositAmount ?? 0, chosenTotal)
 
   const items = marathon?.questions ?? []
   const pendingStep = getPendingActionStep(registration, marathon)
@@ -55,7 +76,11 @@ export function RegistrationWizard({
 
   const total =
     registration.packagePriceAmount + (registration.selectedAddOns ?? []).reduce((sum, addOn) => sum + addOn.priceAmount, 0)
-  const deposit = Math.min(marathon?.packages?.find((p) => p.id === registration.packageId)?.depositAmount ?? 0, total)
+  // Before acceptance the package isn't on the registration yet — use the one being picked.
+  const deposit =
+    step === 'terms'
+      ? chosenDeposit
+      : Math.min(marathon?.packages?.find((p) => p.id === registration.packageId)?.depositAmount ?? 0, total)
   const money = (amount: number) => `${registration.packagePriceCurrency} ${amount.toLocaleString()}`
   const formatDue = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   const dueDate = (date: Date | undefined) => (date ? ` · due ${formatDue(date)}` : '')
@@ -70,6 +95,10 @@ export function RegistrationWizard({
       : undefined
 
   async function handleSubmitTerms() {
+    if (!chosenPackage) {
+      toast.error('Please choose a package.')
+      return
+    }
     const missingRequired = items.some(
       (item) => item.required && !isQuestionAnswered(item, answerValues[item.id]),
     )
@@ -86,7 +115,7 @@ export function RegistrationWizard({
       }))
     setIsSubmitting(true)
     try {
-      await submitTermsAndConditions(registration.id, answers)
+      await submitTermsAndConditions(registration.id, chosenPackage, chosenAddOns, answers)
       toast.success('Thanks! Next: submit your proof of payment.')
       onClose()
     } catch (error) {
@@ -117,7 +146,7 @@ export function RegistrationWizard({
           <DialogTitle className="px-6 sm:px-0 sm:pr-6">{marathon?.title ?? 'Complete Your Registration'}</DialogTitle>
           <DialogDescription>
             {step === 'terms'
-              ? "You've received an offer! Review and accept the terms & conditions to accept it."
+              ? "You've received an offer! Choose your package, then review and accept the terms & conditions."
               : step === 'payment'
                 ? 'Your invoice is below. Send payment using the instructions, then upload your proof of payment.'
                 : isFinal
@@ -155,12 +184,85 @@ export function RegistrationWizard({
                 )}
               </div>
             )}
-            {items.length === 0 && (
-              <p className="text-muted-foreground text-sm">
-                No additional information is required. Click Continue to accept the terms & conditions
-                and proceed.
-              </p>
-            )}
+            <div className="flex flex-col gap-2">
+              <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Choose your package</p>
+              {offeredPackages.length === 0 && (
+                <p className="text-muted-foreground text-sm">
+                  The packages in this offer are no longer available — please message us so we can update it.
+                </p>
+              )}
+              {offeredPackages.map((pkg) => {
+                const isChosen = pkg.id === chosenPackageId
+                return (
+                  <div
+                    key={pkg.id}
+                    className={cn('rounded-md border border-border p-3 text-sm', isChosen && 'border-primary ring-primary/25 ring-2')}
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={isChosen}
+                      onClick={() => setChosenPackageId(pkg.id)}
+                      className="flex w-full items-start justify-between gap-3 text-left"
+                    >
+                      <span className="font-semibold">{pkg.name}</span>
+                      <span className="text-right tabular-nums">
+                        <span className="font-semibold">
+                          {pkg.priceCurrency} {pkg.priceAmount.toLocaleString()}
+                        </span>
+                        {pkg.depositAmount ? (
+                          <span className="text-muted-foreground block text-xs">
+                            Deposit {pkg.priceCurrency} {pkg.depositAmount.toLocaleString()}
+                          </span>
+                        ) : null}
+                      </span>
+                    </button>
+                    {isChosen && (pkg.addOns ?? []).length > 0 && (
+                      <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
+                        {pkg.addOns!.map((addOn) => (
+                          <div key={addOn.id} className="flex items-center gap-2">
+                            <Checkbox
+                              id={`wizard-addon-${addOn.id}`}
+                              checked={addOn.mandatory || chosenAddOnIds.includes(addOn.id)}
+                              disabled={addOn.mandatory}
+                              onCheckedChange={(v) =>
+                                setChosenAddOnIds((ids) =>
+                                  v === true ? [...ids, addOn.id] : ids.filter((id) => id !== addOn.id),
+                                )
+                              }
+                            />
+                            <Label htmlFor={`wizard-addon-${addOn.id}`} className="flex-1 text-sm font-normal">
+                              {addOn.name}
+                              {addOn.mandatory && <span className="text-muted-foreground text-xs">(required)</span>}
+                            </Label>
+                            <span className="text-muted-foreground text-xs">
+                              +{pkg.priceCurrency} {addOn.priceAmount.toLocaleString()}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              {chosenPackage && (
+                <div className="bg-muted/50 flex flex-col gap-1 rounded-md border border-border p-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="font-semibold">
+                      {chosenPackage.priceCurrency} {chosenTotal.toLocaleString()}
+                    </span>
+                  </div>
+                  {chosenDeposit > 0 && (
+                    <div className="flex justify-between">
+                      <span>Down payment due after accepting</span>
+                      <span className="font-semibold">
+                        {chosenPackage.priceCurrency} {chosenDeposit.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             {items.map((item) => (
               <div key={item.id} className="flex flex-col gap-1.5">
                 <Label
@@ -208,8 +310,8 @@ export function RegistrationWizard({
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button loading={isSubmitting} onClick={handleSubmitTerms}>
-                Continue
+              <Button loading={isSubmitting} disabled={!chosenPackage} onClick={handleSubmitTerms}>
+                Accept Offer
               </Button>
             </DialogFooter>
           </div>

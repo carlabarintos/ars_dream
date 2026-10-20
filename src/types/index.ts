@@ -151,7 +151,7 @@ export interface SelectedAddOn {
 export interface InvoiceLineItem {
   label: string
   amount: number
-  /** Marks the prefilled "deposit paid" credit, so the booking total (getRegistrationTotalAmount) can exclude it. */
+  /** Marks a credit for money already paid ("Deposit paid", or "Balance paid" on an additional invoice), so the booking total (getRegistrationTotalAmount) can exclude it. */
   isDeposit?: boolean
 }
 
@@ -166,8 +166,9 @@ export interface Registration {
   id: string
   userId: string
   marathonId: string
+  /** Empty ('' / 0) while on the waitlist — the registrant picks one of `offeredPackageIds` when accepting their offer. */
   packageId: string
-  /** Snapshot of the package's name/price at registration time, so this stays accurate even if the package is later edited or removed. */
+  /** Snapshot of the chosen package's name/price at offer acceptance, so this stays accurate even if the package is later edited or removed. */
   packageName: string
   packagePriceAmount: number
   packagePriceCurrency: string
@@ -184,6 +185,8 @@ export interface Registration {
   adminNote: string | null
   /** The package's standard offer image, snapshotted at accept time (see OfferChatDialog) — included in the acceptance email and chat message. Absent if no offer image was set/attached. */
   offerImageUrl?: string
+  /** Packages the admin offered (set by acceptRegistration); the registrant picks one of these when accepting. Absent on offers made before this field existed, where `packageId` was already chosen at join time. */
+  offeredPackageIds?: string[]
   /** When the admin sent the offer (status → 'accepted'), set by acceptRegistration. Absent on offers sent before this field existed. */
   offeredAt?: Timestamp
   /** Set by flagOverdueRegistrations to the status the registration went overdue in ('accepted' = offer not accepted in time, 'terms_accepted' = deposit not paid in time). Only meaningful while it still equals `status` — see `isOverdue`. */
@@ -195,8 +198,6 @@ export interface Registration {
   cancelledBy?: 'user' | 'admin'
   /** Which of the marathon's registration rounds this belongs to (see Marathon.cycle). Absent means cycle 1 (predates this field). */
   cycle?: number
-  /** Set by reopenMarathon when this carried-forward registration's package no longer exists in the marathon's current packages list. Cleared (false/absent) once the registrant picks a new package via the existing swap flow. Only ever true while status is 'queued'. */
-  packageUpdateRequired?: boolean
   /** Set by confirmPayment when the deposit is approved (→ 'deposit_paid'). Its presence means this registration holds a counted seat. */
   depositPaidAt?: Timestamp
   /** The deposit's proof, copied out of `proofOfPaymentUrls` by confirmPayment so balance proof can reuse that field. */

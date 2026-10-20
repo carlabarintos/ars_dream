@@ -7,19 +7,31 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { issueFinalInvoice } from '@/features/registrations/api'
+import { getFinalInvoiceBalance } from '@/features/registrations/registration-flow'
 import type { InvoiceLineItem, Marathon, Registration } from '@/types'
 
-/** Package + selected add-ons, then the deposit already paid as a credit — the admin edits from there. */
+/** On a confirmed booking the current balance was already paid — credit it so an amended invoice only bills the difference. */
+function paidBalanceCredit(registration: Registration): InvoiceLineItem[] {
+  const paid = getFinalInvoiceBalance(registration)
+  return registration.status === 'confirmed' && paid > 0 ? [{ label: 'Balance paid', amount: -paid, isDeposit: true }] : []
+}
+
+/**
+ * Package + selected add-ons, then what's already been paid as credits — the admin edits from there.
+ * Credits from an existing invoice are kept as-is, since the deposit actually paid may predate a package change.
+ */
 function buildDefaultItems(registration: Registration, marathon: Marathon | null): InvoiceLineItem[] {
   const addOns = registration.selectedAddOns ?? []
   const total = registration.packagePriceAmount + addOns.reduce((sum, addOn) => sum + addOn.priceAmount, 0)
   // No deposit split on the package means the first payment was the full amount.
   const depositAmount = marathon?.packages?.find((p) => p.id === registration.packageId)?.depositAmount
   const deposit = Math.min(depositAmount ?? total, total)
+  const existingCredits = (registration.finalInvoice?.items ?? []).filter((item) => item.isDeposit)
   return [
     { label: `${registration.packageName} package`, amount: registration.packagePriceAmount },
     ...addOns.map((addOn) => ({ label: `Add-on: ${addOn.name}`, amount: addOn.priceAmount })),
-    { label: 'Deposit paid', amount: -deposit, isDeposit: true },
+    ...(existingCredits.length > 0 ? existingCredits : [{ label: 'Deposit paid', amount: -deposit, isDeposit: true }]),
+    ...paidBalanceCredit(registration),
   ]
 }
 
@@ -37,7 +49,10 @@ export function FinalInvoiceDialog({
   onClose: () => void
 }) {
   const [items, setItems] = useState<InvoiceLineItem[]>(
-    () => registration.finalInvoice?.items ?? buildDefaultItems(registration, marathon),
+    () =>
+      registration.finalInvoice
+        ? [...registration.finalInvoice.items, ...paidBalanceCredit(registration)]
+        : buildDefaultItems(registration, marathon),
   )
   const [dueDate, setDueDate] = useState(() => {
     const existing = registration.finalInvoice?.dueDate.toDate() ?? marathon?.balanceDeadline?.toDate()
@@ -75,10 +90,18 @@ export function FinalInvoiceDialog({
     <Dialog open onOpenChange={(open) => !open && !isSubmitting && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>{registration.finalInvoice ? 'Edit Final Invoice' : 'Create Final Invoice'}</DialogTitle>
+          <DialogTitle>
+            {registration.status === 'confirmed'
+              ? 'Additional Invoice'
+              : registration.finalInvoice
+                ? 'Edit Final Invoice'
+                : 'Create Final Invoice'}
+          </DialogTitle>
           <DialogDescription>
-            Prefilled from the package and add-ons, with the deposit as a credit. Edit any line or add more
-            (use a negative amount for discounts). Amounts in {currency}.
+            {registration.status === 'confirmed'
+              ? 'This booking is fully paid, so the balance already paid is credited — only the difference is billed. '
+              : 'Prefilled from the package and add-ons, with the deposit as a credit. '}
+            Edit any line or add more (use a negative amount for discounts). Amounts in {currency}.
           </DialogDescription>
         </DialogHeader>
 
@@ -119,6 +142,17 @@ export function FinalInvoiceDialog({
             <PlusIcon className="size-4" />
             Add item
           </Button>
+          {registration.finalInvoice && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="w-fit"
+              onClick={() => setItems(buildDefaultItems(registration, marathon))}
+            >
+              Reset from current package
+            </Button>
+          )}
         </div>
 
         <div className="flex justify-between border-t border-border pt-3 text-sm font-semibold">

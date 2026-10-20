@@ -7,18 +7,26 @@ import { withSentry } from './sentry.js'
 const money = (registration: FirebaseFirestore.DocumentData, amount: number) =>
   `${registration.packagePriceCurrency} ${amount.toLocaleString()}`
 
+/** "VIP package + Companion, Insurance (PHP 120,000)" — the package and add-ons as currently snapshotted. */
+export function describePackage(registration: FirebaseFirestore.DocumentData): string {
+  const addOns: { name: string; priceAmount: number }[] = registration.selectedAddOns ?? []
+  const total = registration.packagePriceAmount + addOns.reduce((sum, addOn) => sum + addOn.priceAmount, 0)
+  const addOnText = addOns.length > 0 ? ` + ${addOns.map((addOn) => addOn.name).join(', ')}` : ''
+  return `${registration.packageName} package${addOnText} (${money(registration, total)})`
+}
+
 /** One-line history entry for a status the registration just moved into; `reissued` = the final invoice was edited without a status change. */
 export function describeStatusEvent(registration: FirebaseFirestore.DocumentData, reissued = false): string {
   const onFinalInvoice = registration.finalInvoice != null
   switch (registration.status) {
     case 'queued':
-      return `Joined the queue — ${registration.packageName} package`
+      return 'Joined the waitlist'
     case 'accepted':
       return 'Offer sent'
     case 'rejected':
       return 'Registration not offered'
     case 'terms_accepted':
-      return 'Offer accepted — deposit invoice sent'
+      return `Offer accepted — ${describePackage(registration)} chosen, deposit invoice sent`
     case 'payment_submitted':
       return onFinalInvoice ? 'Balance proof of payment submitted' : 'Deposit proof of payment submitted'
     case 'payment_rejected':

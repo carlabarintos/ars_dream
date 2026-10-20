@@ -1,8 +1,14 @@
 import type { Marathon, MarathonQuestion, Registration, RegistrationStatus } from '@/types'
 
-/** Whether the registrant's previously-selected package no longer exists for this round and they need to pick a new one to keep their queue spot (see reopenMarathon). */
-export function needsPackageUpdate(registration: Registration) {
-  return registration.packageUpdateRequired === true
+/** Whether a package has been picked yet — waitlist entries have none until the offer is accepted. */
+export function hasChosenPackage(registration: Registration) {
+  return registration.packageId !== ''
+}
+
+/** The packages the registrant may pick from when accepting their offer. Legacy offers (no `offeredPackageIds`) were made on the package chosen at join time. */
+export function getOfferedPackages(registration: Registration, marathon: Marathon | undefined) {
+  const ids = registration.offeredPackageIds ?? [registration.packageId]
+  return (marathon?.packages ?? []).filter((pkg) => ids.includes(pkg.id))
 }
 
 /** Whether this registration is paying its balance against the final invoice rather than its deposit. */
@@ -40,12 +46,9 @@ export function getRegistrationStatusMessage(registration: Registration) {
   }
   switch (registration.status) {
     case 'queued':
-      if (needsPackageUpdate(registration)) {
-        return 'The package you previously selected is no longer offered for this round. Choose a new package below to keep your spot in the queue.'
-      }
-      return "You're in the waiting list. We'll notify you once a spot opens up."
+      return "You're on the waitlist. We'll notify you once a spot opens up and we have packages to offer you."
     case 'accepted':
-      return "You've received an offer! Review and accept it to receive your invoice."
+      return "You've received an offer! Choose your package and accept it to receive your invoice."
     case 'terms_accepted':
       return 'Your invoice is ready. Pay your deposit using the instructions provided, then upload your proof of payment.'
     case 'payment_submitted':
@@ -62,10 +65,10 @@ export function getRegistrationStatusMessage(registration: Registration) {
       return "You're all set for this event — see you at the starting line."
     case 'rejected':
       return registration.adminNote
-        ? `Your registration wasn't accepted: ${registration.adminNote} You can register again below.`
-        : "Unfortunately, your registration wasn't accepted this time. You can register again below."
+        ? `Your registration wasn't accepted: ${registration.adminNote} You can join the waitlist again.`
+        : "Unfortunately, your registration wasn't accepted this time. You can join the waitlist again."
     case 'cancelled':
-      return "This registration was cancelled. You can register again below if you've changed your mind."
+      return "This registration was cancelled. You can join the waitlist again if you've changed your mind."
   }
 }
 
@@ -86,16 +89,6 @@ export function isConfirmedAndQuestionnaireComplete(registration: Registration, 
   if (registration.status !== 'confirmed') return false
   const answerValues = Object.fromEntries((registration.answers ?? []).map((a) => [a.questionId, a.value]))
   return areRequiredItemsAnswered(marathon, answerValues)
-}
-
-// Mirrors the package-swap update rule in firestore.rules: a registrant may
-// still change their selected package on their existing queue entry up
-// through a rejected payment, but not once a payment is submitted/confirmed
-// — from there, changing packages goes through an admin instead.
-const PACKAGE_EDITABLE_STATUSES: RegistrationStatus[] = ['queued', 'accepted', 'terms_accepted', 'payment_rejected']
-
-export function canChangePackage(registration: Registration) {
-  return PACKAGE_EDITABLE_STATUSES.includes(registration.status) && !isOnFinalInvoice(registration)
 }
 
 // Mirrors CANCELLABLE_STATUSES in functions/src/cancel-registration.ts — every
@@ -128,7 +121,7 @@ export function canReRegister(registration: Registration) {
 export type PendingActionStep = 'terms' | 'payment' | 'final_payment'
 
 export const PENDING_ACTION_LABEL: Record<PendingActionStep, string> = {
-  terms: 'Accept Offer',
+  terms: 'Choose Package & Accept Offer',
   payment: 'View Invoice & Pay',
   final_payment: 'View Final Invoice & Pay',
 }

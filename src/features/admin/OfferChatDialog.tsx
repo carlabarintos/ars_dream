@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,13 +17,14 @@ import type { Marathon, Registration, UserProfile } from '@/types'
 // Same template the onRegistrationStatusChange function sends, so the preview can't drift from the real email.
 import { buildAcceptanceEmail, getOfferAcceptanceDeadline } from '../../../functions/src/email-template'
 
-function buildDefaultOfferMessage(marathonTitle: string, packageName: string) {
-  return `Congratulations! Here's your standard offer for ${marathonTitle} — ${packageName}.`
+function buildDefaultOfferMessage(marathonTitle: string) {
+  return `Congratulations! A slot has opened up for ${marathonTitle}. Choose your package and accept your offer in the app.`
 }
 
 /**
- * Opened from the Accept action in Queue Review. Two steps: first the admin previews (and optionally
- * swaps, just for this send) the package's standard offer image and edits a pre-filled chat message;
+ * Opened from the Accept action in Queue Review. Two steps: first the admin picks which packages to offer
+ * (the registrant chooses one when accepting), previews (and optionally swaps, just for this send) the
+ * first offered package's standard offer image and edits a pre-filled chat message;
  * then they review the exact acceptance email the registrant will receive, and only from there can
  * accept — which sends the email (via onRegistrationStatusChange) and the chat message.
  */
@@ -41,7 +43,10 @@ export function OfferChatDialog({
 }) {
   const adminUid = useAuthStore((state) => state.firebaseUser?.uid)
   const open = registration != null
-  const pkg = marathon?.packages?.find((p) => p.id === registration?.packageId)
+  const allPackages = marathon?.packages ?? []
+  const [offeredIds, setOfferedIds] = useState<string[]>([])
+  const offeredPackages = allPackages.filter((p) => offeredIds.includes(p.id))
+  const defaultImageUrl = offeredPackages.find((p) => p.offerImageUrl)?.offerImageUrl
 
   const [text, setText] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -54,9 +59,11 @@ export function OfferChatDialog({
   // unrelated onSnapshot re-render of `registration`/`marathon`.
   useEffect(() => {
     if (!open || !registration || !marathon) return
-    setText(buildDefaultOfferMessage(marathon.title, pkg?.name ?? registration.packageName))
+    const ids = (marathon.packages ?? []).map((p) => p.id)
+    setOfferedIds(ids)
+    setText(buildDefaultOfferMessage(marathon.title))
     setImageFile(null)
-    setImagePreviewUrl(pkg?.offerImageUrl)
+    setImagePreviewUrl(marathon.packages?.find((p) => p.offerImageUrl)?.offerImageUrl)
     setStep('compose')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, registration?.id, marathon?.id])
@@ -73,15 +80,22 @@ export function OfferChatDialog({
   function handleResetImage() {
     if (imageFile) URL.revokeObjectURL(imagePreviewUrl!)
     setImageFile(null)
-    setImagePreviewUrl(pkg?.offerImageUrl)
+    setImagePreviewUrl(defaultImageUrl)
+  }
+
+  function toggleOffered(id: string) {
+    const next = offeredIds.includes(id) ? offeredIds.filter((x) => x !== id) : [...offeredIds, id]
+    setOfferedIds(next)
+    // Follow the default image of the new selection unless the admin uploaded their own.
+    if (!imageFile) setImagePreviewUrl(allPackages.find((p) => next.includes(p.id) && p.offerImageUrl)?.offerImageUrl)
   }
 
   async function handleProceed() {
     if (!registration || !marathon || !adminUid) return
     setIsSubmitting(true)
     try {
-      const finalImageUrl = imageFile ? await uploadMarathonPackageOffer(imageFile) : pkg?.offerImageUrl
-      await decideQueueRegistration(registration.id, 'accepted', finalImageUrl)
+      const finalImageUrl = imageFile ? await uploadMarathonPackageOffer(imageFile) : defaultImageUrl
+      await decideQueueRegistration(registration.id, 'accepted', offeredIds, finalImageUrl)
       try {
         await sendPersonalMessage(registration.userId, adminUid, 'admin', text.trim(), finalImageUrl, {
           registrationId: registration.id,
@@ -109,6 +123,29 @@ export function OfferChatDialog({
         {step === 'compose' ? (
           <>
             <div className="flex flex-col gap-1.5">
+              <Label className="text-muted-foreground text-xs">Packages to offer</Label>
+              {allPackages.length === 0 ? (
+                <p className="text-muted-foreground text-sm">This marathon has no packages yet — add some before sending offers.</p>
+              ) : (
+                allPackages.map((p) => (
+                  <div key={p.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`offer-pkg-${p.id}`}
+                      checked={offeredIds.includes(p.id)}
+                      onCheckedChange={() => toggleOffered(p.id)}
+                    />
+                    <Label htmlFor={`offer-pkg-${p.id}`} className="flex-1 text-sm font-normal">
+                      {p.name}
+                    </Label>
+                    <span className="text-muted-foreground text-xs tabular-nums">
+                      {p.priceCurrency} {p.priceAmount.toLocaleString()}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
               <Label className="text-muted-foreground text-xs">Offer image</Label>
               {imagePreviewUrl ? (
                 <img
@@ -118,7 +155,7 @@ export function OfferChatDialog({
                 />
               ) : (
                 <p className="text-muted-foreground rounded-md border border-dashed border-border p-3 text-center text-xs">
-                  No offer image set for this package yet — upload one below to include it.
+                  No offer image set for the offered packages — upload one below to include it.
                 </p>
               )}
               <div className="flex items-center gap-2">
@@ -157,8 +194,7 @@ export function OfferChatDialog({
                           offerAcceptanceDeadline: getOfferAcceptanceDeadline(new Date(), marathon.offerAcceptanceDays),
                         }
                       : undefined,
-                    pkg,
-                    registration,
+                    packages: offeredPackages,
                     offerImageUrl: imagePreviewUrl,
                     recipient: profile,
                   }).html
@@ -174,7 +210,7 @@ export function OfferChatDialog({
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="button" onClick={() => setStep('preview')} disabled={!text.trim()}>
+              <Button type="button" onClick={() => setStep('preview')} disabled={!text.trim() || offeredIds.length === 0}>
                 Preview email
               </Button>
             </>

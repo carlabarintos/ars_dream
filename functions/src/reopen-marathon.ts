@@ -2,9 +2,7 @@ import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/
 
 import { db } from './admin.js'
 import { logAuditEntry } from './audit-log.js'
-import { notifyUser } from './notify-user.js'
 import { requireAdmin } from './require-admin.js'
-import { resendApiKey } from './send-email.js'
 import { withSentry } from './sentry.js'
 
 // The Functions emulator has no real App Check backend to attest against
@@ -26,7 +24,7 @@ interface ReopenMarathonInput {
 }
 
 export const reopenMarathon = onCall<ReopenMarathonInput>(
-  { enforceAppCheck, secrets: [resendApiKey] },
+  { enforceAppCheck },
   withSentry(async (request: CallableRequest<ReopenMarathonInput>) => {
     const uid = await requireAdmin(request)
     const { marathonId } = request.data
@@ -55,16 +53,10 @@ export const reopenMarathon = onCall<ReopenMarathonInput>(
       (doc) => ((doc.data().cycle as number | undefined) ?? 1) === currentCycle,
     )
 
-    // A carried-forward registrant whose old package isn't among these ids
-    // needs to pick a new one — their old snapshot no longer refers to a
-    // real, currently-offered package.
-    const currentPackageIds = new Set((marathon.packages as { id: string }[] | undefined)?.map((p) => p.id) ?? [])
-
     const now = Date.now()
     let batch = db.batch()
     let opsInBatch = 0
     const pendingCommits: Promise<unknown>[] = []
-    const flaggedUserIds = new Set<string>()
 
     async function flush() {
       if (opsInBatch === 0) return
@@ -75,10 +67,6 @@ export const reopenMarathon = onCall<ReopenMarathonInput>(
 
     for (const [index, doc] of carryForward.entries()) {
       const data = doc.data()
-      const packageUpdateRequired = currentPackageIds.size > 0 && !currentPackageIds.has(data.packageId)
-      if (packageUpdateRequired) {
-        flaggedUserIds.add(data.userId)
-      }
       // Deterministic id — see firestore.rules and features/registrations/api.ts
       // — so a subsequent joinQueue call for this user/marathon/cycle updates
       // this same carried-forward entry instead of creating a duplicate.
@@ -86,11 +74,12 @@ export const reopenMarathon = onCall<ReopenMarathonInput>(
       batch.set(newRef, {
         userId: data.userId,
         marathonId,
-        packageId: data.packageId,
-        packageName: data.packageName,
-        packagePriceAmount: data.packagePriceAmount,
-        packagePriceCurrency: data.packagePriceCurrency,
-        ...(data.selectedAddOns ? { selectedAddOns: data.selectedAddOns } : {}),
+        // Back on the waitlist with no package — the next offer decides which packages they can pick.
+        packageId: '',
+        packageName: '',
+        packagePriceAmount: 0,
+        packagePriceCurrency: '',
+        selectedAddOns: [],
         status: 'queued',
         queuePosition: index + 1,
         cycle: newCycle,
@@ -98,7 +87,6 @@ export const reopenMarathon = onCall<ReopenMarathonInput>(
         proofOfPaymentUrls: [],
         proofSubmittedAt: null,
         adminNote: null,
-        ...(packageUpdateRequired ? { packageUpdateRequired: true } : {}),
         createdAt: new Date(now + index),
         updatedAt: new Date(now + index),
       })
@@ -121,25 +109,6 @@ export const reopenMarathon = onCall<ReopenMarathonInput>(
       metadata: { newCycle, carriedForward: carryForward.length },
     })
 
-    if (flaggedUserIds.size > 0) {
-      const marathonTitle = marathon.title as string | undefined
-      const body = marathonTitle
-        ? `Your previously selected package for ${marathonTitle} is no longer available for this round — pick a new one to keep your place in the queue.`
-        : 'Your previously selected package is no longer available for this round — pick a new one to keep your place in the queue.'
-
-      await Promise.all(
-        Array.from(flaggedUserIds).map((userId) =>
-          notifyUser({
-            userId,
-            pushTitle: 'Package update needed',
-            pushBody: body,
-            emailSubject: marathonTitle ? `Package update needed — ${marathonTitle}` : 'Package update needed',
-            emailBody: body,
-          }),
-        ),
-      )
-    }
-
-    return { newCycle, carriedForward: carryForward.length, flaggedForPackageUpdate: flaggedUserIds.size }
+    return { newCycle, carriedForward: carryForward.length }
   }),
 )

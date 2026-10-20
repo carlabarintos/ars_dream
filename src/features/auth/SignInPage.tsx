@@ -198,7 +198,7 @@ export function SignInPage() {
                   {mode === 'forgot-password' && 'Reset Password'}
                 </span>
                 <CardDescription>
-                  {mode === 'sign-in' && 'Sign in to join the queue for your next race.'}
+                  {mode === 'sign-in' && 'Sign in to join the waitlist for your next race.'}
                   {mode === 'sign-up' && 'Create an account to get started.'}
                   {mode === 'forgot-password' &&
                     (resetEmailSent

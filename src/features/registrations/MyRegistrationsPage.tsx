@@ -37,7 +37,7 @@ import {
   getWizardButtonLabel,
   isOnFinalInvoice,
   isOverdue,
-  needsPackageUpdate,
+  hasChosenPackage,
 } from './registration-flow'
 import { RegistrationWizard } from './RegistrationWizard'
 import { StatusBadge } from './StatusBadge'
@@ -329,22 +329,26 @@ export function MyRegistrationsPage() {
                       <div className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
                         Package
                       </div>
-                      <div className="text-sm font-semibold">{registration.packageName}</div>
+                      <div className="text-sm font-semibold">
+                        {hasChosenPackage(registration) ? registration.packageName : 'Chosen when you accept your offer'}
+                      </div>
                       {registration.selectedAddOns && registration.selectedAddOns.length > 0 && (
                         <div className="text-muted-foreground mt-0.5 text-xs">
                           + {registration.selectedAddOns.map((addOn) => addOn.name).join(', ')}
                         </div>
                       )}
                     </div>
-                    <div className="text-right">
-                      <div className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
-                        Total
+                    {hasChosenPackage(registration) && (
+                      <div className="text-right">
+                        <div className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+                          Total
+                        </div>
+                        <div className="text-sm font-semibold tabular-nums">
+                          {registration.packagePriceCurrency}{' '}
+                          {getRegistrationTotalAmount(registration).toLocaleString()}
+                        </div>
                       </div>
-                      <div className="text-sm font-semibold tabular-nums">
-                        {registration.packagePriceCurrency}{' '}
-                        {getRegistrationTotalAmount(registration).toLocaleString()}
-                      </div>
-                    </div>
+                    )}
                   </div>
 
                   <PipelineTracker registration={registration} />
@@ -380,11 +384,6 @@ export function MyRegistrationsPage() {
                 </CardContent>
 
                 <CardFooter className="border-border flex flex-col gap-2 border-t pt-4 pb-5">
-                  {needsPackageUpdate(registration) && (
-                    <Button className="w-full" asChild>
-                      <Link to={`/marathons/${registration.marathonId}/packages`}>Choose a New Package</Link>
-                    </Button>
-                  )}
                   {canReopenWizard(registration) && (
                     <Button className="w-full" onClick={() => setActiveRegistrationId(registration.id)}>
                       {getWizardButtonLabel(pendingStep)}
@@ -392,7 +391,7 @@ export function MyRegistrationsPage() {
                   )}
                   {canReRegister(registration) && (
                     <Button className="w-full" asChild>
-                      <Link to={`/marathons/${registration.marathonId}/packages`}>Register Again</Link>
+                      <Link to={`/marathons/${registration.marathonId}/packages`}>Join Waitlist Again</Link>
                     </Button>
                   )}
                   <CancelRegistrationButton registration={registration} />

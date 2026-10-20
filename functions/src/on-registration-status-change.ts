@@ -1,7 +1,7 @@
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore'
 
 import { db } from './admin.js'
-import { describeStatusEvent, logBookingEvent } from './booking-event.js'
+import { describePackage, describeStatusEvent, logBookingEvent } from './booking-event.js'
 import {
   ACCEPTED_COPY,
   FINAL_INVOICE_COPY,
@@ -47,24 +47,51 @@ export const onRegistrationStatusChange = onDocumentUpdated(
     const finalInvoiceReissued =
       after.status === 'final_invoiced' &&
       before.finalInvoice?.issuedAt?.toMillis() !== after.finalInvoice?.issuedAt?.toMillis()
-    if (before.status === after.status && !finalInvoiceReissued) return
+
+    // An admin changing the package/add-ons (ChangePackageDialog) leaves the status as is. The
+    // registrant's own pick happens on accepting the offer, which is a status change logged below.
+    const packageChanged =
+      before.status === after.status &&
+      before.packageId !== '' &&
+      after.packageId !== '' &&
+      (before.packageId !== after.packageId ||
+        JSON.stringify(before.selectedAddOns ?? []) !== JSON.stringify(after.selectedAddOns ?? []))
+
+    if (before.status === after.status && !finalInvoiceReissued && !packageChanged) return
+
+    // Before the deposit is approved the invoice is derived from the package, so a package change amends it — resend it.
+    const depositInvoiceAmended =
+      packageChanged && ['terms_accepted', 'payment_rejected'].includes(after.status) && after.finalInvoice == null
 
     const marathonDoc = await db.collection('marathons').doc(after.marathonId).get()
-    await logBookingEvent(
-      event.params.registrationId,
-      after,
-      describeStatusEvent(after, before.status === after.status),
-      marathonDoc.data()?.title,
-      // Link the submitted proof so both sides can reopen it from the booking's history.
-      after.status === 'payment_submitted' ? after.proofOfPaymentUrls : undefined,
-    )
+    if (packageChanged) {
+      await logBookingEvent(
+        event.params.registrationId,
+        after,
+        `Package changed by ARS Dream: ${describePackage(before)} → ${describePackage(after)}` +
+          (depositInvoiceAmended ? ' — amended invoice sent' : ''),
+        marathonDoc.data()?.title,
+      )
+      if (!finalInvoiceReissued && !depositInvoiceAmended) return
+    }
+    if (!packageChanged || finalInvoiceReissued) {
+      await logBookingEvent(
+        event.params.registrationId,
+        after,
+        // An invoice re-issued on a paid booking (confirmed → final_invoiced) is an update too.
+        describeStatusEvent(after, before.status === after.status || before.finalInvoice != null),
+        marathonDoc.data()?.title,
+        // Link the submitted proof so both sides can reopen it from the booking's history.
+        after.status === 'payment_submitted' ? after.proofOfPaymentUrls : undefined,
+      )
+    }
 
-    const copy = NOTIFICATION_COPY[after.status as string]
+    const copy = depositInvoiceAmended ? INVOICE_COPY : NOTIFICATION_COPY[after.status as string]
     if (!copy) return
 
     const [settingsDoc, userDoc] = await Promise.all([
       db.collection('settings').doc('notifications').get(),
-      after.status === 'accepted' || after.status === 'terms_accepted' || after.status === 'final_invoiced'
+      after.status === 'accepted' || after.status === 'terms_accepted' || after.status === 'final_invoiced' || depositInvoiceAmended
         ? db.collection('users').doc(after.userId).get()
         : undefined,
     ])
@@ -90,13 +117,9 @@ export const onRegistrationStatusChange = onDocumentUpdated(
           ),
           depositDueDays: marathon.depositDueDays,
         },
-        pkg: marathon?.packages?.find((p: { id: string }) => p.id === after.packageId),
-        registration: {
-          packageName: after.packageName,
-          packagePriceAmount: after.packagePriceAmount,
-          packagePriceCurrency: after.packagePriceCurrency,
-          selectedAddOns: after.selectedAddOns,
-        },
+        packages: (marathon?.packages ?? []).filter((p: { id: string }) =>
+          ((after.offeredPackageIds as string[] | undefined) ?? [after.packageId]).includes(p.id),
+        ),
         offerImageUrl: after.offerImageUrl,
         recipient: userDoc?.data(),
       })
@@ -112,7 +135,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
       return
     }
 
-    if (after.status === 'terms_accepted') {
+    if (after.status === 'terms_accepted' || depositInvoiceAmended) {
       const { subject, body, html } = buildInvoiceEmail({
         marathon: marathon && {
           title: marathon.title,

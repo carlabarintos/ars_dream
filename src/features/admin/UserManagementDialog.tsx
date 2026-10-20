@@ -70,7 +70,7 @@ function BookingsTab({ userId }: { userId: string }) {
             <TableCell className="font-medium">
               {marathons[registration.marathonId]?.title ?? 'Unknown event'}
             </TableCell>
-            <TableCell className="text-muted-foreground">{registration.packageName}</TableCell>
+            <TableCell className="text-muted-foreground">{registration.packageName || '—'}</TableCell>
             <TableCell>
               <StatusBadge status={registration.status} />
             </TableCell>

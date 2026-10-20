@@ -14,8 +14,6 @@ import {
 } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { TicketSeam } from '@/components/TicketSeam'
 import { useAuthStore } from '@/features/auth/auth-store'
@@ -24,21 +22,20 @@ import { joinQueue } from '@/features/registrations/api'
 import { CancelRegistrationButton } from '@/features/registrations/CancelRegistrationButton'
 import {
   canCancelRegistration,
-  canChangePackage,
   canReopenWizard,
   canReRegister,
   getPendingActionStep,
   getRegistrationStatusMessage,
   getRegistrationTotalAmount,
   getWizardButtonLabel,
-  needsPackageUpdate,
+  hasChosenPackage,
 } from '@/features/registrations/registration-flow'
 import { RegistrationWizard } from '@/features/registrations/RegistrationWizard'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
 import { getFriendlyErrorMessage } from '@/lib/friendly-error'
 import { cn } from '@/lib/utils'
-import type { MarathonPackage, MarathonPackageAddOn } from '@/types'
+import type { MarathonPackage } from '@/types'
 
 import { AVAILABILITY_PILL, getMarathonAvailability } from './marathon-status'
 import { PackagePhotoCarousel } from './PackagePhotoCarousel'
@@ -52,49 +49,19 @@ function formatPrice(pkg: MarathonPackage) {
   return `${pkg.priceCurrency} ${pkg.priceAmount.toLocaleString()}`
 }
 
-function formatTotal(pkg: MarathonPackage, selectedAddOns: MarathonPackageAddOn[]) {
-  const total = pkg.priceAmount + selectedAddOns.reduce((sum, addOn) => sum + addOn.priceAmount, 0)
-  return `${pkg.priceCurrency} ${total.toLocaleString()}`
-}
-
 export function PackageSelectionPage() {
   const { marathonId } = useParams<{ marathonId: string }>()
   const navigate = useNavigate()
   const { marathon, isLoading } = useMarathon(marathonId)
   const uid = useAuthStore((state) => state.firebaseUser?.uid)
   const { registrations } = useUserRegistrations(uid)
-  const [joiningPackageId, setJoiningPackageId] = useState<string | null>(null)
+  const [isJoining, setIsJoining] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
-  const [selectedAddOnIds, setSelectedAddOnIds] = useState<Record<string, Set<string>>>({})
 
   const myRegistration = registrations.find(
     (r) => r.marathonId === marathonId && (r.cycle ?? 1) === (marathon?.cycle ?? 1),
   )
-
-  // Once the registrant has touched a package's add-on checkboxes, that
-  // becomes the source of truth for it; until then, default to whatever
-  // they'd previously selected if this is the package on their existing
-  // registration, so re-opening the page doesn't silently drop their picks.
-  // Mandatory add-ons are always selected regardless.
-  function getSelectedIdsForPackage(pkg: MarathonPackage): Set<string> {
-    const mandatoryIds = (pkg.addOns ?? []).filter((a) => a.mandatory).map((a) => a.id)
-    if (selectedAddOnIds[pkg.id]) return new Set([...selectedAddOnIds[pkg.id], ...mandatoryIds])
-    if (myRegistration && myRegistration.packageId === pkg.id) {
-      return new Set([...(myRegistration.selectedAddOns ?? []).map((a) => a.addOnId), ...mandatoryIds])
-    }
-    return new Set(mandatoryIds)
-  }
-
-  function toggleAddOn(pkg: MarathonPackage, addOnId: string) {
-    setSelectedAddOnIds((prev) => {
-      const current = new Set(prev[pkg.id] ?? getSelectedIdsForPackage(pkg))
-      if (current.has(addOnId)) current.delete(addOnId)
-      else current.add(addOnId)
-      return { ...prev, [pkg.id]: current }
-    })
-  }
   const pendingStep = myRegistration ? getPendingActionStep(myRegistration, marathon ?? undefined) : null
-  const canSwapPackage = myRegistration ? canChangePackage(myRegistration) : false
   const canReRegisterNow = myRegistration ? canReRegister(myRegistration) : false
 
   const spotsLeft = marathon ? Math.max(marathon.capacity - marathon.confirmedCount, 0) : 0
@@ -109,24 +76,17 @@ export function PackageSelectionPage() {
     (marathon ? new Date() > marathon.registrationClosesAt.toDate() : false) ||
     marathon?.status !== 'published'
 
-  async function handleSelectPackage(pkg: MarathonPackage) {
+  async function handleJoinWaitlist() {
     if (!uid || !marathon) return
-    const isSwap = myRegistration != null && !canReRegisterNow
-    const selectedIds = getSelectedIdsForPackage(pkg)
-    const selectedAddOns = (pkg.addOns ?? []).filter((addOn) => selectedIds.has(addOn.id))
-    setJoiningPackageId(pkg.id)
+    setIsJoining(true)
     try {
-      await joinQueue(uid, marathon.id, pkg, selectedAddOns, marathon.cycle ?? 1)
-      if (isSwap) {
-        toast.success('Your package has been updated.')
-      } else {
-        toast.success("You're in the queue! We'll notify you once an admin reviews your request.")
-        navigate('/')
-      }
+      await joinQueue(uid, marathon.id, marathon.cycle ?? 1)
+      toast.success("You're on the waitlist! We'll notify you once we have packages to offer you.")
+      navigate('/')
     } catch (error) {
       toast.error(getFriendlyErrorMessage(error, 'queue'))
     } finally {
-      setJoiningPackageId(null)
+      setIsJoining(false)
     }
   }
 
@@ -221,10 +181,12 @@ export function PackageSelectionPage() {
             </div>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm">
-            <p className="text-muted-foreground">
-              Package: {myRegistration.packageName} ({myRegistration.packagePriceCurrency}{' '}
-              {myRegistration.packagePriceAmount.toLocaleString()})
-            </p>
+            {hasChosenPackage(myRegistration) && (
+              <p className="text-muted-foreground">
+                Package: {myRegistration.packageName} ({myRegistration.packagePriceCurrency}{' '}
+                {myRegistration.packagePriceAmount.toLocaleString()})
+              </p>
+            )}
             {myRegistration.selectedAddOns && myRegistration.selectedAddOns.length > 0 && (
               <p className="text-muted-foreground">
                 Add-ons: {myRegistration.selectedAddOns.map((addOn) => addOn.name).join(', ')}
@@ -237,20 +199,6 @@ export function PackageSelectionPage() {
               </p>
             )}
             <p className="text-muted-foreground">{getRegistrationStatusMessage(myRegistration)}</p>
-            {needsPackageUpdate(myRegistration) ? (
-              <p className="text-muted-foreground">
-                Your previous package isn't available anymore — pick a new one below to keep your place in queue.
-              </p>
-            ) : (
-              canSwapPackage && (
-                <p className="text-muted-foreground">
-                  You can still switch to a different package below while your registration is pending.
-                </p>
-              )
-            )}
-            {canReRegisterNow && (
-              <p className="text-muted-foreground">Pick a package below to register again.</p>
-            )}
           </CardContent>
           {(canReopenWizard(myRegistration) || canCancelRegistration(myRegistration)) && (
             <CardFooter className="border-border flex flex-col gap-2 border-t pt-4">
@@ -265,18 +213,35 @@ export function PackageSelectionPage() {
         </Card>
       )}
 
-      {!myRegistration || canSwapPackage || canReRegisterNow ? (
-        (marathon.packages ?? []).length === 0 ? (
-          !myRegistration && <p className="text-muted-foreground">No packages are available for this event yet.</p>
-        ) : (
+      {(!myRegistration || canReRegisterNow) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{canReRegisterNow ? 'Join the Waitlist Again' : 'Join the Waitlist'}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-muted-foreground text-sm">
+            Slots are limited. Once one opens up, we'll send you an offer with the packages available to you —
+            you'll choose your package and add-ons when you accept it.
+          </CardContent>
+          <CardFooter className="border-border border-t pt-4">
+            <Button
+              className="w-full"
+              disabled={isFull || isClosed || isJoining}
+              loading={isJoining}
+              onClick={handleJoinWaitlist}
+            >
+              {isFull || isClosed ? 'Registration Closed' : isJoining ? 'Joining…' : 'Add Me to the Waitlist'}
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
+
+      {(marathon.packages ?? []).length > 0 && (
           <div className="flex flex-col gap-5">
             <div>
               <span className="text-primary text-xs font-semibold tracking-[0.2em] uppercase">Packages</span>
-              <h2 className="font-display mt-1 text-3xl tracking-wide">Choose Your Package</h2>
+              <h2 className="font-display mt-1 text-3xl tracking-wide">Available Packages</h2>
               <p className="text-muted-foreground mt-1 text-sm">
-                {canSwapPackage || canReRegisterNow
-                  ? "Pick a package below — we'll notify you once an admin reviews your request."
-                  : "Select a package to join the queue. We'll notify you once it's your turn."}
+                For reference — your offer will list the packages you can choose from.
               </p>
             </div>
             {sharedInclusions.length > 0 && (
@@ -302,38 +267,14 @@ export function PackageSelectionPage() {
               )}
             >
               {marathon.packages!.map((pkg) => {
-                // Swap mode = editing the package on a still-pending registration.
-                // Re-register/fresh-join both start a new queue attempt, so they
-                // share the same capacity/closed gating a first-time join uses.
-                const isSwapMode = myRegistration != null && !canReRegisterNow
-                const isCurrentPackage = isSwapMode && myRegistration!.packageId === pkg.id
-                const isBlockedByCapacity = !isSwapMode && (isFull || isClosed)
-                const disabled = isCurrentPackage || isBlockedByCapacity || joiningPackageId !== null
-                const label = isCurrentPackage
-                  ? 'Current Package'
-                  : isBlockedByCapacity
-                    ? 'Registration Closed'
-                    : joiningPackageId === pkg.id
-                      ? isSwapMode
-                        ? 'Switching…'
-                        : 'Joining…'
-                      : isSwapMode
-                        ? 'Switch to This Package'
-                        : canReRegisterNow
-                          ? 'Register Again'
-                          : 'Select & Join Queue'
-
-                const selectedIds = getSelectedIdsForPackage(pkg)
-                const selectedAddOns = (pkg.addOns ?? []).filter((addOn) => selectedIds.has(addOn.id))
-
+                const isCurrentPackage = myRegistration?.packageId === pkg.id
                 const hasPhotos = (pkg.photoUrls?.length ?? 0) > 0
 
                 return (
                 <Card
                   key={pkg.id}
                   className={cn(
-                    'group flex flex-col gap-0 overflow-hidden py-0 transition-all duration-200',
-                    !disabled && 'hover:border-primary/40 hover:-translate-y-1 hover:shadow-lg',
+                    'flex flex-col gap-0 overflow-hidden py-0',
                     isCurrentPackage && 'border-primary ring-primary/25 ring-2',
                   )}
                 >
@@ -348,16 +289,11 @@ export function PackageSelectionPage() {
                   <CardHeader>
                     <div className="flex items-start justify-between gap-3">
                       <CardTitle>{pkg.name}</CardTitle>
-                      {isCurrentPackage && <Badge variant="secondary">Current</Badge>}
+                      {isCurrentPackage && <Badge variant="secondary">Your Package</Badge>}
                     </div>
-                    <p className="font-display pt-1 text-3xl tracking-wide">
-                      {formatTotal(pkg, selectedAddOns)}
-                    </p>
-                    {selectedAddOns.length > 0 && (
-                      <p className="text-muted-foreground text-xs">Base package {formatPrice(pkg)}</p>
-                    )}
+                    <p className="font-display pt-1 text-3xl tracking-wide">{formatPrice(pkg)}</p>
                   </CardHeader>
-                  <CardContent className="flex flex-1 flex-col gap-4 pt-4">
+                  <CardContent className="flex flex-1 flex-col gap-4 pt-4 pb-6">
                     {getPackageDescription(pkg) && (
                       <ul className="text-muted-foreground flex list-disc flex-col gap-1.5 pl-5 text-sm">
                         {getPackageDescription(pkg)
@@ -373,39 +309,20 @@ export function PackageSelectionPage() {
                         <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
                           Add-ons
                         </p>
-                        {pkg.addOns.map((addOn) => {
-                          const checkboxId = `addon-${pkg.id}-${addOn.id}`
-                          return (
-                            <div key={addOn.id} className="flex items-center gap-2">
-                              <Checkbox
-                                id={checkboxId}
-                                checked={selectedIds.has(addOn.id)}
-                                disabled={disabled || addOn.mandatory}
-                                onCheckedChange={() => toggleAddOn(pkg, addOn.id)}
-                              />
-                              <Label htmlFor={checkboxId} className="flex-1 text-sm font-normal">
-                                {addOn.name}
-                                {addOn.mandatory && <span className="text-muted-foreground text-xs">(required)</span>}
-                              </Label>
-                              <span className="text-muted-foreground text-xs font-bold">
-                                +{pkg.priceCurrency} {addOn.priceAmount.toLocaleString()}
-                              </span>
-                            </div>
-                          )
-                        })}
+                        {pkg.addOns.map((addOn) => (
+                          <div key={addOn.id} className="flex items-center justify-between gap-2 text-sm">
+                            <span>
+                              {addOn.name}
+                              {addOn.mandatory && <span className="text-muted-foreground text-xs"> (required)</span>}
+                            </span>
+                            <span className="text-muted-foreground text-xs font-bold">
+                              +{pkg.priceCurrency} {addOn.priceAmount.toLocaleString()}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </CardContent>
-                  <CardFooter className="border-border mt-4 border-t pt-4">
-                    <Button
-                      className="w-full"
-                      disabled={disabled}
-                      loading={joiningPackageId === pkg.id}
-                      onClick={() => handleSelectPackage(pkg)}
-                    >
-                      {label}
-                    </Button>
-                  </CardFooter>
                 </Card>
                 )
               })}
@@ -421,8 +338,7 @@ export function PackageSelectionPage() {
               </div>
             )}
           </div>
-        )
-      ) : null}
+      )}
 
       {showWizard && myRegistration && (
         <RegistrationWizard

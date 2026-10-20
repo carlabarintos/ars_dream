@@ -12,7 +12,7 @@ import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-p
 import { useMarathon } from '@/features/marathons/use-marathons'
 import { BookingChatDialog } from '@/features/messages/BookingChatDialog'
 import { cancelRegistration, decideQueueRegistration } from '@/features/registrations/api'
-import { isOverdue } from '@/features/registrations/registration-flow'
+import { hasChosenPackage, isOverdue } from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
@@ -20,6 +20,7 @@ import type { Registration } from '@/types'
 
 import { exportQueueCsv } from './export-import/full-export'
 import { ImportDialog } from './export-import/ImportDialog'
+import { ChangePackageDialog } from './ChangePackageDialog'
 import { FinalInvoiceDialog } from './FinalInvoiceDialog'
 import { OfferChatDialog } from './OfferChatDialog'
 
@@ -112,6 +113,8 @@ export function QueueReviewPage() {
   const [invoiceRegistrationId, setInvoiceRegistrationId] = useState<string | null>(null)
   const chatRegistration = registrations.find((r) => r.id === chatRegistrationId)
   const invoiceRegistration = registrations.find((r) => r.id === invoiceRegistrationId)
+  const [packageRegistrationId, setPackageRegistrationId] = useState<string | null>(null)
+  const packageRegistration = registrations.find((r) => r.id === packageRegistrationId)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const statusFilteredRegistrations = orderedRegistrations.filter((registration) =>
     matchesStatusFilter(registration, statusFilter),
@@ -264,9 +267,23 @@ export function QueueReviewPage() {
                       {STATUS_BADGE_LABEL[registration.status as Exclude<Registration['status'], 'queued'>]}
                     </Badge>
                   )}
-                  {(registration.status === 'deposit_paid' || registration.status === 'final_invoiced') && (
+                  {['deposit_paid', 'final_invoiced', 'confirmed'].includes(registration.status) && (
                     <Button size="sm" onClick={() => setInvoiceRegistrationId(registration.id)}>
-                      {registration.finalInvoice ? 'Edit Final Invoice' : 'Final Invoice'}
+                      {registration.status === 'confirmed'
+                        ? 'Additional Invoice'
+                        : registration.finalInvoice
+                          ? 'Edit Final Invoice'
+                          : 'Final Invoice'}
+                    </Button>
+                  )}
+                  {hasChosenPackage(registration) && !['rejected', 'cancelled'].includes(registration.status) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      title={registration.packageName}
+                      onClick={() => setPackageRegistrationId(registration.id)}
+                    >
+                      Change Package
                     </Button>
                   )}
                   <Button variant="outline" size="sm" onClick={() => setChatRegistrationId(registration.id)}>
@@ -297,6 +314,13 @@ export function QueueReviewPage() {
           viewerRole="admin"
           otherPartyLabel={formatUserName(profiles[chatRegistration.userId])}
           onClose={() => setChatRegistrationId(null)}
+        />
+      )}
+      {packageRegistration && (
+        <ChangePackageDialog
+          registration={packageRegistration}
+          marathon={marathon ?? null}
+          onClose={() => setPackageRegistrationId(null)}
         />
       )}
       {invoiceRegistration && (

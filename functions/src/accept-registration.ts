@@ -18,13 +18,15 @@ interface AcceptRegistrationInput {
   decision: 'accepted' | 'rejected'
   /** The offer image the admin previewed/attached in OfferChatDialog, if any — snapshotted onto the registration so onRegistrationStatusChange can include it in the acceptance email. */
   offerImageUrl?: string
+  /** Required when accepting: the marathon packages the registrant may choose from when they accept the offer. */
+  offeredPackageIds?: string[]
 }
 
 export const acceptRegistration = onCall<AcceptRegistrationInput>(
   { enforceAppCheck },
   withSentry(async (request: CallableRequest<AcceptRegistrationInput>) => {
     const uid = await requireAdmin(request)
-    const { registrationId, decision, offerImageUrl } = request.data
+    const { registrationId, decision, offerImageUrl, offeredPackageIds } = request.data
 
     const registrationRef = db.collection('registrations').doc(registrationId)
     const registrationSnap = await registrationRef.get()
@@ -63,6 +65,12 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
       if (registrationSnap.data()?.status !== 'queued') {
         throw new HttpsError('failed-precondition', 'Registration is not in the queue.')
       }
+      const marathonPackageIds = new Set(
+        ((marathonSnap.data()!.packages as { id: string }[] | undefined) ?? []).map((p) => p.id),
+      )
+      if (!offeredPackageIds?.length || !offeredPackageIds.every((id) => marathonPackageIds.has(id))) {
+        throw new HttpsError('invalid-argument', "Offer at least one of this marathon's packages.")
+      }
       const capacity = marathonSnap.data()!.capacity as number
       const cycle = (registration.cycle as number | undefined) ?? 1
 
@@ -86,6 +94,7 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
 
       transaction.update(registrationRef, {
         status: 'accepted',
+        offeredPackageIds,
         offeredAt: new Date(),
         updatedAt: new Date(),
         // A re-registered doc may still carry a flag from an earlier overdue offer.

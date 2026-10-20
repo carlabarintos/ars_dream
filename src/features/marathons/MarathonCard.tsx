@@ -85,7 +85,7 @@ export function MarathonCard({
             {isFull || isClosed ? (
               'Registration Closed'
             ) : (
-              <Link to={`/marathons/${marathon.id}/packages`}>View Packages</Link>
+              <Link to={`/marathons/${marathon.id}/packages`}>View & Join Waitlist</Link>
             )}
           </Button>
         )}

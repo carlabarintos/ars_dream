@@ -27,7 +27,7 @@ const DESTINATIONS: { city: string; medalCity: MedalCity; country: string; note:
 ]
 
 const STEPS = [
-  { icon: ClipboardListIcon, title: 'Join the Queue', description: 'Apply for a tour package and hold your place in a transparent, first-come queue.' },
+  { icon: ClipboardListIcon, title: 'Join the Waitlist', description: 'Join the waitlist and hold your place in a transparent, first-come queue.' },
   { icon: CheckCircle2Icon, title: 'Get an Offer', description: 'Our team reviews applications and offers you a slot as capacity allows.' },
   { icon: FileTextIcon, title: 'Accept Terms', description: 'Review your tour terms and, if the event needs it, answer a short questionnaire.' },
   { icon: CreditCardIcon, title: 'Submit Payment', description: 'Send proof of payment for our team to verify against your package.' },
@@ -251,7 +251,7 @@ export function LandingPage() {
         <div className="sd-reveal mx-auto max-w-3xl">
           <h2 className="font-display text-6xl leading-[0.95] tracking-wide sm:text-8xl">Your next start line is waiting.</h2>
           <p className="text-muted-foreground mx-auto mt-5 max-w-[48ch]">
-            Create your account to see live availability and join the queue for our current tours.
+            Create your account to see live availability and join the waitlist for our current tours.
           </p>
           <ReserveButton className="mt-9" />
         </div>

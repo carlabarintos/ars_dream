@@ -101,7 +101,7 @@ export function getOfferAcceptanceDeadline(offeredAt: Date, offerAcceptanceDays:
 
 export const ACCEPTED_COPY = {
   title: "You've got an offer!",
-  body: 'Open ARS Dream to accept the terms and submit your proof of deposit payment.',
+  body: 'Open ARS Dream to choose your package, accept the terms and submit your proof of deposit payment.',
 }
 
 /** The bits of a marathon/package/registration the acceptance email shows — plain types so both the Admin SDK and the web SDK side can fill them in. */
@@ -119,20 +119,17 @@ export interface AcceptanceEmailInput {
     offerAcceptanceDeadline?: Date
     depositDueDays?: number
   }
-  /** The marathon's current package matching the registration's packageId, for its description and photo. */
-  pkg?: {
+  /** The marathon packages offered (Registration.offeredPackageIds) — the registrant picks one when accepting. */
+  packages: {
+    name: string
+    priceAmount: number
+    priceCurrency: string
+    depositAmount?: number
     description?: string
     details?: { label: string; value: string }[]
     photoUrls?: string[]
-    depositAmount?: number
-  }
-  /** Price/add-on snapshot from the registration, so the email shows what the registrant actually picked. */
-  registration: {
-    packageName: string
-    packagePriceAmount: number
-    packagePriceCurrency: string
-    selectedAddOns?: { name: string; priceAmount: number }[]
-  }
+    addOns?: { name: string; priceAmount: number; mandatory?: boolean }[]
+  }[]
   offerImageUrl?: string
   /** The registrant's profile, for greeting them by name. */
   recipient?: { firstName?: string | null; displayName?: string | null }
@@ -141,8 +138,7 @@ export interface AcceptanceEmailInput {
 /** The acceptance email, laid out like the marathon's package page in the app. Shared by onRegistrationStatusChange and the admin preview. */
 export function buildAcceptanceEmail({
   marathon,
-  pkg,
-  registration,
+  packages,
   offerImageUrl,
   recipient,
 }: AcceptanceEmailInput): {
@@ -151,13 +147,7 @@ export function buildAcceptanceEmail({
   html: string
 } {
   const title = marathon?.title
-  const currency = escapeHtml(registration.packagePriceCurrency)
-  const addOns = registration.selectedAddOns ?? []
-  const total = registration.packagePriceAmount + addOns.reduce((sum, addOn) => sum + addOn.priceAmount, 0)
-  const description =
-    pkg?.description ?? (pkg?.details ?? []).map((detail) => `${detail.label}: ${detail.value}`).join('\n')
-  const descriptionLines = toBulletLines(description)
-  const photoUrl = pkg?.photoUrls?.[0]
+  const packageNames = packages.map((pkg) => escapeHtml(pkg.name)).join(', ')
   const sharedInclusions = toBulletLines(marathon?.sharedInclusions)
   const packageNotes = toBulletLines(marathon?.packageNotes)
   const eventDate = marathon?.eventDate && formatDate(marathon.eventDate)
@@ -195,8 +185,8 @@ export function buildAcceptanceEmail({
             <p style="margin: 0; font-size: 14px; font-weight: 600;">${eventDate ? escapeHtml(eventDate) : '—'}</p>
           </td>
           <td style="width: 50%; padding: 16px; vertical-align: top;">
-            <p style="margin: 0 0 4px; font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: ${MUTED};">🎟️ Your Package</p>
-            <p style="margin: 0; font-size: 14px; font-weight: 600;">${escapeHtml(registration.packageName)}</p>
+            <p style="margin: 0 0 4px; font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: ${MUTED};">🎟️ Packages Offered</p>
+            <p style="margin: 0; font-size: 14px; font-weight: 600;">${packageNames || '—'}</p>
           </td>
         </tr>
       </table>
@@ -213,9 +203,8 @@ export function buildAcceptanceEmail({
           </tr>
         </table>
         ${lineItem(escapeHtml(body))}
-        ${lineItem(`Package: ${escapeHtml(registration.packageName)}`)}
-        ${addOns.length > 0 ? lineItem(`Add-ons: ${addOns.map((addOn) => escapeHtml(addOn.name)).join(', ')}`) : ''}
-        ${pkg?.depositAmount ? lineItem(`Deposit: ${currency} ${Math.min(pkg.depositAmount, total).toLocaleString()} — due within ${depositDueDays} day${depositDueDays === 1 ? '' : 's'} of accepting this offer`, true) : ''}
+        ${lineItem(`${packages.length === 1 ? 'Package' : 'Choose from'}: ${packageNames}`)}
+        ${packages.some((pkg) => pkg.depositAmount) ? lineItem(`Deposit due within ${depositDueDays} day${depositDueDays === 1 ? '' : 's'} of accepting this offer`, true) : ''}
         ${marathon?.offerAcceptanceDeadline ? lineItem(`Accept this offer by: ${formatDateTime(marathon.offerAcceptanceDeadline)} (Manila time)`, true) : ''}
       </div>
       <div style="border-top: 1px solid ${BORDER}; padding: 16px 20px 20px;">
@@ -236,7 +225,14 @@ export function buildAcceptanceEmail({
         )
       : ''
 
-  const packageCardHtml = `
+  const packageCardHtml = (pkg: AcceptanceEmailInput['packages'][number]) => {
+    const currency = escapeHtml(pkg.priceCurrency)
+    const descriptionLines = toBulletLines(
+      pkg.description ?? (pkg.details ?? []).map((detail) => `${detail.label}: ${detail.value}`).join('\n'),
+    )
+    const photoUrl = pkg.photoUrls?.[0]
+    const addOns = pkg.addOns ?? []
+    return `
     <div style="background: #ffffff; border: 2px solid ${PRIMARY}; border-radius: 16px; overflow: hidden; margin: 0 0 24px;">
       ${
         photoUrl
@@ -244,18 +240,9 @@ export function buildAcceptanceEmail({
           : `<div style="height: 10px; background: linear-gradient(to right, ${PRIMARY}, ${NAVY}); background-color: ${PRIMARY};"></div>`
       }
       <div style="padding: 20px 20px 0;">
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
-          <tr>
-            <td style="font-family: ${DISPLAY}; font-size: 26px; line-height: 1; letter-spacing: 1px;">${escapeHtml(registration.packageName)}</td>
-            <td style="text-align: right; vertical-align: top;">${pill('Your package', SECONDARY, FOREGROUND)}</td>
-          </tr>
-        </table>
-        ${
-          pkg?.depositAmount
-            ? `<p style="margin: 10px 0 0; font-family: ${DISPLAY}; font-size: 32px; line-height: 1.1; letter-spacing: 1px;">${currency} ${Math.min(pkg.depositAmount, total).toLocaleString()}</p>
-               <p style="margin: 2px 0 0; font-size: 12px; color: ${MUTED};">Deposit</p>`
-            : ''
-        }
+        <p style="margin: 0; font-family: ${DISPLAY}; font-size: 26px; line-height: 1; letter-spacing: 1px;">${escapeHtml(pkg.name)}</p>
+        <p style="margin: 10px 0 0; font-family: ${DISPLAY}; font-size: 32px; line-height: 1.1; letter-spacing: 1px;">${currency} ${pkg.priceAmount.toLocaleString()}</p>
+        ${pkg.depositAmount ? `<p style="margin: 2px 0 0; font-size: 12px; color: ${MUTED};">Deposit ${currency} ${Math.min(pkg.depositAmount, pkg.priceAmount).toLocaleString()}</p>` : ''}
       </div>
       <div style="padding: 16px 20px 20px;">
         ${descriptionLines.length > 0 ? bulletTable(descriptionLines, '•', MUTED, MUTED) : ''}
@@ -267,7 +254,7 @@ export function buildAcceptanceEmail({
                   ${addOns
                     .map(
                       (addOn) =>
-                        `<tr><td style="padding: 0 0 6px; font-size: 14px;"><span style="color: ${PRIMARY}; font-weight: 700;">✓</span>&nbsp; ${escapeHtml(addOn.name)}</td></tr>`,
+                        `<tr><td style="padding: 0 0 6px; font-size: 14px;">${escapeHtml(addOn.name)}${addOn.mandatory ? ' (required)' : ''}</td><td style="padding: 0 0 6px; font-size: 12px; text-align: right; color: ${MUTED};">+${currency} ${addOn.priceAmount.toLocaleString()}</td></tr>`,
                     )
                     .join('')}
                 </table>
@@ -276,6 +263,7 @@ export function buildAcceptanceEmail({
         }
       </div>
     </div>`
+  }
 
   const hotelHtml =
     hotelLines.length > 0 || hotelImageUrl
@@ -299,11 +287,11 @@ export function buildAcceptanceEmail({
         ${statusCardHtml}
 
         <p style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase; color: ${PRIMARY};">Packages</p>
-        <p style="margin: 4px 0; font-family: ${DISPLAY}; font-size: 32px; line-height: 1.1; letter-spacing: 1px;">Your Package</p>
-        <p style="margin: 0 0 20px; font-size: 14px; color: ${MUTED};">Here's everything included in the package you picked.</p>
+        <p style="margin: 4px 0; font-family: ${DISPLAY}; font-size: 32px; line-height: 1.1; letter-spacing: 1px;">${packages.length === 1 ? 'Your Package' : 'Your Options'}</p>
+        <p style="margin: 0 0 20px; font-size: 14px; color: ${MUTED};">${packages.length === 1 ? "Here's everything included in the package we're offering you." : "Pick one of these packages (and any add-ons) when you accept your offer."}</p>
 
         ${inclusionsHtml}
-        ${packageCardHtml}
+        ${packages.map(packageCardHtml).join('')}
         ${packageNotes.length > 0 ? infoBox(eyebrow('Notes') + bulletTable(packageNotes, '•', MUTED, MUTED)) : ''}
         ${hotelHtml}
         ${offerImageUrl ? `<img src="${escapeHtml(offerImageUrl)}" alt="" style="width: 100%; border-radius: 16px; margin: 0 0 24px; display: block;" />` : ''}
@@ -336,7 +324,13 @@ export interface InvoiceEmailInput {
   }
   /** The package's current deposit amount; absent/0 means the full amount is due by the balance deadline. */
   depositAmount?: number
-  registration: AcceptanceEmailInput['registration']
+  /** Price/add-on snapshot from the registration, so the email shows what the registrant actually picked. */
+  registration: {
+    packageName: string
+    packagePriceAmount: number
+    packagePriceCurrency: string
+    selectedAddOns?: { name: string; priceAmount: number }[]
+  }
   recipient?: AcceptanceEmailInput['recipient']
 }
 

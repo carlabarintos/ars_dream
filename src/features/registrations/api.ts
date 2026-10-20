@@ -25,7 +25,7 @@ import type {
   SelectedAddOn,
 } from '@/types'
 import type { RegistrationRestorePatch } from '@/features/admin/export-import/serialize'
-import { canChangePackage, canReRegister } from '@/features/registrations/registration-flow'
+import { canReRegister } from '@/features/registrations/registration-flow'
 import { UserFacingError } from '@/lib/user-facing-error'
 
 const registrationsRef = collection(db, 'registrations')
@@ -94,67 +94,52 @@ function toSelectedAddOns(addOns: MarathonPackageAddOn[]): SelectedAddOn[] {
   return addOns.map((addOn) => ({ addOnId: addOn.id, name: addOn.name, priceAmount: addOn.priceAmount }))
 }
 
-export async function joinQueue(
-  userId: string,
-  marathonId: string,
-  selectedPackage: MarathonPackage,
-  selectedAddOns: MarathonPackageAddOn[],
-  cycle: number,
-) {
+/** Package fields as they sit on a waitlist entry — nothing chosen until the offer is accepted (see hasChosenPackage). */
+const NO_PACKAGE = {
+  packageId: '',
+  packageName: '',
+  packagePriceAmount: 0,
+  packagePriceCurrency: '',
+  selectedAddOns: [] as SelectedAddOn[],
+}
+
+export async function joinQueue(userId: string, marathonId: string, cycle: number) {
   const registrationRef = doc(db, 'registrations', registrationId(userId, marathonId, cycle))
   const existingSnap = await getDoc(registrationRef)
 
   if (existingSnap.exists()) {
     const existing = existingSnap.data() as Registration
 
-    if (canReRegister(existing)) {
-      // Re-registering after a rejection/cancellation resets this same doc
-      // back to a fresh queue entry — see the re-registration rule in
-      // firestore.rules. createdAt is reset to now so onRegistrationQueueChange
-      // (which orders the queue by createdAt asc) places them at the BACK of
-      // the queue, not wherever their original, already-resolved join time
-      // would have put them.
-      const batch = writeBatch(db)
-      batch.update(registrationRef, {
-        packageId: selectedPackage.id,
-        packageName: selectedPackage.name,
-        packagePriceAmount: selectedPackage.priceAmount,
-        packagePriceCurrency: selectedPackage.priceCurrency,
-        selectedAddOns: toSelectedAddOns(selectedAddOns),
-        status: 'queued' satisfies Registration['status'],
-        queuePosition: null,
-        termsAcceptedAt: null,
-        answers: deleteField(),
-        proofOfPaymentUrls: [],
-        proofSubmittedAt: null,
-        adminNote: null,
-        cancelledAt: null,
-        depositPaidAt: deleteField(),
-        depositProofUrls: deleteField(),
-        finalInvoice: deleteField(),
-        finalTermsAcceptedAt: deleteField(),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      })
-      stampRateLimit(batch, userId)
-      await batch.commit()
-      return
+    if (!canReRegister(existing)) {
+      throw new UserFacingError("You're already on the waitlist for this event.")
     }
-
-    if (!canChangePackage(existing)) {
-      throw new UserFacingError(
-        'Your registration has already moved on to payment — contact an admin to change your package.',
-      )
-    }
-    await updateDoc(registrationRef, {
-      packageId: selectedPackage.id,
-      packageName: selectedPackage.name,
-      packagePriceAmount: selectedPackage.priceAmount,
-      packagePriceCurrency: selectedPackage.priceCurrency,
-      selectedAddOns: toSelectedAddOns(selectedAddOns),
-      packageUpdateRequired: false,
+    // Re-registering after a rejection/cancellation resets this same doc
+    // back to a fresh waitlist entry — see the re-registration rule in
+    // firestore.rules. createdAt is reset to now so onRegistrationQueueChange
+    // (which orders the queue by createdAt asc) places them at the BACK of
+    // the queue, not wherever their original, already-resolved join time
+    // would have put them.
+    const batch = writeBatch(db)
+    batch.update(registrationRef, {
+      ...NO_PACKAGE,
+      offeredPackageIds: deleteField(),
+      status: 'queued' satisfies Registration['status'],
+      queuePosition: null,
+      termsAcceptedAt: null,
+      answers: deleteField(),
+      proofOfPaymentUrls: [],
+      proofSubmittedAt: null,
+      adminNote: null,
+      cancelledAt: null,
+      depositPaidAt: deleteField(),
+      depositProofUrls: deleteField(),
+      finalInvoice: deleteField(),
+      finalTermsAcceptedAt: deleteField(),
+      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })
+    stampRateLimit(batch, userId)
+    await batch.commit()
     return
   }
 
@@ -162,11 +147,7 @@ export async function joinQueue(
   batch.set(registrationRef, {
     userId,
     marathonId,
-    packageId: selectedPackage.id,
-    packageName: selectedPackage.name,
-    packagePriceAmount: selectedPackage.priceAmount,
-    packagePriceCurrency: selectedPackage.priceCurrency,
-    selectedAddOns: toSelectedAddOns(selectedAddOns),
+    ...NO_PACKAGE,
     status: 'queued' satisfies Registration['status'],
     queuePosition: null,
     termsAcceptedAt: null,
@@ -182,8 +163,19 @@ export async function joinQueue(
   await batch.commit()
 }
 
-export async function submitTermsAndConditions(registrationId: string, answers: QuestionAnswer[]) {
+/** Accepting the offer: snapshots the chosen package (one of `offeredPackageIds`) and add-ons, plus questionnaire answers. */
+export async function submitTermsAndConditions(
+  registrationId: string,
+  selectedPackage: MarathonPackage,
+  selectedAddOns: MarathonPackageAddOn[],
+  answers: QuestionAnswer[],
+) {
   await updateDoc(doc(db, 'registrations', registrationId), {
+    packageId: selectedPackage.id,
+    packageName: selectedPackage.name,
+    packagePriceAmount: selectedPackage.priceAmount,
+    packagePriceCurrency: selectedPackage.priceCurrency,
+    selectedAddOns: toSelectedAddOns(selectedAddOns),
     status: 'terms_accepted' satisfies Registration['status'],
     termsAcceptedAt: serverTimestamp(),
     answers,
@@ -227,6 +219,22 @@ export async function submitFinalPayment(registration: Registration, files: File
   })
 }
 
+/** Admin-only (plain update, allowed by the admin rule): swap the package/add-ons at any stage. onRegistrationStatusChange logs it to the booking's history. */
+export async function changeRegistrationPackage(
+  registrationId: string,
+  selectedPackage: MarathonPackage,
+  selectedAddOns: MarathonPackageAddOn[],
+) {
+  await updateDoc(doc(db, 'registrations', registrationId), {
+    packageId: selectedPackage.id,
+    packageName: selectedPackage.name,
+    packagePriceAmount: selectedPackage.priceAmount,
+    packagePriceCurrency: selectedPackage.priceCurrency,
+    selectedAddOns: toSelectedAddOns(selectedAddOns),
+    updatedAt: serverTimestamp(),
+  })
+}
+
 /** Admin-only (plain update, allowed by the admin rule): issue or re-issue the final invoice. No capacity check needed — the seat was already counted at deposit. */
 export async function issueFinalInvoice(registrationId: string, items: InvoiceLineItem[], dueDate: Date) {
   await updateDoc(doc(db, 'registrations', registrationId), {
@@ -241,7 +249,7 @@ export async function issueFinalInvoice(registrationId: string, items: InvoiceLi
 // slots) are enforced server-side rather than trusted from the client.
 
 const acceptRegistrationCallable = httpsCallable<
-  { registrationId: string; decision: 'accepted' | 'rejected'; offerImageUrl?: string },
+  { registrationId: string; decision: 'accepted' | 'rejected'; offerImageUrl?: string; offeredPackageIds?: string[] },
   { status: string }
 >(functions, 'acceptRegistration')
 
@@ -253,9 +261,15 @@ const confirmPaymentCallable = httpsCallable<
 export async function decideQueueRegistration(
   registrationId: string,
   decision: 'accepted' | 'rejected',
+  offeredPackageIds?: string[],
   offerImageUrl?: string,
 ) {
-  await acceptRegistrationCallable({ registrationId, decision, ...(offerImageUrl ? { offerImageUrl } : {}) })
+  await acceptRegistrationCallable({
+    registrationId,
+    decision,
+    ...(offeredPackageIds ? { offeredPackageIds } : {}),
+    ...(offerImageUrl ? { offerImageUrl } : {}),
+  })
 }
 
 export async function confirmPayment(registrationId: string) {
