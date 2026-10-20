@@ -137,7 +137,8 @@ export function PackageSelectionPage() {
         <MarathonBanner
           url={marathon.bannerImageUrl}
           vertical={marathon.bannerVertical}
-          className="h-56 w-full sm:h-64"
+          sideUrl={marathon.bannerSideImageUrl}
+          className="aspect-[5/2] min-h-48 w-full"
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
           <Badge variant={statusPill.variant} className="absolute top-4 right-4">

@@ -84,6 +84,7 @@ export interface MarathonInput {
   description: string
   bannerImageUrl: string
   bannerVertical: boolean
+  bannerSideImageUrl: string
   location: string
   code: string
   eventDate: Date | null

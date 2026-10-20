@@ -146,6 +146,8 @@ export function MarathonFormDialog({
   const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [bannerPreviewUrl, setBannerPreviewUrl] = useState<string | undefined>(marathon?.bannerImageUrl)
   const [bannerVertical, setBannerVertical] = useState(marathon?.bannerVertical ?? false)
+  const [sideFile, setSideFile] = useState<File | null>(null)
+  const [sidePreviewUrl, setSidePreviewUrl] = useState<string | undefined>(marathon?.bannerSideImageUrl || undefined)
   const [hotelFile, setHotelFile] = useState<File | null>(null)
   const [hotelPreviewUrl, setHotelPreviewUrl] = useState<string | undefined>(marathon?.hotelImageUrl || undefined)
   const [feedDeadline, setFeedDeadline] = useState(
@@ -329,6 +331,7 @@ export function MarathonFormDialog({
       location: String(formData.get('location') ?? ''),
       bannerImageUrl: bannerPreviewUrl ?? '',
       bannerVertical,
+      bannerSideImageUrl: bannerVertical ? (sidePreviewUrl ?? '') : '',
       eventDate: dateFromField('eventDate'),
       registrationClosesAt: dateFromField('registrationClosesAt'),
       capacity: Number(formData.get('capacity')) || 0,
@@ -396,6 +399,7 @@ export function MarathonFormDialog({
     setIsSubmitting(true)
     try {
       const bannerImageUrl = bannerFile ? await uploadMarathonBanner(bannerFile) : marathon!.bannerImageUrl
+      const bannerSideImageUrl = !bannerVertical ? '' : sideFile ? await uploadMarathonBanner(sideFile) : (sidePreviewUrl ?? '')
       // ponytail: reuses the public, admin-only marathon-banners storage path; add a hotel-images rule if they need separating
       const hotelImageUrl = hotelFile ? await uploadMarathonBanner(hotelFile) : (hotelPreviewUrl ?? '')
 
@@ -438,6 +442,7 @@ export function MarathonFormDialog({
         description: String(form.get('description')),
         bannerImageUrl,
         bannerVertical,
+        bannerSideImageUrl,
         location: String(form.get('location')),
         code: String(form.get('code') ?? '').trim(),
         eventDate: form.get('eventDate') ? new Date(String(form.get('eventDate'))) : null,
@@ -467,6 +472,8 @@ export function MarathonFormDialog({
         setBannerFile(null)
         setBannerPreviewUrl(undefined)
         setBannerVertical(false)
+        setSideFile(null)
+        setSidePreviewUrl(undefined)
         setHotelFile(null)
         setHotelPreviewUrl(undefined)
         setFeedDeadline('')
@@ -509,14 +516,54 @@ export function MarathonFormDialog({
               <img
                 src={bannerPreviewUrl}
                 alt=""
-                className={`h-32 w-full rounded-md border border-border ${bannerVertical ? 'object-contain' : 'object-cover'}`}
+                className={`aspect-[5/2] w-full rounded-md border border-border ${bannerVertical ? 'object-contain' : 'object-cover'}`}
               />
             )}
             <Input id="bannerFile" type="file" accept="image/*" onChange={handleBannerFileChange} />
+            <p className="text-muted-foreground text-xs">
+              {bannerVertical
+                ? 'Vertical logo: best at 600×800 (3:4 portrait). It is shown whole, never cropped.'
+                : 'Best at 2000×800 (2.5:1). Keep key content centered — the package page trims the sides slightly on phones.'}
+            </p>
             <label className="flex items-center gap-1.5 text-xs">
               <input type="checkbox" checked={bannerVertical} onChange={(e) => setBannerVertical(e.target.checked)} />
               Vertical logo (show uncropped beside the title instead of filling the banner)
             </label>
+            {bannerVertical && (
+              <>
+                <Label htmlFor="bannerSideFile" className="mt-1">Side photo (optional, fills the space beside the logo)</Label>
+                {sidePreviewUrl && (
+                  <div className="flex items-start gap-2">
+                    <img src={sidePreviewUrl} alt="" className="h-32 flex-1 rounded-md border border-border object-cover" />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setSideFile(null)
+                        setSidePreviewUrl(undefined)
+                      }}
+                      aria-label="Remove side photo"
+                    >
+                      <XIcon className="size-4" />
+                    </Button>
+                  </div>
+                )}
+                <Input
+                  id="bannerSideFile"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ''
+                    if (!file) return
+                    setSideFile(file)
+                    setSidePreviewUrl(URL.createObjectURL(file))
+                  }}
+                />
+                <p className="text-muted-foreground text-xs">Best at 1400×800 (7:4 landscape), e.g. the city skyline or race course. It's cropped to fill and the title sits over its bottom edge.</p>
+              </>
+            )}
           </div>
           <Field label="Location" name="location" required defaultValue={marathon?.location} />
           <Field label="Internal code (optional, not shown to customers)" name="code" defaultValue={marathon?.code} />

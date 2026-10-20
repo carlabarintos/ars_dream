@@ -34,6 +34,7 @@ export interface MarathonPreviewData {
   location: string
   bannerImageUrl: string
   bannerVertical: boolean
+  bannerSideImageUrl: string
   eventDate: Date | null
   registrationClosesAt: Date | null
   capacity: number
@@ -100,7 +101,8 @@ export function MarathonPreviewDialog({
             <MarathonBanner
               url={data.bannerImageUrl}
               vertical={data.bannerVertical}
-              className="bg-muted h-40 w-full"
+              sideUrl={data.bannerSideImageUrl}
+              className="bg-muted aspect-[5/2] w-full"
             >
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
               <Badge variant={statusPill.variant} className="absolute top-3 right-3">

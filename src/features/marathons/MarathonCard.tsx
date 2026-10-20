@@ -38,7 +38,8 @@ export function MarathonCard({
         <MarathonBanner
           url={marathon.bannerImageUrl}
           vertical={marathon.bannerVertical}
-          className="h-44 w-full"
+          sideUrl={marathon.bannerSideImageUrl}
+          className="aspect-[5/2] w-full"
           imageClassName="transition-transform duration-300 group-hover:scale-105"
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-brand-navy/25 to-transparent" />

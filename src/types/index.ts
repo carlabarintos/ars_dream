@@ -87,6 +87,8 @@ export interface Marathon {
   bannerImageUrl: string
   /** The banner is a portrait logo: shown uncropped in a side column instead of filling the box. Absent means a wide, cropped banner. */
   bannerVertical?: boolean
+  /** Photo filling the pane beside a vertical logo. Absent/empty means plain navy. */
+  bannerSideImageUrl?: string
   location: string
   /** Admin-only reference code for matching rows in bulk imports, e.g. "TOKYO-2027". Never shown to registrants. Empty/absent means none. */
   code?: string

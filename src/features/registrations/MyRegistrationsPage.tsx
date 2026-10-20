@@ -287,7 +287,8 @@ export function MyRegistrationsPage() {
                 <MarathonBanner
                   url={marathon?.bannerImageUrl}
                   vertical={marathon?.bannerVertical && !!marathon.bannerImageUrl}
-                  className="h-36 w-full sm:h-40"
+                  sideUrl={marathon?.bannerSideImageUrl}
+                  className="aspect-[5/2] w-full"
                   imageClassName="transition-transform duration-300 group-hover:scale-105"
                 >
                   {!marathon?.bannerImageUrl && (
