@@ -280,6 +280,17 @@ export async function rejectPayment(registrationId: string, adminNote: string) {
   await confirmPaymentCallable({ registrationId, decision: 'rejected', adminNote })
 }
 
+const bulkWaitlistCallable = httpsCallable<
+  { marathonId: string; emails: string[] },
+  { added: number; invited: number; alreadyListed: number }
+>(functions, 'bulkWaitlist')
+
+/** Admin import of an existing waitlist by email — accounts are waitlisted now, the rest on sign-up (functions/src/bulk-waitlist.ts). */
+export async function bulkWaitlist(marathonId: string, emails: string[]) {
+  const result = await bulkWaitlistCallable({ marathonId, emails })
+  return result.data
+}
+
 // Also runs through a callable rather than a client-side rule: cancelling a
 // 'confirmed' registration must release its counted seat in
 // marathons.confirmedCount atomically with the status change (see

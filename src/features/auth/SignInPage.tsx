@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { LogoBadge } from '@/components/LogoBadge'
@@ -34,14 +34,18 @@ const RESEND_COOLDOWN_SECONDS = 30
 const MAX_RESEND_ATTEMPTS = 3
 
 export function SignInPage() {
-  const [mode, setMode] = useState<'sign-in' | 'sign-up' | 'forgot-password'>('sign-in')
+  // Waitlist invite emails (functions/src/bulk-waitlist.ts) link here with ?mode=sign-up&email=...
+  const [searchParams] = useSearchParams()
+  const [mode, setMode] = useState<'sign-in' | 'sign-up' | 'forgot-password'>(
+    searchParams.get('mode') === 'sign-up' ? 'sign-up' : 'sign-in',
+  )
   const [firstName, setFirstName] = useState('')
   const [middleName, setMiddleName] = useState('')
   const [lastName, setLastName] = useState('')
   const [contactNumber, setContactNumber] = useState('')
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [gender, setGender] = useState<Gender | ''>('')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(searchParams.get('email') ?? '')
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [resetEmailSent, setResetEmailSent] = useState(false)

@@ -18,6 +18,7 @@ import { useMarathonRegistrations } from '@/features/registrations/use-registrat
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
 import type { Registration } from '@/types'
 
+import { BulkWaitlistDialog } from './BulkWaitlistDialog'
 import { exportQueueCsv } from './export-import/full-export'
 import { ImportDialog } from './export-import/ImportDialog'
 import { ChangePackageDialog } from './ChangePackageDialog'
@@ -158,7 +159,8 @@ export function QueueReviewPage() {
       <div className="flex items-center justify-between">
         <h1 className="font-display text-3xl tracking-wide">Queue Review</h1>
         {marathonId && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <BulkWaitlistDialog marathonId={marathonId} />
             <Button
               variant="outline"
               size="sm"
