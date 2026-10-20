@@ -317,14 +317,20 @@ export async function rejectPayment(registrationId: string, adminNote: string) {
   await confirmPaymentCallable({ registrationId, decision: 'rejected', adminNote })
 }
 
+export interface WaitlistImportRow {
+  email: string
+  marathonIds: string[]
+  profile?: Partial<Record<'firstName' | 'middleName' | 'lastName' | 'contactNumber' | 'dateOfBirth' | 'gender', string>>
+}
+
 const bulkWaitlistCallable = httpsCallable<
-  { marathonId: string; emails: string[] },
+  { rows: WaitlistImportRow[] },
   { added: number; invited: number; alreadyListed: number }
 >(functions, 'bulkWaitlist')
 
-/** Admin import of an existing waitlist by email — accounts are waitlisted now, the rest on sign-up (functions/src/bulk-waitlist.ts). */
-export async function bulkWaitlist(marathonId: string, emails: string[]) {
-  const result = await bulkWaitlistCallable({ marathonId, emails })
+/** Admin import of an existing waitlist, in order — accounts are waitlisted now, the rest on sign-up (functions/src/bulk-waitlist.ts). */
+export async function bulkWaitlist(rows: WaitlistImportRow[]) {
+  const result = await bulkWaitlistCallable({ rows })
   return result.data
 }
 

@@ -24,7 +24,7 @@ export function BulkWaitlistDialog({ marathonId }: { marathonId: string }) {
   async function handleSubmit() {
     setIsSubmitting(true)
     try {
-      const { added, invited, alreadyListed } = await bulkWaitlist(marathonId, emails)
+      const { added, invited, alreadyListed } = await bulkWaitlist(emails.map((email) => ({ email, marathonIds: [marathonId] })))
       toast.success(`Waitlisted ${added}, invited ${invited} to sign up, ${alreadyListed} already listed.`)
       setText('')
       setOpen(false)

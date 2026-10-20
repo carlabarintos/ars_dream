@@ -19,6 +19,7 @@ import { useAllMarathons } from '@/features/marathons/use-marathons'
 import type { Marathon, MarathonStatus } from '@/types'
 
 import { logAdminAction } from './audit-log/api'
+import { CsvWaitlistImportDialog } from './CsvWaitlistImportDialog'
 import { ClearDataDialog } from './danger-zone/ClearDataDialog'
 import { ExportImportControls } from './export-import/ExportImportControls'
 import { MarathonFormDialog } from './MarathonFormDialog'
@@ -106,6 +107,7 @@ export function AdminDashboard() {
             <Link to="/admin/legal-content">Legal Pages</Link>
           </Button>
           <ExportImportControls />
+          <CsvWaitlistImportDialog marathons={marathons} />
           <NotificationSettingsDialog />
           <ClearDataDialog />
           <MarathonFormDialog />
@@ -128,14 +130,17 @@ export function AdminDashboard() {
           <TableBody>
             {marathons.map((marathon) => (
               <TableRow key={marathon.id}>
-                <TableCell className="font-medium">{marathon.title}</TableCell>
+                <TableCell className="font-medium">
+                  {marathon.title}
+                  {marathon.code && <span className="text-muted-foreground ml-2 font-mono text-xs">{marathon.code}</span>}
+                </TableCell>
                 <TableCell>
                   <Badge variant={STATUS_VARIANT[marathon.status]}>{marathon.status}</Badge>
                 </TableCell>
                 <TableCell>
                   {marathon.confirmedCount}/{marathon.capacity}
                 </TableCell>
-                <TableCell>{marathon.eventDate.toDate().toLocaleDateString()}</TableCell>
+                <TableCell>{marathon.eventDate?.toDate().toLocaleDateString() ?? 'TBA'}</TableCell>
                 <TableCell className="flex justify-end gap-2">
                   <MarathonFormDialog marathon={marathon} />
                   <Button variant="outline" size="sm" asChild>

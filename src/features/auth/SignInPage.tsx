@@ -34,17 +34,21 @@ const RESEND_COOLDOWN_SECONDS = 30
 const MAX_RESEND_ATTEMPTS = 3
 
 export function SignInPage() {
-  // Waitlist invite emails (functions/src/bulk-waitlist.ts) link here with ?mode=sign-up&email=...
+  // Waitlist invite emails (functions/src/bulk-waitlist.ts) link here with ?mode=sign-up&email=...,
+  // plus any imported details in the fragment (#firstName=...&gender=...) to prefill the form.
   const [searchParams] = useSearchParams()
+  const [prefill] = useState(() => new URLSearchParams(window.location.hash.slice(1)))
   const [mode, setMode] = useState<'sign-in' | 'sign-up' | 'forgot-password'>(
     searchParams.get('mode') === 'sign-up' ? 'sign-up' : 'sign-in',
   )
-  const [firstName, setFirstName] = useState('')
-  const [middleName, setMiddleName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [contactNumber, setContactNumber] = useState('')
-  const [dateOfBirth, setDateOfBirth] = useState('')
-  const [gender, setGender] = useState<Gender | ''>('')
+  const [firstName, setFirstName] = useState(prefill.get('firstName') ?? '')
+  const [middleName, setMiddleName] = useState(prefill.get('middleName') ?? '')
+  const [lastName, setLastName] = useState(prefill.get('lastName') ?? '')
+  const [contactNumber, setContactNumber] = useState(prefill.get('contactNumber') ?? '')
+  const [dateOfBirth, setDateOfBirth] = useState(prefill.get('dateOfBirth') ?? '')
+  const [gender, setGender] = useState<Gender | ''>(
+    GENDER_OPTIONS.find((option) => option.value === prefill.get('gender'))?.value ?? '',
+  )
   const [email, setEmail] = useState(searchParams.get('email') ?? '')
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
