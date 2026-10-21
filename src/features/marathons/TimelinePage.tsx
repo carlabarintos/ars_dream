@@ -183,7 +183,7 @@ export function TimelinePage() {
               if (group.length === 0) return null
               return (
                 <div key={String(closed)} className="flex flex-col gap-4">
-                  {closed && <h2 className="font-display mt-4 text-3xl tracking-wide">Closed Marathons</h2>}
+                  {closed && <h2 className="font-display mt-4 text-3xl tracking-wide">Sold Out Marathons</h2>}
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     {group.map((marathon) => (
                       <MarathonCard

@@ -9,7 +9,7 @@ export const AVAILABILITY_PILL: Record<
 > = {
   open: { label: 'Open', variant: 'success' },
   filling: { label: 'Filling Up', variant: 'warning' },
-  closed: { label: 'Closed', variant: 'secondary' },
+  closed: { label: 'Sold Out', variant: 'secondary' },
 }
 
 /** Shared with the Home/Timeline availability filter so its pills classify marathons identically to the card badges. */
