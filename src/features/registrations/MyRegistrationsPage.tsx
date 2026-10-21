@@ -388,7 +388,7 @@ export function MyRegistrationsPage() {
                 </CardContent>
 
                 <CardFooter className="border-border flex flex-col gap-2 border-t pt-4 pb-5">
-                  {canReopenWizard(registration) && (
+                  {canReopenWizard(registration, marathon) && (
                     <Button className="w-full" onClick={() => setActiveRegistrationId(registration.id)}>
                       {getWizardButtonLabel(pendingStep)}
                     </Button>

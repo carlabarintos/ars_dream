@@ -135,7 +135,7 @@ service cloud.firestore {
             request.resource.data.packageId in resource.data.get('offeredPackageIds', [resource.data.packageId]) &&
             request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly([
-                'status', 'termsAcceptedAt', 'answers', 'updatedAt', 'packageId', 'packageName',
+                'status', 'termsAcceptedAt', 'updatedAt', 'packageId', 'packageName',
                 'packagePriceAmount', 'packagePriceCurrency', 'selectedAddOns',
               ])) ||
           (resource.data.status in ['terms_accepted', 'payment_rejected'] &&
@@ -147,7 +147,11 @@ service cloud.firestore {
             request.resource.data.status == 'payment_submitted' &&
             request.resource.data.finalTermsAcceptedAt == request.time &&
             request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['status', 'proofOfPaymentUrls', 'proofSubmittedAt', 'finalTermsAcceptedAt', 'updatedAt']))
+              .hasOnly(['status', 'proofOfPaymentUrls', 'proofSubmittedAt', 'finalTermsAcceptedAt', 'updatedAt'])) ||
+          // The questionnaire is answered last, once the booking is confirmed.
+          (resource.data.status == 'confirmed' &&
+            request.resource.data.status == 'confirmed' &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'updatedAt']))
         );
 
       allow update: if isAdmin();

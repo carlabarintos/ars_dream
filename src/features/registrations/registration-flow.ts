@@ -145,23 +145,28 @@ export function canReRegister(registration: Registration) {
   return REREGISTERABLE_STATUSES.includes(registration.status)
 }
 
-export type PendingActionStep = 'terms' | 'payment' | 'final_payment'
+export type PendingActionStep = 'terms' | 'payment' | 'final_payment' | 'questionnaire'
 
 export const PENDING_ACTION_LABEL: Record<PendingActionStep, string> = {
   terms: 'Choose Package & Accept Offer',
   payment: 'View Invoice & Pay',
   final_payment: 'View Final Invoice & Pay',
+  questionnaire: 'Answer Questionnaire',
 }
 
 /** What the registrant still needs to do next, or null if nothing is required of them right now. */
 export function getPendingActionStep(
   registration: Registration,
-  _marathon: Marathon | undefined,
+  marathon: Marathon | undefined,
 ): PendingActionStep | null {
   if (registration.status === 'accepted') return 'terms'
   if (registration.status === 'final_invoiced') return 'final_payment'
   if (registration.status === 'payment_rejected') return isOnFinalInvoice(registration) ? 'final_payment' : 'payment'
   if (registration.status === 'terms_accepted') return 'payment'
+  // The questionnaire is the last step, once payment is fully confirmed.
+  if (registration.status === 'confirmed' && !isConfirmedAndQuestionnaireComplete(registration, marathon)) {
+    return 'questionnaire'
+  }
   return null
 }
 
@@ -171,8 +176,8 @@ export function getPendingActionStep(
  * payment isn't a "pending action" (nothing is required of the user), but they should
  * still be able to view or replace it before an admin acts on it.
  */
-export function canReopenWizard(registration: Registration) {
-  return getPendingActionStep(registration, undefined) != null || registration.status === 'payment_submitted'
+export function canReopenWizard(registration: Registration, marathon: Marathon | undefined) {
+  return getPendingActionStep(registration, marathon) != null || registration.status === 'payment_submitted'
 }
 
 /** Button label for reopening the wizard, covering the not-a-pending-action case (already submitted, awaiting review). */

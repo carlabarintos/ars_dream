@@ -23,6 +23,7 @@ const ACTION_LABEL: Record<PendingActionStep, string> = {
   terms: 'Choose Package & Accept Offer',
   payment: 'Submit Proof of Payment',
   final_payment: 'Pay Final Invoice',
+  questionnaire: 'Answer Questionnaire',
 }
 
 export function NotificationBell() {

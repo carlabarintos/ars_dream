@@ -609,12 +609,11 @@ export function MarathonFormDialog({
             </p>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="paymentInstructions">Payment instructions</Label>
+            <Label htmlFor="paymentInstructions">Payment instructions (optional)</Label>
             <Textarea
               id="paymentInstructions"
               name="paymentInstructions"
               placeholder="Bank transfer to Account #... / GCash to ..."
-              required
               defaultValue={marathon?.paymentInstructions}
             />
           </div>

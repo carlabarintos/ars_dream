@@ -165,12 +165,11 @@ export async function joinQueue(userId: string, marathonId: string, cycle: numbe
   await batch.commit()
 }
 
-/** Accepting the offer: snapshots the chosen package (one of `offeredPackageIds`) and add-ons, plus questionnaire answers. */
+/** Accepting the offer: snapshots the chosen package (one of `offeredPackageIds`) and add-ons. */
 export async function submitTermsAndConditions(
   registrationId: string,
   selectedPackage: MarathonPackage,
   selectedAddOns: MarathonPackageAddOn[],
-  answers: QuestionAnswer[],
 ) {
   await updateDoc(doc(db, 'registrations', registrationId), {
     packageId: selectedPackage.id,
@@ -180,9 +179,13 @@ export async function submitTermsAndConditions(
     selectedAddOns: toSelectedAddOns(selectedAddOns),
     status: 'terms_accepted' satisfies Registration['status'],
     termsAcceptedAt: serverTimestamp(),
-    answers,
     updatedAt: serverTimestamp(),
   })
+}
+
+/** The questionnaire, answered as the last step once the booking is confirmed. */
+export async function submitQuestionnaireAnswers(registrationId: string, answers: QuestionAnswer[]) {
+  await updateDoc(doc(db, 'registrations', registrationId), { answers, updatedAt: serverTimestamp() })
 }
 
 export async function submitProofOfPayment(registrationId: string, files: File[]) {

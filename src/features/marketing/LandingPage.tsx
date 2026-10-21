@@ -29,9 +29,9 @@ const DESTINATIONS: { city: string; medalCity: MedalCity; country: string; note:
 const STEPS = [
   { icon: ClipboardListIcon, title: 'Join the Waitlist', description: 'Join the waitlist and hold your place in a transparent, first-come queue.' },
   { icon: CheckCircle2Icon, title: 'Get an Offer', description: 'Our team reviews applications and offers you a slot as capacity allows.' },
-  { icon: FileTextIcon, title: 'Accept Terms', description: 'Review your tour terms and, if the event needs it, answer a short questionnaire.' },
+  { icon: FileTextIcon, title: 'Accept Terms', description: 'Choose your package and accept your tour offer.' },
   { icon: CreditCardIcon, title: 'Submit Payment', description: 'Send proof of payment for our team to verify against your package.' },
-  { icon: TrophyIcon, title: 'Confirmed', description: "You're booked. We'll see you at the start line." },
+  { icon: TrophyIcon, title: 'Confirmed', description: "You're booked. Answer the event questionnaire if there is one, and we'll see you at the start line." },
 ]
 
 const HEADLINE = ["Run", "the", "world's", 'greatest', 'marathons.']

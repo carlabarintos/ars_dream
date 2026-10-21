@@ -206,9 +206,9 @@ export function PackageSelectionPage() {
             )}
             <p className="text-muted-foreground">{getRegistrationStatusMessage(myRegistration)}</p>
           </CardContent>
-          {(canReopenWizard(myRegistration) || canCancelRegistration(myRegistration)) && (
+          {(canReopenWizard(myRegistration, marathon ?? undefined) || canCancelRegistration(myRegistration)) && (
             <CardFooter className="border-border flex flex-col gap-2 border-t pt-4">
-              {canReopenWizard(myRegistration) && (
+              {canReopenWizard(myRegistration, marathon ?? undefined) && (
                 <Button className="w-full" onClick={() => setShowWizard(true)}>
                   {getWizardButtonLabel(pendingStep)}
                 </Button>

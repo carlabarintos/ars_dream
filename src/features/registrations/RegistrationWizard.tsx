@@ -20,7 +20,7 @@ import { getFriendlyErrorMessage } from '@/lib/friendly-error'
 import { cn, formatPackagePrice } from '@/lib/utils'
 import type { Marathon, QuestionAnswer, Registration } from '@/types'
 
-import { submitFinalPayment, submitProofOfPayment, submitTermsAndConditions } from './api'
+import { submitFinalPayment, submitProofOfPayment, submitQuestionnaireAnswers, submitTermsAndConditions } from './api'
 import {
   getFinalInvoiceBalance,
   getOfferedPackages,
@@ -101,6 +101,19 @@ export function RegistrationWizard({
       toast.error('Please choose a package.')
       return
     }
+    setIsSubmitting(true)
+    try {
+      await submitTermsAndConditions(registration.id, chosenPackage, chosenAddOns)
+      toast.success('Thanks! Next: submit your proof of payment.')
+      onClose()
+    } catch (error) {
+      toast.error(getFriendlyErrorMessage(error, 'terms'))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function handleSubmitAnswers() {
     const missingRequired = items.some(
       (item) => item.required && !isQuestionAnswered(item, answerValues[item.id]),
     )
@@ -117,8 +130,8 @@ export function RegistrationWizard({
       }))
     setIsSubmitting(true)
     try {
-      await submitTermsAndConditions(registration.id, chosenPackage, chosenAddOns, answers)
-      toast.success('Thanks! Next: submit your proof of payment.')
+      await submitQuestionnaireAnswers(registration.id, answers)
+      toast.success('Thanks! Your booking is complete.')
       onClose()
     } catch (error) {
       toast.error(getFriendlyErrorMessage(error, 'terms'))
@@ -153,7 +166,9 @@ export function RegistrationWizard({
                 ? 'Your invoice is below. Send payment using the instructions, then upload your proof of payment.'
                 : isFinal
                   ? 'Your final invoice is below. Pay the balance using the instructions, then upload your proof of payment.'
-                  : ''}
+                  : step === 'questionnaire'
+                    ? 'Your booking is paid. Answer this last questionnaire to complete it.'
+                    : ''}
           </DialogDescription>
         </DialogHeader>
 
@@ -265,6 +280,19 @@ export function RegistrationWizard({
                 </div>
               )}
             </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button loading={isSubmitting} disabled={!chosenPackage} onClick={handleSubmitTerms}>
+                Accept Offer
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+
+        {step === 'questionnaire' && (
+          <div className="flex flex-col gap-4">
             {items.map((item) => (
               <div key={item.id} className="flex flex-col gap-1.5">
                 <Label
@@ -312,8 +340,8 @@ export function RegistrationWizard({
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button loading={isSubmitting} disabled={!chosenPackage} onClick={handleSubmitTerms}>
-                Accept Offer
+              <Button loading={isSubmitting} onClick={handleSubmitAnswers}>
+                Submit Answers
               </Button>
             </DialogFooter>
           </div>
@@ -371,9 +399,11 @@ export function RegistrationWizard({
                 </div>
               </div>
             )}
-            <div className="text-muted-foreground rounded-md border border-border p-3 text-sm whitespace-pre-line">
-              {marathon?.paymentInstructions ?? 'Payment instructions will be provided here.'}
-            </div>
+            {marathon?.paymentInstructions?.trim() && (
+              <div className="text-muted-foreground rounded-md border border-border p-3 text-sm whitespace-pre-line">
+                {marathon.paymentInstructions}
+              </div>
+            )}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="proof">Upload proof of payment (receipts/screenshots)</Label>
               {currentProofs.length > 0 && (
