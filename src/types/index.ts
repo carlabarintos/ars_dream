@@ -69,6 +69,8 @@ export interface MarathonQuestion {
   required: boolean
   /** Choices for a 'dropdown' item. */
   options?: string[]
+  /** Name of the questionnaire this question belongs to (a marathon can have several, e.g. "Terms & Conditions", "Health Declaration"). Absent on older questions — grouped under DEFAULT_QUESTIONNAIRE_NAME. */
+  questionnaire?: string
 }
 
 /** A reusable set of registration questions, authored once so admins can start a new marathon's questionnaire from it instead of rebuilding it by hand. Copied into `Marathon.questions` at authoring time — editing a template does not affect marathons that already copied from it. */
@@ -200,7 +202,7 @@ export interface Registration {
   termsAcceptedAt: Timestamp | null
   /** Answers to the marathon's registration questions, submitted together with acceptance. Absent until submitted. */
   answers?: QuestionAnswer[]
-  /** Photo of the passport bio page, uploaded by the registrant once confirmed — required before the booking counts as complete. */
+  /** Photo of the passport bio page, uploaded by the registrant once the deposit is approved — required before the booking counts as complete. */
   passportPhotoUrl?: string
   proofOfPaymentUrls: string[]
   proofSubmittedAt: Timestamp | null

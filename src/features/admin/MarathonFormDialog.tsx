@@ -28,6 +28,7 @@ import {
   uploadMarathonPackagePhoto,
 } from '@/features/marathons/api'
 import { useQuestionnaireTemplates } from '@/features/questionnaire-templates/use-questionnaire-templates'
+import { DEFAULT_QUESTIONNAIRE_NAME, getQuestionnaires } from '@/features/registrations/registration-flow'
 
 import { MarathonPreviewDialog, type MarathonPreviewData } from './MarathonPreviewDialog'
 
@@ -84,6 +85,12 @@ interface QuestionRow {
   options: string
 }
 
+interface QuestionnaireRow {
+  key: number
+  name: string
+  rows: QuestionRow[]
+}
+
 const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   bool: 'Yes/No',
   text: 'Short text',
@@ -130,6 +137,31 @@ function toQuestionRows(questions: MarathonQuestion[] | undefined): QuestionRow[
   }))
 }
 
+function toQuestionnaireRows(marathon: Marathon | undefined): QuestionnaireRow[] {
+  return getQuestionnaires(marathon).map((questionnaire) => ({
+    key: nextRowId++,
+    name: questionnaire.name,
+    rows: toQuestionRows(questionnaire.questions),
+  }))
+}
+
+function toQuestions(questionnaires: QuestionnaireRow[]): MarathonQuestion[] {
+  return questionnaires.flatMap((questionnaire) =>
+    questionnaire.rows
+      .filter((row) => row.label.trim())
+      .map((row) => ({
+        id: row.id,
+        label: row.label.trim(),
+        type: row.type,
+        required: row.required,
+        questionnaire: questionnaire.name.trim() || DEFAULT_QUESTIONNAIRE_NAME,
+        ...(row.type === 'dropdown'
+          ? { options: row.options.split(',').map((option) => option.trim()).filter(Boolean) }
+          : {}),
+      })),
+  )
+}
+
 export function MarathonFormDialog({
   marathon,
   trigger,
@@ -143,7 +175,7 @@ export function MarathonFormDialog({
   const [open, setOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [packageRows, setPackageRows] = useState<PackageRow[]>(() => toPackageRows(marathon?.packages))
-  const [questionRows, setQuestionRows] = useState<QuestionRow[]>(() => toQuestionRows(marathon?.questions))
+  const [questionnaires, setQuestionnaires] = useState<QuestionnaireRow[]>(() => toQuestionnaireRows(marathon))
   const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [bannerPreviewUrl, setBannerPreviewUrl] = useState<string | undefined>(marathon?.bannerImageUrl)
   const [bannerVertical, setBannerVertical] = useState(marathon?.bannerVertical ?? false)
@@ -187,31 +219,43 @@ export function MarathonFormDialog({
     img.src = url
   }
 
-  function loadQuestionsFromTemplate(templateId: string) {
+  function addQuestionnaireFromTemplate(templateId: string) {
     const template = questionnaireTemplates.find((t) => t.id === templateId)
     if (!template) return
-    if (
-      questionRows.length > 0 &&
-      !window.confirm('This replaces the current question rows with the template\'s questions. Continue?')
-    ) {
-      return
-    }
-    setQuestionRows(toQuestionRows(template.questions))
+    // Fresh ids so the same template can be added more than once without colliding answers.
+    const rows = toQuestionRows(template.questions).map((row) => ({ ...row, id: crypto.randomUUID() }))
+    setQuestionnaires((list) => [...list, { key: nextRowId++, name: template.title, rows }])
   }
 
-  function addQuestion() {
-    setQuestionRows((rows) => [
+  function addQuestionnaire() {
+    setQuestionnaires((list) => [...list, { key: nextRowId++, name: '', rows: [] }])
+  }
+
+  function updateQuestionnaire(key: number, patch: Partial<Omit<QuestionnaireRow, 'key'>>) {
+    setQuestionnaires((list) => list.map((q) => (q.key === key ? { ...q, ...patch } : q)))
+  }
+
+  function removeQuestionnaire(key: number) {
+    setQuestionnaires((list) => list.filter((q) => q.key !== key))
+  }
+
+  function updateRows(key: number, update: (rows: QuestionRow[]) => QuestionRow[]) {
+    setQuestionnaires((list) => list.map((q) => (q.key === key ? { ...q, rows: update(q.rows) } : q)))
+  }
+
+  function addQuestion(key: number) {
+    updateRows(key, (rows) => [
       ...rows,
       { rowId: nextRowId++, id: crypto.randomUUID(), label: '', type: 'bool', required: false, options: '' },
     ])
   }
 
-  function removeQuestion(rowId: number) {
-    setQuestionRows((rows) => rows.filter((row) => row.rowId !== rowId))
+  function removeQuestion(key: number, rowId: number) {
+    updateRows(key, (rows) => rows.filter((row) => row.rowId !== rowId))
   }
 
-  function updateQuestionRow(rowId: number, patch: Partial<Omit<QuestionRow, 'rowId' | 'id'>>) {
-    setQuestionRows((rows) => rows.map((row) => (row.rowId === rowId ? { ...row, ...patch } : row)))
+  function updateQuestionRow(key: number, rowId: number, patch: Partial<Omit<QuestionRow, 'rowId' | 'id'>>) {
+    updateRows(key, (rows) => rows.map((row) => (row.rowId === rowId ? { ...row, ...patch } : row)))
   }
 
   function addPackage() {
@@ -357,17 +401,7 @@ export function MarathonFormDialog({
               ...(addOn.mandatory ? { mandatory: true } : {}),
             })),
         })),
-      questions: questionRows
-        .filter((row) => row.label.trim())
-        .map((row) => ({
-          id: row.id,
-          label: row.label.trim(),
-          type: row.type,
-          required: row.required,
-          ...(row.type === 'dropdown'
-            ? { options: row.options.split(',').map((option) => option.trim()).filter(Boolean) }
-            : {}),
-        })),
+      questions: toQuestions(questionnaires),
     })
     setPreviewOpen(true)
   }
@@ -378,17 +412,7 @@ export function MarathonFormDialog({
 
     const validPackageRows = packageRows.filter((row) => row.name.trim())
 
-    const questions: MarathonQuestion[] = questionRows
-      .filter((row) => row.label.trim())
-      .map((row) => ({
-        id: row.id,
-        label: row.label.trim(),
-        type: row.type,
-        required: row.required,
-        ...(row.type === 'dropdown'
-          ? { options: row.options.split(',').map((option) => option.trim()).filter(Boolean) }
-          : {}),
-      }))
+    const questions = toQuestions(questionnaires)
 
     if (!bannerFile && !marathon?.bannerImageUrl) {
       toast.error('Upload a banner image.')
@@ -468,7 +492,7 @@ export function MarathonFormDialog({
         await createMarathon(input, uid)
         toast.success('Marathon created as a draft. Publish it when ready.')
         setPackageRows([])
-        setQuestionRows([])
+        setQuestionnaires([])
         setBannerFile(null)
         setBannerPreviewUrl(undefined)
         setBannerVertical(false)
@@ -917,12 +941,12 @@ export function MarathonFormDialog({
           </div>
 
           <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <Label>Registration Questions</Label>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label>Questionnaires</Label>
               <div className="flex items-center gap-2">
-                <Select value={LOAD_TEMPLATE_PLACEHOLDER} onValueChange={loadQuestionsFromTemplate}>
+                <Select value={LOAD_TEMPLATE_PLACEHOLDER} onValueChange={addQuestionnaireFromTemplate}>
                   <SelectTrigger className="w-52">
-                    <SelectValue placeholder="Load from template…" />
+                    <SelectValue placeholder="Add from template…" />
                   </SelectTrigger>
                   <SelectContent>
                     {questionnaireTemplates.map((template) => (
@@ -932,77 +956,113 @@ export function MarathonFormDialog({
                     ))}
                   </SelectContent>
                 </Select>
-                <Button type="button" variant="outline" size="sm" onClick={addQuestion}>
+                <Button type="button" variant="outline" size="sm" onClick={addQuestionnaire}>
                   <PlusIcon className="size-3.5" />
-                  Add item
+                  Add questionnaire
                 </Button>
               </div>
             </div>
             <p className="text-muted-foreground text-xs">
-              Extra information registrants must provide before submitting payment (e.g. emergency
-              contact, dietary restrictions). Load a saved template as a starting point, then edit freely
-              below — changes here don't affect the template or other marathons. Manage templates from the
-              admin dashboard's "Manage Questionnaire Templates" link.
+              Named questionnaires (e.g. Terms &amp; Conditions, Health Declaration) registrants answer once
+              their deposit is approved — each shows up as its own link on their booking. Add one from a saved
+              template, then edit freely below — changes here don't affect the template or other marathons.
+              Manage templates from the admin dashboard's "Manage Questionnaire Templates" link.
             </p>
 
-            {questionRows.length === 0 && (
+            {questionnaires.length === 0 && (
               <p className="text-muted-foreground rounded-md border border-dashed border-border p-3 text-center text-xs">
-                No items configured. Registrants will skip straight to payment once accepted.
+                No questionnaires configured.
               </p>
             )}
 
-            {questionRows.map((question) => (
-              <div key={question.rowId} className="flex flex-col gap-2 rounded-md border border-border p-3">
+            {questionnaires.map((questionnaire) => (
+              <div key={questionnaire.key} className="bg-muted/30 flex flex-col gap-2 rounded-md border border-border p-3">
                 <div className="flex items-center gap-2">
                   <Input
-                    placeholder="Item label (e.g. I agree to the terms & conditions)"
-                    value={question.label}
-                    onChange={(e) => updateQuestionRow(question.rowId, { label: e.target.value })}
-                    className="flex-1"
+                    placeholder="Questionnaire name (e.g. Terms & Conditions)"
+                    value={questionnaire.name}
+                    onChange={(e) => updateQuestionnaire(questionnaire.key, { name: e.target.value })}
+                    className="flex-1 font-medium"
                   />
-                  <Select
-                    value={question.type}
-                    onValueChange={(value) => updateQuestionRow(question.rowId, { type: value as QuestionType })}
-                  >
-                    <SelectTrigger className="w-40">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(QUESTION_TYPE_LABELS).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Button type="button" variant="outline" size="sm" onClick={() => addQuestion(questionnaire.key)}>
+                    <PlusIcon className="size-3.5" />
+                    Add item
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    onClick={() => removeQuestion(question.rowId)}
-                    aria-label="Remove item"
+                    onClick={() => removeQuestionnaire(questionnaire.key)}
+                    aria-label="Remove questionnaire"
                   >
                     <XIcon className="size-4" />
                   </Button>
                 </div>
-                <div className="flex items-center gap-4 pl-1">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={question.required}
-                      onChange={(e) => updateQuestionRow(question.rowId, { required: e.target.checked })}
-                    />
-                    Required
-                  </label>
-                  {question.type === 'dropdown' && (
-                    <Input
-                      placeholder="Choices, comma-separated (e.g. Vegetarian, Vegan, None)"
-                      value={question.options}
-                      onChange={(e) => updateQuestionRow(question.rowId, { options: e.target.value })}
-                      className="flex-1"
-                    />
-                  )}
-                </div>
+
+                {questionnaire.rows.length === 0 && (
+                  <p className="text-muted-foreground text-center text-xs">No items yet.</p>
+                )}
+
+                {questionnaire.rows.map((question) => (
+                  <div key={question.rowId} className="bg-background flex flex-col gap-2 rounded-md border border-border p-3">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="Item label (e.g. I agree to the terms & conditions)"
+                        value={question.label}
+                        onChange={(e) => updateQuestionRow(questionnaire.key, question.rowId, { label: e.target.value })}
+                        className="flex-1"
+                      />
+                      <Select
+                        value={question.type}
+                        onValueChange={(value) =>
+                          updateQuestionRow(questionnaire.key, question.rowId, { type: value as QuestionType })
+                        }
+                      >
+                        <SelectTrigger className="w-40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(QUESTION_TYPE_LABELS).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeQuestion(questionnaire.key, question.rowId)}
+                        aria-label="Remove item"
+                      >
+                        <XIcon className="size-4" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-4 pl-1">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={question.required}
+                          onChange={(e) =>
+                            updateQuestionRow(questionnaire.key, question.rowId, { required: e.target.checked })
+                          }
+                        />
+                        Required
+                      </label>
+                      {question.type === 'dropdown' && (
+                        <Input
+                          placeholder="Choices, comma-separated (e.g. Vegetarian, Vegan, None)"
+                          value={question.options}
+                          onChange={(e) =>
+                            updateQuestionRow(questionnaire.key, question.rowId, { options: e.target.value })
+                          }
+                          className="flex-1"
+                        />
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
           </div>

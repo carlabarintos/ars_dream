@@ -214,7 +214,7 @@ export function PackageSelectionPage() {
             <CardFooter className="border-border flex flex-col gap-2 border-t pt-4">
               {canReopenWizard(myRegistration, marathon ?? undefined) && (
                 <Button className="w-full" onClick={() => setShowWizard(true)}>
-                  {getWizardButtonLabel(pendingStep)}
+                  {getWizardButtonLabel(pendingStep, myRegistration, marathon ?? undefined)}
                 </Button>
               )}
               <CancelRegistrationButton registration={myRegistration} />

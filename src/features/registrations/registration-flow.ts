@@ -88,6 +88,9 @@ export function getRegistrationStatusMessage(registration: Registration, maratho
     case 'payment_submitted':
       return "Your payment is under review. We'll notify you once it's confirmed."
     case 'deposit_paid':
+      if (!hasSubmittedBookingDetails(registration, marathon)) {
+        return 'Deposit received — your slot is locked in! Upload a photo of your passport bio page, then answer the event questionnaire (if any).'
+      }
       return "Deposit received — your slot is locked in. We'll go over add-ons with you in this booking's messages, then send your final invoice."
     case 'final_invoiced':
       return 'Your final invoice is ready. Review it, accept the terms & conditions, and upload your proof of payment for the balance.'
@@ -118,16 +121,55 @@ export function isQuestionAnswered(question: MarathonQuestion, value: string | u
   return (value ?? '').trim() !== ''
 }
 
+export const DEFAULT_QUESTIONNAIRE_NAME = 'Questionnaire'
+
+export interface Questionnaire {
+  name: string
+  questions: MarathonQuestion[]
+}
+
+/** The marathon's questions grouped into named questionnaires, in authoring order. */
+export function getQuestionnaires(marathon: Marathon | undefined): Questionnaire[] {
+  const groups = new Map<string, MarathonQuestion[]>()
+  for (const question of marathon?.questions ?? []) {
+    const name = question.questionnaire?.trim() || DEFAULT_QUESTIONNAIRE_NAME
+    groups.set(name, [...(groups.get(name) ?? []), question])
+  }
+  return [...groups].map(([name, questions]) => ({ name, questions }))
+}
+
 export function areRequiredItemsAnswered(marathon: Marathon | undefined, answerValues: Record<string, string>) {
   const items = marathon?.questions ?? []
   return items.filter((item) => item.required).every((item) => isQuestionAnswered(item, answerValues[item.id]))
 }
 
-/** Whether this registration has payment confirmed, a passport bio page uploaded and, if the marathon defines a questionnaire, every required question answered. */
-export function isBookingComplete(registration: Registration, marathon: Marathon | undefined) {
-  if (registration.status !== 'confirmed' || !registration.passportPhotoUrl) return false
+/** The first questionnaire still missing a required answer — what the "Answer …" action names. */
+export function getNextQuestionnaire(registration: Registration, marathon: Marathon | undefined) {
+  const answerValues = Object.fromEntries((registration.answers ?? []).map((a) => [a.questionId, a.value]))
+  return getQuestionnaires(marathon).find((q) =>
+    q.questions.some((item) => item.required && !isQuestionAnswered(item, answerValues[item.id])),
+  )?.name
+}
+
+/** Passport bio page uploaded and, if the marathon defines a questionnaire, every required question answered. */
+export function hasSubmittedBookingDetails(registration: Registration, marathon: Marathon | undefined) {
+  if (!registration.passportPhotoUrl) return false
   const answerValues = Object.fromEntries((registration.answers ?? []).map((a) => [a.questionId, a.value]))
   return areRequiredItemsAnswered(marathon, answerValues)
+}
+
+/** Whether this registration has payment confirmed and its passport/questionnaire submitted. */
+export function isBookingComplete(registration: Registration, marathon: Marathon | undefined) {
+  return registration.status === 'confirmed' && hasSubmittedBookingDetails(registration, marathon)
+}
+
+// The passport/questionnaire update rule in firestore.rules also allows payment_submitted;
+// it's left out here so a balance proof under review can still be viewed/replaced in the wizard.
+const BOOKING_DETAILS_STATUSES: RegistrationStatus[] = ['deposit_paid', 'final_invoiced', 'payment_rejected', 'confirmed']
+
+/** Deposit approved and the booking still active — passport & questionnaire are due from then on. */
+export function isPastDeposit(registration: Registration) {
+  return registration.depositPaidAt != null && BOOKING_DETAILS_STATUSES.includes(registration.status)
 }
 
 // Mirrors CANCELLABLE_STATUSES in functions/src/cancel-registration.ts — every
@@ -173,7 +215,7 @@ export const PENDING_ACTION_REMINDER: Record<PendingActionStep, string> = {
   payment: 'Your deposit is still due — please pay using your invoice and upload your proof of payment.',
   final_payment: 'Your final balance is still due — please pay using your final invoice and upload your proof of payment.',
   passport: 'Please upload a photo of your passport bio page to complete your booking.',
-  questionnaire: 'Please answer the event questionnaire to complete your booking.',
+  questionnaire: 'Please answer the event questionnaires to complete your booking.',
 }
 
 /** What the registrant still needs to do next, or null if nothing is required of them right now. */
@@ -182,12 +224,12 @@ export function getPendingActionStep(
   marathon: Marathon | undefined,
 ): PendingActionStep | null {
   if (registration.status === 'accepted') return 'terms'
+  if (registration.status === 'terms_accepted') return 'payment'
+  // Passport bio page, then the questionnaire, come first once the deposit is approved — before the balance.
+  if (isPastDeposit(registration) && !registration.passportPhotoUrl) return 'passport'
+  if (isPastDeposit(registration) && !hasSubmittedBookingDetails(registration, marathon)) return 'questionnaire'
   if (registration.status === 'final_invoiced') return 'final_payment'
   if (registration.status === 'payment_rejected') return isOnFinalInvoice(registration) ? 'final_payment' : 'payment'
-  if (registration.status === 'terms_accepted') return 'payment'
-  // Passport bio page, then the questionnaire, are the last steps once payment is fully confirmed.
-  if (registration.status === 'confirmed' && !registration.passportPhotoUrl) return 'passport'
-  if (registration.status === 'confirmed' && !isBookingComplete(registration, marathon)) return 'questionnaire'
   return null
 }
 
@@ -201,8 +243,34 @@ export function canReopenWizard(registration: Registration, marathon: Marathon |
   return getPendingActionStep(registration, marathon) != null || registration.status === 'payment_submitted'
 }
 
+/** PENDING_ACTION_LABEL, naming the questionnaire due next (e.g. "Answer Health Declaration"). */
+export function getPendingActionLabel(
+  step: PendingActionStep,
+  registration: Registration,
+  marathon: Marathon | undefined,
+) {
+  const questionnaire = step === 'questionnaire' ? getNextQuestionnaire(registration, marathon) : undefined
+  return questionnaire ? `Answer ${questionnaire}` : PENDING_ACTION_LABEL[step]
+}
+
+/** PENDING_ACTION_REMINDER, naming the questionnaire due next. */
+export function getPendingActionReminder(
+  step: PendingActionStep,
+  registration: Registration,
+  marathon: Marathon | undefined,
+) {
+  const questionnaire = step === 'questionnaire' ? getNextQuestionnaire(registration, marathon) : undefined
+  return questionnaire
+    ? `Please answer the "${questionnaire}" questionnaire to complete your booking.`
+    : PENDING_ACTION_REMINDER[step]
+}
+
 /** Button label for reopening the wizard, covering the not-a-pending-action case (already submitted, awaiting review). */
-export function getWizardButtonLabel(step: PendingActionStep | null) {
-  if (step) return PENDING_ACTION_LABEL[step]
+export function getWizardButtonLabel(
+  step: PendingActionStep | null,
+  registration: Registration,
+  marathon: Marathon | undefined,
+) {
+  if (step) return getPendingActionLabel(step, registration, marathon)
   return 'View / Update Proof of Payment'
 }

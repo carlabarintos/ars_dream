@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { DownloadIcon, X } from 'lucide-react'
+import { CheckCircle2Icon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -33,7 +33,9 @@ import { bookingDocumentPage, getBookingDocuments, downloadBookingDocument } fro
 import {
   getFinalInvoiceBalance,
   getOfferedPackages,
+  getNextQuestionnaire,
   getPendingActionStep,
+  getQuestionnaires,
   isOnFinalInvoice,
   isQuestionAnswered,
 } from './registration-flow'
@@ -43,10 +45,13 @@ export function RegistrationWizard({
   registration,
   marathon,
   onClose,
+  initialQuestionnaire,
 }: {
   registration: Registration
   marathon: Marathon | undefined
   onClose: () => void
+  /** Opens straight onto this named questionnaire (e.g. from its link on the booking timeline). */
+  initialQuestionnaire?: string
 }) {
   const profile = useAuthStore((state) => state.profile)
   const [files, setFiles] = useState<File[]>([])
@@ -78,9 +83,18 @@ export function RegistrationWizard({
   const chosenDeposit = Math.min(chosenPackage?.depositAmount ?? 0, chosenTotal)
 
   const items = marathon?.questions ?? []
+  const questionnaires = getQuestionnaires(marathon)
+  const [openQuestionnaire, setOpenQuestionnaire] = useState<string | null>(
+    () =>
+      initialQuestionnaire ??
+      getNextQuestionnaire(registration, marathon) ??
+      (questionnaires.length === 1 ? questionnaires[0].name : null),
+  )
+  const activeItems = questionnaires.find((q) => q.name === openQuestionnaire)?.questions ?? []
   const pendingStep = getPendingActionStep(registration, marathon)
-  const step =
-    pendingStep ??
+  const step = initialQuestionnaire
+    ? 'questionnaire'
+    : pendingStep ??
     (registration.status === 'payment_submitted'
       ? isOnFinalInvoice(registration)
         ? 'final_payment'
@@ -147,14 +161,16 @@ export function RegistrationWizard({
   }
 
   async function handleSubmitAnswers() {
-    const missingRequired = items.some((item) => item.required && !isQuestionAnswered(item, answerValues[item.id]))
+    const missingRequired = activeItems.some(
+      (item) => item.required && !isQuestionAnswered(item, answerValues[item.id]),
+    )
     if (missingRequired) {
       toast.error('Please complete all required items.')
       return
     }
     const answers: QuestionAnswer[] = [
       ...lockedAnswers,
-      ...items
+      ...activeItems
         .filter((item) => !isLocked(item.id) && isQuestionAnswered(item, answerValues[item.id]))
         .map((item) => ({
           questionId: item.id,
@@ -165,8 +181,15 @@ export function RegistrationWizard({
     setIsSubmitting(true)
     try {
       await submitQuestionnaireAnswers(registration.id, answers)
-      toast.success('Thanks! Your booking is complete.')
-      onClose()
+      const answered = new Set(answers.map((answer) => answer.questionId))
+      const remaining = questionnaires.filter((q) => !q.questions.some((item) => answered.has(item.id)))
+      if (remaining.length > 0) {
+        toast.success(`Thanks! Next: ${remaining[0].name}.`)
+        setOpenQuestionnaire(null)
+      } else {
+        toast.success(registration.status === 'confirmed' ? 'Thanks! Your booking is complete.' : 'Thanks! Your answers are in.')
+        onClose()
+      }
     } catch (error) {
       toast.error(getFriendlyErrorMessage(error, 'terms'))
     } finally {
@@ -179,7 +202,13 @@ export function RegistrationWizard({
     setIsSubmitting(true)
     try {
       await submitPassportPhoto(registration.id, passportFile)
-      toast.success(items.length ? 'Passport uploaded. Last step: the questionnaire.' : 'Thanks! Your booking is complete.')
+      toast.success(
+        items.length
+          ? 'Passport uploaded. Next: the questionnaire.'
+          : registration.status === 'confirmed'
+            ? 'Thanks! Your booking is complete.'
+            : 'Thanks! Your passport is in.',
+      )
       onClose()
     } catch (error) {
       toast.error(getFriendlyErrorMessage(error, 'payment'))
@@ -217,9 +246,9 @@ export function RegistrationWizard({
                 : isFinal
                   ? 'Your final invoice is below. Pay the balance using the instructions, then upload your proof of payment.'
                   : step === 'passport'
-                    ? 'Your booking is paid. Upload a clear photo of your passport bio page (the page with your photo and details) to complete it.'
+                    ? 'Your slot is locked in. Upload a clear photo of your passport bio page (the page with your photo and details).'
                     : step === 'questionnaire'
-                      ? 'Your booking is paid. Answer this last questionnaire to complete it.'
+                      ? openQuestionnaire ?? 'Your slot is locked in. Please answer each questionnaire below.'
                       : ''}
           </DialogDescription>
         </DialogHeader>
@@ -370,9 +399,50 @@ export function RegistrationWizard({
           </div>
         )}
 
-        {step === 'questionnaire' && (
+        {step === 'questionnaire' && openQuestionnaire == null && (
+          <div className="flex flex-col gap-2">
+            {questionnaires.map((questionnaire) => {
+              const isDone = questionnaire.questions.some((item) => isLocked(item.id))
+              return (
+                <Button
+                  key={questionnaire.name}
+                  variant="outline"
+                  className="h-auto justify-between py-3"
+                  onClick={() => setOpenQuestionnaire(questionnaire.name)}
+                >
+                  <span className="flex items-center gap-2 text-left whitespace-normal">
+                    {isDone && <CheckCircle2Icon className="text-primary size-4 shrink-0" />}
+                    {questionnaire.name}
+                  </span>
+                  <span className="text-muted-foreground flex items-center gap-1 text-xs">
+                    {isDone ? 'Answered' : 'Answer'}
+                    <ChevronRightIcon className="size-4" />
+                  </span>
+                </Button>
+              )
+            })}
+            <DialogFooter>
+              <Button variant="outline" onClick={onClose}>
+                Close
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+
+        {step === 'questionnaire' && openQuestionnaire != null && (
           <div className="flex flex-col gap-4">
-            {items.map((item) => (
+            {questionnaires.length > 1 && (
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto self-start p-0"
+                onClick={() => setOpenQuestionnaire(null)}
+              >
+                <ChevronLeftIcon />
+                All questionnaires
+              </Button>
+            )}
+            {activeItems.map((item) => (
               <div key={item.id} className="flex flex-col gap-1.5">
                 <Label
                   htmlFor={item.id}
@@ -435,9 +505,11 @@ export function RegistrationWizard({
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button loading={isSubmitting} onClick={handleSubmitAnswers}>
-                Submit Answers
-              </Button>
+              {activeItems.some((item) => !isLocked(item.id)) && (
+                <Button loading={isSubmitting} onClick={handleSubmitAnswers}>
+                  Submit Answers
+                </Button>
+              )}
             </DialogFooter>
           </div>
         )}

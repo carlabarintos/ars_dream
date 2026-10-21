@@ -37,6 +37,7 @@ import {
   canReRegister,
   getPendingActionStep,
   isBookingComplete,
+  isPastDeposit,
   getRegistrationStatusMessage,
   getRegistrationTotalAmount,
   getWizardButtonLabel,
@@ -196,6 +197,7 @@ export function MyRegistrationsPage() {
   const marathonIds = registrations.map((r) => r.marathonId)
   const marathons = useMarathonsByIds(marathonIds)
   const [activeRegistrationId, setActiveRegistrationId] = useState<string | null>(null)
+  const [activeQuestionnaire, setActiveQuestionnaire] = useState<string | undefined>()
   // Re-derived live from the subscription every render (not captured once into
   // state) so the wizard always acts on the current server-side status — a
   // frozen copy would let a status change while the dialog is open (e.g. an
@@ -398,7 +400,18 @@ export function MyRegistrationsPage() {
                         Timeline
                       </div>
                       {profile && <BookingTimeline registration={registration} marathon={marathon} profile={profile} />}
-                      <QuestionnaireLink registration={registration} marathon={marathon} />
+                      <QuestionnaireLink
+                        registration={registration}
+                        marathon={marathon}
+                        onAnswer={
+                          isPastDeposit(registration) && registration.passportPhotoUrl
+                            ? (name) => {
+                                setActiveQuestionnaire(name)
+                                setActiveRegistrationId(registration.id)
+                              }
+                            : undefined
+                        }
+                      />
                     </div>
                   </div>
                 </CardContent>
@@ -406,7 +419,7 @@ export function MyRegistrationsPage() {
                 <CardFooter className="border-border flex flex-col gap-2 border-t pt-4 pb-5">
                   {canReopenWizard(registration, marathon) && (
                     <Button className="w-full" onClick={() => setActiveRegistrationId(registration.id)}>
-                      {getWizardButtonLabel(pendingStep)}
+                      {getWizardButtonLabel(pendingStep, registration, marathon)}
                     </Button>
                   )}
                   {canReRegister(registration) && (
@@ -426,7 +439,11 @@ export function MyRegistrationsPage() {
         <RegistrationWizard
           registration={activeRegistration}
           marathon={marathons[activeRegistration.marathonId]}
-          onClose={() => setActiveRegistrationId(null)}
+          initialQuestionnaire={activeQuestionnaire}
+          onClose={() => {
+            setActiveRegistrationId(null)
+            setActiveQuestionnaire(undefined)
+          }}
         />
       )}
     </>

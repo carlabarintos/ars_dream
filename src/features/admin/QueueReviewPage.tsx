@@ -13,16 +13,17 @@ import { useMarathon } from '@/features/marathons/use-marathons'
 import { BookingChatDialog } from '@/features/messages/BookingChatDialog'
 import { cancelRegistration, decideQueueRegistration, sendReminder, swapQueuePositions } from '@/features/registrations/api'
 import {
+  getPendingActionLabel,
+  getPendingActionReminder,
   getPendingActionStep,
   hasChosenPackage,
   isBookingComplete,
   isOverdue,
-  PENDING_ACTION_REMINDER,
 } from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
-import type { Registration } from '@/types'
+import type { Marathon, Registration } from '@/types'
 
 import { BookingDetailDialog } from './BookingDetailDialog'
 import { BookingProgress } from '@/features/registrations/BookingTimeline'
@@ -164,7 +165,7 @@ export function QueueReviewPage() {
     const step = getPendingActionStep(registration, marathon ?? undefined)
     if (!step) return
     const name = formatUserName(profiles[registration.userId])
-    const text = prompt(`Remind ${name} by email and push:`, PENDING_ACTION_REMINDER[step])?.trim()
+    const text = prompt(`Remind ${name} by email and push:`, getPendingActionReminder(step, registration, marathon ?? undefined))?.trim()
     if (!text) return
     setDecidingKey(`${registration.id}-remind`)
     try {
@@ -360,6 +361,7 @@ export function QueueReviewPage() {
                       incomplete={!isBookingComplete(registration, marathon ?? undefined)}
                     />
                     <BookingProgress registration={registration} />
+                    <PendingActionNote registration={registration} marathon={marathon ?? undefined} />
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
@@ -425,4 +427,11 @@ export function QueueReviewPage() {
       )}
     </div>
   )
+}
+
+/** What the registrant still owes, e.g. "Waiting on: Answer Health Declaration". */
+function PendingActionNote({ registration, marathon }: { registration: Registration; marathon: Marathon | undefined }) {
+  const step = getPendingActionStep(registration, marathon)
+  if (!step) return null
+  return <span className="text-muted-foreground text-xs">Waiting on: {getPendingActionLabel(step, registration, marathon)}</span>
 }

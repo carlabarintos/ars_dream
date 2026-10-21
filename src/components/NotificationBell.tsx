@@ -16,16 +16,8 @@ import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-p
 import { useMarathonsByIds } from '@/features/marathons/use-marathons'
 import { useAllPersonalThreads, usePersonalThread } from '@/features/messages/use-messages'
 import { RegistrationWizard } from '@/features/registrations/RegistrationWizard'
-import { getPendingActionStep, type PendingActionStep } from '@/features/registrations/registration-flow'
+import { getPendingActionLabel, getPendingActionStep } from '@/features/registrations/registration-flow'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
-
-const ACTION_LABEL: Record<PendingActionStep, string> = {
-  terms: 'Choose Package & Accept Offer',
-  payment: 'Submit Proof of Payment',
-  final_payment: 'Pay Final Invoice',
-  passport: 'Upload Passport Bio Page',
-  questionnaire: 'Answer Questionnaire',
-}
 
 export function NotificationBell() {
   const uid = useAuthStore((state) => state.firebaseUser?.uid)
@@ -89,7 +81,7 @@ export function NotificationBell() {
                     >
                       <span className="font-medium">{marathon?.title ?? 'Marathon'}</span>
                       <span className="text-muted-foreground text-xs">
-                        {step ? ACTION_LABEL[step] : 'Complete your registration steps'}
+                        {step ? getPendingActionLabel(step, registration, marathon) : 'Complete your registration steps'}
                       </span>
                     </DropdownMenuItem>
                   )
