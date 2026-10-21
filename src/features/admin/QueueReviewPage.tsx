@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -107,8 +108,11 @@ export function QueueReviewPage() {
   const [detailRegistrationId, setDetailRegistrationId] = useState<string | null>(null)
   const detailRegistration = registrations.find((r) => r.id === detailRegistrationId)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const statusFilteredRegistrations = orderedRegistrations.filter((registration) =>
-    matchesStatusFilter(registration, statusFilter),
+  const [showCancelled, setShowCancelled] = useState(false)
+  const statusFilteredRegistrations = orderedRegistrations.filter(
+    (registration) =>
+      matchesStatusFilter(registration, statusFilter) &&
+      (showCancelled || statusFilter === 'cancelled' || registration.status !== 'cancelled'),
   )
   const { query, setQuery, filtered, visible, hasMore, loadMore } = usePaginatedSearch(
     statusFilteredRegistrations,
@@ -292,6 +296,10 @@ export function QueueReviewPage() {
               ))}
             </SelectContent>
           </Select>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={showCancelled} onCheckedChange={(checked) => setShowCancelled(checked === true)} />
+            Show cancelled
+          </label>
         </div>
       )}
 
