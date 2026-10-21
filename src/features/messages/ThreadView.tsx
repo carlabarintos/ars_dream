@@ -6,6 +6,7 @@ import type { Timestamp } from 'firebase/firestore'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
+import { UploadedFileButton } from '@/features/registrations/BookingDocumentDialog'
 import { getFriendlyErrorMessage } from '@/lib/friendly-error'
 import { cn } from '@/lib/utils'
 import type { MessageSenderRole } from '@/types'
@@ -104,15 +105,14 @@ export function ThreadView<TMessage extends ThreadMessage>({
                     {message.text}
                   </span>
                   {message.attachmentUrls?.map((url, index) => (
-                    <a
+                    <UploadedFileButton
                       key={url}
-                      href={url}
-                      target="_blank"
-                      rel="noreferrer"
+                      url={url}
+                      label={`Proof of payment${message.attachmentUrls!.length > 1 ? ` ${index + 1}` : ''}`}
                       className="text-primary text-xs underline underline-offset-2"
                     >
                       View proof of payment{message.attachmentUrls!.length > 1 ? ` ${index + 1}` : ''}
-                    </a>
+                    </UploadedFileButton>
                   ))}
                   <span className="text-muted-foreground text-[11px]">
                     {showEventLabels && message.registrationLabel ? `${message.registrationLabel} · ` : ''}

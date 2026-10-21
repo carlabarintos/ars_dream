@@ -22,6 +22,7 @@ import {
   getDepositDue,
   isOnFinalInvoice,
 } from '@/features/registrations/registration-flow'
+import { UploadedFileButton } from '@/features/registrations/BookingDocumentDialog'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
 import type { Registration } from '@/types'
@@ -141,13 +142,13 @@ export function PaymentReviewPage() {
                   </CardHeader>
                   <CardContent className="grid grid-cols-2 gap-2">
                     {getPaymentProofs(registration).latest.map((url, index) => (
-                      <a key={url} href={url} target="_blank" rel="noreferrer">
+                      <UploadedFileButton key={url} url={url} label={`Proof of payment ${index + 1}`}>
                         <img
                           src={url}
                           alt={`Proof of payment ${index + 1}`}
                           className="max-h-64 w-full rounded-md border border-border object-contain"
                         />
-                      </a>
+                      </UploadedFileButton>
                     ))}
                   </CardContent>
                   <CardFooter className="gap-2">

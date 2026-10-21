@@ -4,7 +4,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { formatUserName } from '@/features/auth/use-user-profiles'
 import { BookingTimeline } from '@/features/registrations/BookingTimeline'
 import { QuestionnaireLink } from '@/features/registrations/QuestionnaireLink'
-import { getPaymentProofs, isBookingComplete, isOnFinalInvoice, isOverdue } from '@/features/registrations/registration-flow'
+import { UploadedFileThumb } from '@/features/registrations/BookingDocumentDialog'
+import {
+  getLabelledPaymentProofs,
+  getPaymentProofs,
+  isBookingComplete,
+  isOverdue,
+} from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { formatPackagePrice } from '@/lib/utils'
 import type { Marathon, Registration, UserProfile } from '@/types'
@@ -25,18 +31,8 @@ export function BookingDetailDialog({
   actions: ReactNode
   onClose: () => void
 }) {
-  const { approved, latest } = getPaymentProofs(registration)
-  const latestLabel =
-    registration.status === 'payment_submitted'
-      ? 'Awaiting review'
-      : registration.status === 'payment_rejected'
-        ? 'Rejected'
-        : 'Approved'
-  const paidBalanceProofs = new Set(registration.previousFinalInvoices?.flatMap((v) => v.paidProofUrls ?? []))
-  const proofs = [
-    ...approved.map((url) => ({ url, label: `${paidBalanceProofs.has(url) ? 'Balance' : 'Deposit'} · Approved` })),
-    ...latest.map((url) => ({ url, label: `${isOnFinalInvoice(registration) ? 'Balance' : 'Deposit'} · ${latestLabel}` })),
-  ]
+  const { latest } = getPaymentProofs(registration)
+  const proofs = getLabelledPaymentProofs(registration)
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -73,13 +69,9 @@ export function BookingDetailDialog({
               <section className="flex flex-col gap-3">
                 <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Passport bio page</h3>
                 {registration.passportPhotoUrl ? (
-                  <a href={registration.passportPhotoUrl} target="_blank" rel="noreferrer" className="w-fit">
-                    <img
-                      src={registration.passportPhotoUrl}
-                      alt="Passport bio page"
-                      className="border-border h-48 w-auto rounded-md border object-contain"
-                    />
-                  </a>
+                  <div className="w-fit">
+                    <UploadedFileThumb url={registration.passportPhotoUrl} label="Passport bio page" className="h-48" />
+                  </div>
                 ) : (
                   <p className="text-muted-foreground text-sm">Not uploaded yet.</p>
                 )}
@@ -96,17 +88,8 @@ export function BookingDetailDialog({
                   </p>
                 )}
                 <div className="flex flex-wrap gap-3">
-                  {proofs.map(({ url, label }, index) => (
-                    <a key={url} href={url} target="_blank" rel="noreferrer" className="flex flex-col gap-1 text-xs">
-                      <img
-                        src={url}
-                        alt={`Payment proof ${index + 1}`}
-                        className="border-border h-36 w-auto rounded-md border object-contain"
-                      />
-                      <span className={label.endsWith('Rejected') ? 'text-destructive' : 'text-muted-foreground'}>
-                        {label}
-                      </span>
-                    </a>
+                  {proofs.map(({ url, label }) => (
+                    <UploadedFileThumb key={url} url={url} label={label} className="h-36" />
                   ))}
                 </div>
               </section>

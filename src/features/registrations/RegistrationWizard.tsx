@@ -29,7 +29,8 @@ import {
   submitQuestionnaireAnswers,
   submitTermsAndConditions,
 } from './api'
-import { bookingDocumentPage, getBookingDocuments, downloadBookingDocument } from './booking-documents'
+import { BookingDocumentFrame, UploadedFileButton } from './BookingDocumentDialog'
+import { getBookingDocuments, downloadBookingDocument } from './booking-documents'
 import {
   getFinalInvoiceBalance,
   getOfferedPackages,
@@ -235,7 +236,7 @@ export function RegistrationWizard({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl sm:max-w-3xlgrid-cols-[minmax(0,1fr)] overflow-x-hidden overflow-y-auto p-5 sm:p-8">
+      <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl sm:max-w-3xl grid-cols-[minmax(0,1fr)] overflow-x-hidden overflow-y-auto p-5 sm:p-8">
         <DialogHeader>
           <DialogTitle className="px-6 sm:px-0 sm:pr-6">{marathon?.title ?? 'Complete Your Registration'}</DialogTitle>
           <DialogDescription>
@@ -528,16 +529,7 @@ export function RegistrationWizard({
             )}
             {invoiceDocument && (
               <div className="hidden flex-col gap-2 sm:flex">
-                <iframe
-                  title={invoiceDocument.label}
-                  srcDoc={bookingDocumentPage(invoiceDocument, invoiceDocument.label, 'all')}
-                  // Sized to its content so the dialog scrolls, not the frame.
-                  onLoad={(e) => {
-                    const frame = e.currentTarget
-                    frame.style.height = `${frame.contentDocument?.documentElement.scrollHeight ?? 0}px`
-                  }}
-                  className="h-[60vh] w-full rounded-md border border-border"
-                />
+                <BookingDocumentFrame document={invoiceDocument} />
                 <Button
                   variant="outline"
                   className="w-fit"
@@ -610,15 +602,14 @@ export function RegistrationWizard({
               {currentProofs.length > 0 && (
                 <div className="flex flex-col gap-1">
                   {currentProofs.map((url, index) => (
-                    <a
+                    <UploadedFileButton
                       key={url}
-                      href={url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-primary text-sm underline underline-offset-2"
+                      url={url}
+                      label="Your proof of payment"
+                      className="text-primary w-fit text-sm underline underline-offset-2"
                     >
                       View current submission {currentProofs.length > 1 ? index + 1 : ''}
-                    </a>
+                    </UploadedFileButton>
                   ))}
                 </div>
               )}

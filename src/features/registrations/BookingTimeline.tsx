@@ -1,14 +1,16 @@
-import { CheckIcon, DownloadIcon, XIcon } from 'lucide-react'
+import { useState } from 'react'
+import { CheckIcon, FileTextIcon, XIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
   type BookingDocument,
-  downloadBookingDocument,
   getBookingDocuments,
   getFinalInvoiceDocuments,
 } from '@/features/registrations/booking-documents'
 import { cn, formatPackagePrice } from '@/lib/utils'
 import type { Marathon, Registration, UserProfile } from '@/types'
+
+import { BookingDocumentDialog } from './BookingDocumentDialog'
 
 interface Step {
   label: string
@@ -16,7 +18,7 @@ interface Step {
   at?: Date
   done: boolean
   failed?: boolean
-  /** Downloadable from this step once it's done. */
+  /** Viewable/downloadable from this step once it's done. */
   document?: BookingDocument
 }
 
@@ -124,53 +126,57 @@ export function BookingTimeline({
   marathon: Marathon | undefined
   profile: UserProfile
 }) {
+  const [viewing, setViewing] = useState<BookingDocument>()
   return (
-    <ol className="flex flex-col">
-      {getSteps(registration, marathon, profile).map((step, index, steps) => {
-        const document = step.done && step.document
-        return (
-          <li key={index} className="relative flex gap-3 pb-4 last:pb-0">
-            {index < steps.length - 1 && (
-              <span
-                className={cn('absolute top-6 bottom-0 left-[11px] w-px', step.done ? 'bg-primary' : 'bg-border')}
-              />
-            )}
-            <span
-              className={cn(
-                'z-10 flex size-6 shrink-0 items-center justify-center rounded-full border',
-                step.failed
-                  ? 'border-destructive bg-destructive text-white'
-                  : step.done
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'bg-background',
+    <>
+      <ol className="flex flex-col">
+        {getSteps(registration, marathon, profile).map((step, index, steps) => {
+          const document = step.done && step.document
+          return (
+            <li key={index} className="relative flex gap-3 pb-4 last:pb-0">
+              {index < steps.length - 1 && (
+                <span
+                  className={cn('absolute top-6 bottom-0 left-[11px] w-px', step.done ? 'bg-primary' : 'bg-border')}
+                />
               )}
-            >
-              {step.failed ? <XIcon className="size-3.5" /> : step.done && <CheckIcon className="size-3.5" />}
-            </span>
-            <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-x-3 gap-y-1">
-              <div className="min-w-0">
-                <p className={cn('text-sm font-medium', !step.done && 'text-muted-foreground')}>{step.label}</p>
-                {step.detail && <p className="text-muted-foreground text-xs">{step.detail}</p>}
-                {step.done && step.at && (
-                  <p className="text-muted-foreground text-xs">{step.at.toLocaleString()}</p>
+              <span
+                className={cn(
+                  'z-10 flex size-6 shrink-0 items-center justify-center rounded-full border',
+                  step.failed
+                    ? 'border-destructive bg-destructive text-white'
+                    : step.done
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'bg-background',
+                )}
+              >
+                {step.failed ? <XIcon className="size-3.5" /> : step.done && <CheckIcon className="size-3.5" />}
+              </span>
+              <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                <div className="min-w-0">
+                  <p className={cn('text-sm font-medium', !step.done && 'text-muted-foreground')}>{step.label}</p>
+                  {step.detail && <p className="text-muted-foreground text-xs">{step.detail}</p>}
+                  {step.done && step.at && (
+                    <p className="text-muted-foreground text-xs">{step.at.toLocaleString()}</p>
+                  )}
+                </div>
+                {document && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7"
+                    onClick={() => setViewing(document)}
+                  >
+                    <FileTextIcon />
+                    {document.label}
+                  </Button>
                 )}
               </div>
-              {document && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7"
-                  onClick={() => downloadBookingDocument(document, marathon?.title)}
-                >
-                  <DownloadIcon />
-                  {document.label}
-                </Button>
-              )}
-            </div>
-          </li>
-        )
-      })}
-    </ol>
+            </li>
+          )
+        })}
+      </ol>
+      <BookingDocumentDialog document={viewing} marathonTitle={marathon?.title} onClose={() => setViewing(undefined)} />
+    </>
   )
 }
 

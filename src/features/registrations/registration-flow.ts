@@ -43,6 +43,22 @@ export function getPaymentProofs(registration: Registration) {
   return { approved, latest: registration.proofOfPaymentUrls.filter((url) => !approved.includes(url)) }
 }
 
+/** Every proof uploaded on this booking, labelled with what it paid and where it stands, oldest first. */
+export function getLabelledPaymentProofs(registration: Registration) {
+  const { approved, latest } = getPaymentProofs(registration)
+  const latestLabel =
+    registration.status === 'payment_submitted'
+      ? 'Awaiting review'
+      : registration.status === 'payment_rejected'
+        ? 'Rejected'
+        : 'Approved'
+  const paidBalanceProofs = new Set(registration.previousFinalInvoices?.flatMap((v) => v.paidProofUrls ?? []))
+  return [
+    ...approved.map((url) => ({ url, label: `${paidBalanceProofs.has(url) ? 'Balance' : 'Deposit'} · Approved` })),
+    ...latest.map((url) => ({ url, label: `${isOnFinalInvoice(registration) ? 'Balance' : 'Deposit'} · ${latestLabel}` })),
+  ]
+}
+
 /** Sum of the final invoice's lines — what's still owed after the deposit credit. */
 export function getFinalInvoiceBalance(registration: Registration) {
   return (registration.finalInvoice?.items ?? []).reduce((sum, item) => sum + item.amount, 0)

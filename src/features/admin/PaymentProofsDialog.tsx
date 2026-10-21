@@ -13,6 +13,8 @@ import {
 } from '@/features/registrations/registration-flow'
 import type { Marathon, Registration } from '@/types'
 
+import { UploadedFileButton } from '@/features/registrations/BookingDocumentDialog'
+
 function ProofGrid({ title, urls }: { title: string; urls: string[] }) {
   if (urls.length === 0) return null
   return (
@@ -20,11 +22,10 @@ function ProofGrid({ title, urls }: { title: string; urls: string[] }) {
       <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{title}</p>
       <div className="flex flex-wrap justify-center gap-2">
         {urls.map((url, index) => (
-          <a
+          <UploadedFileButton
             key={url}
-            href={url}
-            target="_blank"
-            rel="noreferrer"
+            url={url}
+            label={`${title} ${index + 1}`}
             className={urls.length === 1 ? 'w-full' : 'w-[calc(50%-0.25rem)]'}
           >
             <img
@@ -32,7 +33,7 @@ function ProofGrid({ title, urls }: { title: string; urls: string[] }) {
               alt={`${title} ${index + 1}`}
               className={`border-border mx-auto block max-w-full rounded-md border ${urls.length === 1 ? 'max-h-[60vh]' : 'max-h-64'}`}
             />
-          </a>
+          </UploadedFileButton>
         ))}
       </div>
     </div>

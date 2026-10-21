@@ -10,6 +10,7 @@ import {
   type LucideIcon,
   MapPinIcon,
   MessageCircleIcon,
+  PaperclipIcon,
   PartyPopperIcon,
   TicketIcon,
   XCircleIcon,
@@ -29,12 +30,14 @@ import { BookingChat } from '@/features/messages/BookingChatDialog'
 import { cn } from '@/lib/utils'
 import type { Registration, RegistrationStatus } from '@/types'
 
+import { UploadedFileThumb } from './BookingDocumentDialog'
 import { BookingTimeline } from './BookingTimeline'
 import { CancelRegistrationButton } from './CancelRegistrationButton'
 import { QuestionnaireLink } from './QuestionnaireLink'
 import {
   canReopenWizard,
   canReRegister,
+  getLabelledPaymentProofs,
   getPendingActionStep,
   isBookingComplete,
   isPastDeposit,
@@ -412,6 +415,22 @@ export function MyRegistrationsPage() {
                             : undefined
                         }
                       />
+                      {(registration.passportPhotoUrl || getLabelledPaymentProofs(registration).length > 0) && (
+                        <>
+                          <div className="text-muted-foreground mt-2 flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase">
+                            <PaperclipIcon className="size-3.5" />
+                            Your uploads
+                          </div>
+                          <div className="flex flex-wrap gap-3">
+                            {registration.passportPhotoUrl && (
+                              <UploadedFileThumb url={registration.passportPhotoUrl} label="Passport bio page" className="h-24" />
+                            )}
+                            {getLabelledPaymentProofs(registration).map(({ url, label }) => (
+                              <UploadedFileThumb key={url} url={url} label={`Payment proof · ${label}`} className="h-24" />
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </CardContent>
