@@ -371,6 +371,10 @@ function serviceDocumentHtml(doc: ServiceDocument): string {
   return `
     <div style="background: ${PAGE_BG}; font-family: ${SANS}; color: #000000;">
       <div style="max-width: 680px; margin: 0 auto; padding: 24px 12px;">
+        <!-- Above the document, not after it: Gmail collapses a tail that matches earlier emails in the thread behind "…".
+             class="no-print": hidden when the registrant downloads the document from My Bookings (booking-documents.ts). -->
+        <p class="no-print" style="margin: 0 0 12px; font-size: 14px; line-height: 1.5; color: ${MUTED};">${escapeHtml(doc.intro)}</p>
+        <a class="no-print" href="${APP_URL}/my-registrations" style="display: block; text-align: center; background: ${PRIMARY}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 20px; border-radius: 10px; margin: 0 0 20px;">${doc.ctaLabel}</a>
         <div style="background: #ffffff; border: 1px solid ${BORDER}; padding: 24px;">
           <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
             <tr>
@@ -414,10 +418,7 @@ function serviceDocumentHtml(doc: ServiceDocument): string {
           </table>
           <p style="margin: 0; padding: 10px 0 0; border-top: 1px solid #000000; text-align: center; font-size: 15px; font-weight: 700;">${COMPANY_NAME}</p>
         </div>
-        <!-- class="no-print": hidden when the registrant downloads the document from My Bookings (booking-documents.ts). -->
-        <p class="no-print" style="margin: 20px 0 12px; font-size: 14px; line-height: 1.5; color: ${MUTED};">${escapeHtml(doc.intro)}</p>
-        <a class="no-print" href="${APP_URL}/my-registrations" style="display: block; text-align: center; background: ${PRIMARY}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 20px; border-radius: 10px; margin: 0 0 24px;">${doc.ctaLabel}</a>
-        <p class="no-print" style="margin: 8px 0 0; text-align: center; font-size: 12px; color: ${MUTED};">
+        <p class="no-print" style="margin: 20px 0 0; text-align: center; font-size: 12px; color: ${MUTED};">
           ARS Dream Sports · <a href="${APP_URL}" style="color: ${MUTED};">arsdreamsports.com</a>
         </p>
       </div>
