@@ -60,23 +60,30 @@ export function subscribeToMarathon(marathonId: string, onData: (marathon: Marat
 
 /** Uploads an admin-selected banner image and returns its public download URL, for use as `MarathonInput.bannerImageUrl`. */
 export async function uploadMarathonBanner(file: File): Promise<string> {
-  const storageRef = ref(storage, `marathon-banners/${crypto.randomUUID()}-${file.name}`)
+  return uploadPublicImage('marathon-banners', file)
+}
+
+/** Mirrors storage.rules' size/type limits up front — Storage otherwise rejects with a vague "permission denied". */
+async function uploadPublicImage(folder: string, file: File): Promise<string> {
+  if (!file.type.startsWith('image/')) {
+    throw new Error(`"${file.name}" isn't a supported image. Use JPG, PNG or WebP.`)
+  }
+  if (file.size >= 10 * 1024 * 1024) {
+    throw new Error(`"${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB. Images must be under 10 MB.`)
+  }
+  const storageRef = ref(storage, `${folder}/${crypto.randomUUID()}-${file.name}`)
   await uploadBytes(storageRef, file)
   return getDownloadURL(storageRef)
 }
 
 /** Uploads an admin-selected package photo and returns its public download URL, for use in `MarathonPackage.photoUrls`. */
 export async function uploadMarathonPackagePhoto(file: File): Promise<string> {
-  const storageRef = ref(storage, `marathon-packages/${crypto.randomUUID()}-${file.name}`)
-  await uploadBytes(storageRef, file)
-  return getDownloadURL(storageRef)
+  return uploadPublicImage('marathon-packages', file)
 }
 
 /** Uploads an admin-selected standard offer image and returns its public download URL, for use as `MarathonPackage.offerImageUrl`. */
 export async function uploadMarathonPackageOffer(file: File): Promise<string> {
-  const storageRef = ref(storage, `marathon-package-offers/${crypto.randomUUID()}-${file.name}`)
-  await uploadBytes(storageRef, file)
-  return getDownloadURL(storageRef)
+  return uploadPublicImage('marathon-package-offers', file)
 }
 
 export interface MarathonInput {

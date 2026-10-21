@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type Rea
 import { PlusIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { MarathonBanner } from '@/components/MarathonBanner'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -513,17 +514,18 @@ export function MarathonFormDialog({
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="bannerFile">Banner image</Label>
             {bannerPreviewUrl && (
-              <img
-                src={bannerPreviewUrl}
-                alt=""
-                className={`aspect-[5/2] w-full rounded-md border border-border ${bannerVertical ? 'object-contain' : 'object-cover'}`}
+              <MarathonBanner
+                url={bannerPreviewUrl}
+                vertical={bannerVertical}
+                sideUrl={sidePreviewUrl}
+                className="aspect-[5/2] w-full rounded-md border border-border"
               />
             )}
             <Input id="bannerFile" type="file" accept="image/*" onChange={handleBannerFileChange} />
             <p className="text-muted-foreground text-xs">
               {bannerVertical
-                ? 'Vertical logo: best at 600×800 (3:4 portrait). It is shown whole, never cropped.'
-                : 'Best at 2000×800 (2.5:1). Keep key content centered — the package page trims the sides slightly on phones.'}
+                ? 'Vertical logo: best at 600×800 px (3:4 portrait). It is shown whole, never cropped.'
+                : 'Any size works and nothing is cut off. A wide image (about 2000×800 px) fills the banner best; other shapes get a soft blurred border. The title sits over the bottom edge.'}
             </p>
             <label className="flex items-center gap-1.5 text-xs">
               <input type="checkbox" checked={bannerVertical} onChange={(e) => setBannerVertical(e.target.checked)} />
@@ -561,7 +563,7 @@ export function MarathonFormDialog({
                     setSidePreviewUrl(URL.createObjectURL(file))
                   }}
                 />
-                <p className="text-muted-foreground text-xs">Best at 1400×800 (7:4 landscape), e.g. the city skyline or race course. It's cropped to fill and the title sits over its bottom edge.</p>
+                <p className="text-muted-foreground text-xs">Best at 1400×800 px (7:4 landscape), e.g. the city skyline or race course. It's cropped to fill and the title sits over its bottom edge.</p>
               </>
             )}
           </div>
