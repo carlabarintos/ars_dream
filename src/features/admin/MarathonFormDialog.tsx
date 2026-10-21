@@ -187,6 +187,7 @@ export function MarathonFormDialog({
     marathon?.feedDeadline ? toDateInputValue(marathon.feedDeadline.toDate()) : '',
   )
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [questionsOpen, setQuestionsOpen] = useState(false)
   const [previewData, setPreviewData] = useState<MarathonPreviewData | null>(null)
   const uid = useAuthStore((state) => state.firebaseUser?.uid)
   const { templates: questionnaireTemplates } = useQuestionnaireTemplates()
@@ -940,27 +941,56 @@ export function MarathonFormDialog({
             <p className="text-muted-foreground text-xs">Shown once below the packages.</p>
           </div>
 
+          <div className="flex flex-col gap-2">
+            <Label>Questionnaires</Label>
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3">
+              <p className="text-muted-foreground text-sm">
+                {questionnaires.length === 0
+                  ? 'No questionnaires configured.'
+                  : questionnaires
+                      .map((q) => `${q.name.trim() || DEFAULT_QUESTIONNAIRE_NAME} (${q.rows.length} items)`)
+                      .join(', ')}
+              </p>
+              <Button type="button" variant="outline" size="sm" onClick={() => setQuestionsOpen(true)}>
+                Edit questions
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handlePreview}>
+              Preview
+            </Button>
+            <Button type="submit" loading={isSubmitting}>
+              {isEditing ? 'Save Changes' : 'Create Draft'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+      <MarathonPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} data={previewData} />
+      <Dialog open={questionsOpen} onOpenChange={setQuestionsOpen}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Questionnaires</DialogTitle>
+          </DialogHeader>
           <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Label>Questionnaires</Label>
-              <div className="flex items-center gap-2">
-                <Select value={LOAD_TEMPLATE_PLACEHOLDER} onValueChange={addQuestionnaireFromTemplate}>
-                  <SelectTrigger className="w-52">
-                    <SelectValue placeholder="Add from template…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {questionnaireTemplates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button type="button" variant="outline" size="sm" onClick={addQuestionnaire}>
-                  <PlusIcon className="size-3.5" />
-                  Add questionnaire
-                </Button>
-              </div>
+            <div className="flex items-center gap-2">
+              <Select value={LOAD_TEMPLATE_PLACEHOLDER} onValueChange={addQuestionnaireFromTemplate}>
+                <SelectTrigger className="w-52">
+                  <SelectValue placeholder="Add from template…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {questionnaireTemplates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button type="button" variant="outline" size="sm" onClick={addQuestionnaire}>
+                <PlusIcon className="size-3.5" />
+                Add questionnaire
+              </Button>
             </div>
             <p className="text-muted-foreground text-xs">
               Named questionnaires (e.g. Terms &amp; Conditions, Health Declaration) registrants answer once
@@ -1066,18 +1096,13 @@ export function MarathonFormDialog({
               </div>
             ))}
           </div>
-
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={handlePreview}>
-              Preview
-            </Button>
-            <Button type="submit" loading={isSubmitting}>
-              {isEditing ? 'Save Changes' : 'Create Draft'}
+            <Button type="button" onClick={() => setQuestionsOpen(false)}>
+              Done
             </Button>
           </DialogFooter>
-        </form>
-      </DialogContent>
-      <MarathonPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} data={previewData} />
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }
