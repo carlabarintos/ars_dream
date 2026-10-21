@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { X } from 'lucide-react'
+import { DownloadIcon, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -20,7 +20,10 @@ import { getFriendlyErrorMessage } from '@/lib/friendly-error'
 import { cn, formatPackagePrice } from '@/lib/utils'
 import type { Marathon, QuestionAnswer, Registration } from '@/types'
 
+import { useAuthStore } from '@/features/auth/auth-store'
+
 import { submitFinalPayment, submitProofOfPayment, submitQuestionnaireAnswers, submitTermsAndConditions } from './api'
+import { bookingDocumentPage, getBookingDocuments, printBookingDocument } from './booking-documents'
 import {
   getFinalInvoiceBalance,
   getOfferedPackages,
@@ -39,6 +42,7 @@ export function RegistrationWizard({
   marathon: Marathon | undefined
   onClose: () => void
 }) {
+  const profile = useAuthStore((state) => state.profile)
   const [files, setFiles] = useState<File[]>([])
   const [answerValues, setAnswerValues] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
@@ -73,6 +77,10 @@ export function RegistrationWizard({
   // On a fresh final invoice, proofOfPaymentUrls still holds the already-approved payment's proof (kept in depositProofUrls) — not a submission to replace.
   const currentProofs = needsFinalTerms ? [] : registration.proofOfPaymentUrls
   const finalBalance = getFinalInvoiceBalance(registration)
+  // The office-template invoice the registrant was emailed; shown in full on wider screens, the compact summary below on phones.
+  const invoiceDocument = getBookingDocuments(registration, marathon, profile).find(
+    (document) => document.label === (isFinal ? 'Final Invoice' : 'Invoice'),
+  )
   const canSubmitPayment =
     (files.length > 0 || (isFinal && finalBalance <= 0)) && (!needsFinalTerms || finalTermsAccepted)
 
@@ -156,7 +164,7 @@ export function RegistrationWizard({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl grid-cols-[minmax(0,1fr)] overflow-x-hidden overflow-y-auto p-5 sm:p-8">
+      <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl sm:max-w-3xlgrid-cols-[minmax(0,1fr)] overflow-x-hidden overflow-y-auto p-5 sm:p-8">
         <DialogHeader>
           <DialogTitle className="px-6 sm:px-0 sm:pr-6">{marathon?.title ?? 'Complete Your Registration'}</DialogTitle>
           <DialogDescription>
@@ -360,8 +368,30 @@ export function RegistrationWizard({
                 wrong file.
               </div>
             )}
+            {invoiceDocument && (
+              <div className="hidden flex-col gap-2 sm:flex">
+                <iframe
+                  title={invoiceDocument.label}
+                  srcDoc={bookingDocumentPage(invoiceDocument, invoiceDocument.label, 'all')}
+                  // Sized to its content so the dialog scrolls, not the frame.
+                  onLoad={(e) => {
+                    const frame = e.currentTarget
+                    frame.style.height = `${frame.contentDocument?.documentElement.scrollHeight ?? 0}px`
+                  }}
+                  className="h-[60vh] w-full rounded-md border border-border"
+                />
+                <Button
+                  variant="outline"
+                  className="w-fit"
+                  onClick={() => printBookingDocument(invoiceDocument, marathon?.title)}
+                >
+                  <DownloadIcon />
+                  Download {invoiceDocument.label}
+                </Button>
+              </div>
+            )}
             {isFinal ? (
-              <div className="flex flex-col gap-1 rounded-md border border-border p-3 text-sm">
+              <div className={cn('flex flex-col gap-1 rounded-md border border-border p-3 text-sm', invoiceDocument && 'sm:hidden')}>
                 <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Final Invoice</p>
                 {registration.finalInvoice?.items.map((item, index) => (
                   <div key={index} className="flex justify-between gap-3">
@@ -378,7 +408,7 @@ export function RegistrationWizard({
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col gap-1 rounded-md border border-border p-3 text-sm">
+              <div className={cn('flex flex-col gap-1 rounded-md border border-border p-3 text-sm', invoiceDocument && 'sm:hidden')}>
                 <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Invoice</p>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Total</span>

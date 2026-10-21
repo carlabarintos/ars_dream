@@ -6,6 +6,7 @@ import {
   CalendarIcon,
   CheckCircle2Icon,
   ClockIcon,
+  DownloadIcon,
   type LucideIcon,
   MapPinIcon,
   MessageCircleIcon,
@@ -28,6 +29,7 @@ import { BookingChat } from '@/features/messages/BookingChatDialog'
 import { cn } from '@/lib/utils'
 import type { Registration, RegistrationStatus } from '@/types'
 
+import { getBookingDocuments, printBookingDocument } from './booking-documents'
 import { CancelRegistrationButton } from './CancelRegistrationButton'
 import {
   canReopenWizard,
@@ -187,6 +189,7 @@ function StatTile({
 
 export function MyRegistrationsPage() {
   const uid = useAuthStore((state) => state.firebaseUser?.uid)
+  const profile = useAuthStore((state) => state.profile)
   const { registrations, isLoading } = useUserRegistrations(uid)
   const marathonIds = registrations.map((r) => r.marathonId)
   const marathons = useMarathonsByIds(marathonIds)
@@ -398,6 +401,17 @@ export function MyRegistrationsPage() {
                       <Link to={`/marathons/${registration.marathonId}/packages`}>Join Waitlist Again</Link>
                     </Button>
                   )}
+                  {getBookingDocuments(registration, marathon, profile).map((document) => (
+                    <Button
+                      key={document.label}
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => printBookingDocument(document, marathon?.title)}
+                    >
+                      <DownloadIcon />
+                      Download {document.label}
+                    </Button>
+                  ))}
                   <CancelRegistrationButton registration={registration} />
                 </CardFooter>
               </Card>

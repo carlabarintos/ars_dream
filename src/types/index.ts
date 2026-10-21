@@ -214,6 +214,8 @@ export interface Registration {
   depositPaidAt?: Timestamp
   /** Already-approved proofs (the deposit's, copied by confirmPayment; plus a paid balance's, archived by issueFinalInvoice on an Additional Invoice) so new balance proof can reuse `proofOfPaymentUrls`. */
   depositProofUrls?: string[]
+  /** The deposit proof's `proofSubmittedAt`, kept by confirmPayment for the deposit receipt's "date received". Absent on deposits approved before this field existed. */
+  depositProofSubmittedAt?: Timestamp | null
   /** Present once the admin issues the final invoice (→ 'final_invoiced'). A payment_submitted/payment_rejected registration with this set is on its balance payment, not its deposit. */
   finalInvoice?: FinalInvoice
   /** When the registrant accepted the T&C on the final invoice. */

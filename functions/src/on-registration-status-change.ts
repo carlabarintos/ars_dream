@@ -200,14 +200,15 @@ export const onRegistrationStatusChange = onDocumentUpdated(
         ...(after.status === 'deposit_paid'
           ? {
               kind: 'deposit' as const,
-              receivedAt: after.depositPaidAt?.toDate() ?? new Date(),
+              // When the registrant uploaded the proof, not when it was approved.
+              receivedAt: (after.proofSubmittedAt ?? after.depositPaidAt)?.toDate() ?? new Date(),
               items: packageLineItems(after as Parameters<typeof packageLineItems>[0]),
               // Same deposit the invoice billed; no deposit set means the full amount was paid up front.
               amount: Math.min(chosenPackage?.depositAmount || total, total),
             }
           : {
               kind: 'balance' as const,
-              receivedAt: after.updatedAt?.toDate() ?? new Date(),
+              receivedAt: (after.proofSubmittedAt ?? after.updatedAt)?.toDate() ?? new Date(),
               items: after.finalInvoice?.items ?? [],
             }),
       })

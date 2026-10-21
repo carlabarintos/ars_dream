@@ -135,6 +135,7 @@ export async function joinQueue(userId: string, marathonId: string, cycle: numbe
       cancelledAt: null,
       depositPaidAt: deleteField(),
       depositProofUrls: deleteField(),
+      depositProofSubmittedAt: deleteField(),
       finalInvoice: deleteField(),
       finalTermsAcceptedAt: deleteField(),
       createdAt: serverTimestamp(),

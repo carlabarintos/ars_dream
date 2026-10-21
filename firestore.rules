@@ -109,7 +109,7 @@ service cloud.firestore {
             'packageId', 'packageName', 'packagePriceAmount', 'packagePriceCurrency',
             'selectedAddOns', 'offeredPackageIds', 'status', 'queuePosition', 'queueSortAt', 'termsAcceptedAt', 'answers',
             'proofOfPaymentUrls', 'proofSubmittedAt', 'adminNote', 'cancelledAt',
-            'depositPaidAt', 'depositProofUrls', 'finalInvoice', 'finalTermsAcceptedAt',
+            'depositPaidAt', 'depositProofUrls', 'depositProofSubmittedAt', 'finalInvoice', 'finalTermsAcceptedAt',
             'createdAt', 'updatedAt',
           ]);
 
