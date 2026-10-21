@@ -335,7 +335,7 @@ export function MarathonFormDialog({
       bannerSideImageUrl: bannerVertical ? (sidePreviewUrl ?? '') : '',
       eventDate: dateFromField('eventDate'),
       registrationClosesAt: dateFromField('registrationClosesAt'),
-      capacity: Number(formData.get('capacity')) || 0,
+      capacity: formData.get('capacity') ? Number(formData.get('capacity')) : null,
       confirmedCount: marathon?.confirmedCount ?? 0,
       paymentInstructions: String(formData.get('paymentInstructions') ?? ''),
       sharedInclusions: String(formData.get('sharedInclusions') ?? ''),
@@ -447,9 +447,9 @@ export function MarathonFormDialog({
         location: String(form.get('location')),
         code: String(form.get('code') ?? '').trim(),
         eventDate: form.get('eventDate') ? new Date(String(form.get('eventDate'))) : null,
-        registrationOpensAt: new Date(String(form.get('registrationOpensAt'))),
+        registrationOpensAt: form.get('registrationOpensAt') ? new Date(String(form.get('registrationOpensAt'))) : null,
         registrationClosesAt: form.get('registrationClosesAt') ? new Date(String(form.get('registrationClosesAt'))) : null,
-        capacity: Number(form.get('capacity')),
+        capacity: form.get('capacity') ? Number(form.get('capacity')) : null,
         paymentInstructions: String(form.get('paymentInstructions')),
         sharedInclusions: String(form.get('sharedInclusions') ?? '').trim(),
         packageNotes: String(form.get('packageNotes') ?? '').trim(),
@@ -580,8 +580,7 @@ export function MarathonFormDialog({
               label="Registration opens"
               name="registrationOpensAt"
               type="date"
-              required
-              defaultValue={marathon && toDateInputValue(marathon.registrationOpensAt.toDate())}
+              defaultValue={marathon?.registrationOpensAt ? toDateInputValue(marathon.registrationOpensAt.toDate()) : undefined}
             />
             <Field
               label="Registration closes"
@@ -591,11 +590,10 @@ export function MarathonFormDialog({
             />
           </div>
           <Field
-            label="Capacity"
+            label="Capacity (optional — leave blank if not set yet; users can still join the waitlist)"
             name="capacity"
             type="number"
-            required
-            defaultValue={marathon?.capacity.toString()}
+            defaultValue={marathon?.capacity?.toString()}
           />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="feedDeadline">Show in feed until (optional)</Label>

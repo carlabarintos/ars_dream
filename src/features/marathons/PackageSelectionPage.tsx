@@ -66,7 +66,7 @@ export function PackageSelectionPage() {
   const pendingStep = myRegistration ? getPendingActionStep(myRegistration, marathon ?? undefined) : null
   const canReRegisterNow = myRegistration ? canReRegister(myRegistration) : false
 
-  const spotsLeft = marathon ? Math.max(marathon.capacity - marathon.confirmedCount, 0) : 0
+  const spotsLeft = !marathon ? 0 : marathon.capacity == null ? Infinity : Math.max(marathon.capacity - marathon.confirmedCount, 0)
   const isFull = spotsLeft <= 0
   // A fresh join and a cancelled/rejected re-registration both require the
   // marathon to still be 'published' (see firestore.rules) — an admin can
@@ -112,7 +112,7 @@ export function PackageSelectionPage() {
   }
 
   const eventDate = marathon.eventDate?.toDate()
-  const percentFull = marathon.capacity > 0 ? (marathon.confirmedCount / marathon.capacity) * 100 : 0
+  const percentFull = marathon.capacity ? (marathon.confirmedCount / marathon.capacity) * 100 : 0
   const statusPill = AVAILABILITY_PILL[getMarathonAvailability(marathon)]
   const sharedInclusions = toBulletLines(marathon.sharedInclusions)
   const packageNotes = toBulletLines(marathon.packageNotes)
@@ -169,7 +169,7 @@ export function PackageSelectionPage() {
               Spots Left
             </span>
             <span className="text-sm font-semibold tabular-nums">
-              {spotsLeft} of {marathon.capacity}
+              {marathon.capacity == null ? 'TBA' : `${spotsLeft} of ${marathon.capacity}`}
             </span>
             <Progress value={percentFull} className="h-1.5" />
           </div>
@@ -218,25 +218,14 @@ export function PackageSelectionPage() {
       )}
 
       {(!myRegistration || canReRegisterNow) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{canReRegisterNow ? 'Join the Waitlist Again' : 'Join the Waitlist'}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-muted-foreground text-sm">
-            Slots are limited. Once one opens up, we'll send you an offer with the packages available to you —
-            you'll choose your package and add-ons when you accept it.
-          </CardContent>
-          <CardFooter className="border-border border-t pt-4">
-            <Button
-              className="w-full"
-              disabled={isFull || isClosed || isJoining}
-              loading={isJoining}
-              onClick={handleJoinWaitlist}
-            >
-              {isFull || isClosed ? 'Registration Closed' : isJoining ? 'Joining…' : 'Add Me to the Waitlist'}
-            </Button>
-          </CardFooter>
-        </Card>
+        <Button
+          className="w-full"
+          disabled={isFull || isClosed || isJoining}
+          loading={isJoining}
+          onClick={handleJoinWaitlist}
+        >
+          {isFull || isClosed ? 'Registration Closed' : isJoining ? 'Joining…' : 'Add Me to the Waitlist'}
+        </Button>
       )}
 
       {(marathon.packages ?? []).length > 0 && (

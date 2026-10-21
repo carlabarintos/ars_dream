@@ -37,7 +37,7 @@ export interface MarathonPreviewData {
   bannerSideImageUrl: string
   eventDate: Date | null
   registrationClosesAt: Date | null
-  capacity: number
+  capacity: number | null
   confirmedCount: number
   paymentInstructions: string
   sharedInclusions: string
@@ -73,8 +73,8 @@ export function MarathonPreviewDialog({
 }) {
   if (!data) return null
 
-  const spotsLeft = Math.max(data.capacity - data.confirmedCount, 0)
-  const percentFull = data.capacity > 0 ? (data.confirmedCount / data.capacity) * 100 : 0
+  const spotsLeft = data.capacity == null ? Infinity : Math.max(data.capacity - data.confirmedCount, 0)
+  const percentFull = data.capacity ? (data.confirmedCount / data.capacity) * 100 : 0
   const isFull = spotsLeft <= 0
   const isClosed = data.registrationClosesAt ? new Date() > data.registrationClosesAt : false
   const sharedInclusions = toBulletLines(data.sharedInclusions)
@@ -126,9 +126,9 @@ export function MarathonPreviewDialog({
 
               <div className="flex flex-col gap-1.5">
                 <div className="text-muted-foreground flex justify-between text-xs">
-                  <span>{spotsLeft} spots left</span>
+                  <span>{data.capacity == null ? 'Spots TBA' : `${spotsLeft} spots left`}</span>
                   <span>
-                    {data.confirmedCount}/{data.capacity}
+                    {data.confirmedCount}/{data.capacity ?? 'TBA'}
                   </span>
                 </div>
                 <Progress value={percentFull} />

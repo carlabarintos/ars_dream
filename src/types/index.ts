@@ -94,10 +94,12 @@ export interface Marathon {
   code?: string
   /** null means the date hasn't been announced yet (shown as TBA). Stored as null rather than omitted so orderBy('eventDate') still returns it. */
   eventDate: Timestamp | null
-  registrationOpensAt: Timestamp
+  /** null means not announced yet (TBA) — the waitlist is open regardless. */
+  registrationOpensAt: Timestamp | null
   /** null means no closing date — registration stays open until the admin closes the marathon or it fills up. */
   registrationClosesAt: Timestamp | null
-  capacity: number
+  /** null means not set yet (TBA): users can still join the waitlist, but offers can't be sent until it's set. */
+  capacity: number | null
   confirmedCount: number
   paymentInstructions: string
   /** Inclusions common to every package (e.g. race bib, airport transfers), one per line. Shown once above the package cards instead of repeated in each package's description. */

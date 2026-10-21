@@ -95,9 +95,9 @@ export interface MarathonInput {
   location: string
   code: string
   eventDate: Date | null
-  registrationOpensAt: Date
+  registrationOpensAt: Date | null
   registrationClosesAt: Date | null
-  capacity: number
+  capacity: number | null
   paymentInstructions: string
   sharedInclusions: string
   packageNotes: string

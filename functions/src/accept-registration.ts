@@ -71,7 +71,11 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
       if (!offeredPackageIds?.length || !offeredPackageIds.every((id) => marathonPackageIds.has(id))) {
         throw new HttpsError('invalid-argument', "Offer at least one of this marathon's packages.")
       }
-      const capacity = marathonSnap.data()!.capacity as number
+      const capacity = marathonSnap.data()!.capacity as number | null
+      // null = capacity not set yet: the waitlist can fill, but no offers until it's set.
+      if (capacity == null) {
+        throw new HttpsError('failed-precondition', "Set this marathon's capacity before sending offers.")
+      }
       const cycle = (registration.cycle as number | undefined) ?? 1
 
       // Fetched and filtered in-app rather than a .count() aggregation so a
