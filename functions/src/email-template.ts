@@ -309,15 +309,163 @@ export function buildAcceptanceEmail({
   }
 }
 
-export const INVOICE_COPY = {
-  title: 'Your invoice is ready',
-  body: 'Pay your deposit using the payment instructions, then upload your proof of payment in ARS Dream.',
+// Company letterhead and bank details from the office's invoice template (SPORTS SITE INVOICING.xlsx).
+const COMPANY_NAME = 'ARS DREAM CORPORATION'
+const COMPANY_LINES = [
+  'Suite 1701 Metropolitan Tower, 1746 A. Mabini St. Malate, Manila, Philippines (1004)',
+  'Phone: (632) 5235689',
+  'Fax: (632) 5216958',
+  'Email: kntct.manila@arsdream-ph.com / outbound@arsdream-ph.com',
+]
+const BANK_DETAILS = [
+  ['ACCOUNT NAME', COMPANY_NAME],
+  ['BANK NAME', 'BDO - USD ACCOUNT'],
+  ['ACCT #', '111500005396'],
+]
+const INVOICE_NOTES = [
+  'This document serves as a computation for the services offered.',
+  'This document is not for tax purposes.',
+  'Payments with tax included in the computation will be issued an official Sales Invoice as official document.',
+  'This is not an official document, only an internal document for rate purposes.',
+]
+
+type Recipient = AcceptanceEmailInput['recipient'] & { lastName?: string | null }
+
+interface ServiceDocument {
+  /** "SERVICE INVOICE" / "ACKNOWLEDGEMENT RECEIPT" — rendered as 【HEADING】. */
+  heading: string
+  /** Invoice/receipt number. */
+  number: string
+  issuedAt: Date
+  marathonTitle?: string
+  eventDate?: Date
+  runnerName: string
+  currency: string
+  /** Lines below the marathon row. */
+  items: { label: string; amount: number }[]
+  inclusions: string[]
+  /** The totals block under the items, e.g. TOTAL / DEPOSIT AMOUNT DUE / PAYMENT DUE DATE. */
+  summary: { label: string; value: string }[]
+  /** Disclaimers or the receipt's acknowledgement, above the bank details. */
+  notes: string[]
+  intro: string
+  ctaLabel: string
 }
 
-export interface InvoiceEmailInput {
-  marathon?: {
-    title?: string
-    paymentInstructions?: string
+const docNumber = (prefix: string, registrationId: string) => `${prefix}-${registrationId.slice(0, 8).toUpperCase()}`
+
+const runnerNameOf = (recipient: Recipient | undefined) =>
+  [recipient?.firstName, recipient?.lastName].filter(Boolean).join(' ').trim() || recipient?.displayName?.trim() || ''
+
+const moneyIn = (currency: string) => (amount: number) =>
+  `${amount < 0 ? '(' : ''}${escapeHtml(currency)} ${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${amount < 0 ? ')' : ''}`
+
+/** The office's invoice/receipt spreadsheet as an email: letterhead, 【HEADING】, item table, totals, notes and bank details. */
+function serviceDocumentHtml(doc: ServiceDocument): string {
+  const money = moneyIn(doc.currency)
+  const cell = 'border: 1px solid #000000; padding: 6px 8px; font-size: 13px;'
+  const head = `${cell} background: ${SECONDARY}; font-size: 11px; font-weight: 700; text-align: center;`
+  const itemRow = (date: string, label: string, price: string, quantity: string, total: string, bold = false) =>
+    `<tr><td style="${cell} text-align: center; white-space: nowrap;">${date}</td><td style="${cell} text-align: center; ${bold ? 'font-weight: 700;' : ''}">${label}</td><td style="${cell} text-align: right; white-space: nowrap;">${price}</td><td style="${cell} text-align: center;">${quantity}</td><td style="${cell} text-align: right; white-space: nowrap;">${total}</td></tr>`
+
+  return `
+    <div style="background: ${PAGE_BG}; font-family: ${SANS}; color: #000000;">
+      <div style="max-width: 680px; margin: 0 auto; padding: 24px 12px;">
+        <div style="background: #ffffff; border: 1px solid ${BORDER}; padding: 24px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+            <tr>
+              <td style="width: 120px; vertical-align: top;"><img src="${LOGO_URL}" alt="ARS Dream" width="110" style="display: block; width: 110px; height: auto;" /></td>
+              <td style="vertical-align: top; text-align: right; font-size: 11px; line-height: 1.5; color: ${MUTED};">${COMPANY_LINES.map(escapeHtml).join('<br />')}</td>
+            </tr>
+          </table>
+          <p style="margin: 24px 0; text-align: center; font-size: 26px; letter-spacing: 1px;">【${escapeHtml(doc.heading)}】</p>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin: 0 0 16px;">
+            <tr>
+              <td style="vertical-align: bottom; font-size: 15px; font-weight: 700; line-height: 1.6;">
+                ${doc.marathonTitle ? escapeHtml(doc.marathonTitle) : ''}<br />${escapeHtml(doc.runnerName)}
+              </td>
+              <td style="vertical-align: bottom; text-align: right; font-size: 13px; line-height: 1.6;">
+                ${formatDate(doc.issuedAt)}<br /><span style="font-size: 11px; color: ${MUTED};">${doc.heading.includes('RECEIPT') ? 'RECEIPT' : 'INVOICE'} # ${escapeHtml(doc.number)}</span>
+              </td>
+            </tr>
+          </table>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+            <tr><td style="${head} width: 70px;">日付 (DATE)</td><td style="${head}">項目 (ITEM)</td><td style="${head} width: 110px;">金額 (PRICE)</td><td style="${head} width: 36px;">数 (QTY)</td><td style="${head} width: 120px;">合計 (TOTAL)</td></tr>
+            ${doc.marathonTitle ? itemRow(doc.eventDate ? formatDate(doc.eventDate) : '', escapeHtml(doc.marathonTitle), '', '', '', true) : ''}
+            ${doc.items.map((item) => itemRow('', escapeHtml(item.label), money(item.amount), '1', money(item.amount))).join('')}
+            ${
+              doc.inclusions.length > 0
+                ? `<tr><td style="${cell}"></td><td colspan="4" style="${cell}"><p style="margin: 0 0 6px; font-size: 11px; font-weight: 700;">INCLUSIONS</p>${bulletTable(doc.inclusions, '•', '#000000', '#000000')}</td></tr>`
+                : ''
+            }
+            ${doc.summary
+              .map(
+                (row) =>
+                  `<tr><td colspan="2" style="${cell} text-align: right; font-weight: 700;">${escapeHtml(row.label)}</td><td colspan="3" style="${cell} text-align: center; font-weight: 700; white-space: nowrap;">${row.value}</td></tr>`,
+              )
+              .join('')}
+          </table>
+          <div style="margin: 16px 0; font-size: 12px; line-height: 1.6;">
+            ${doc.notes.map((note, index) => `<p style="margin: 0;">${index === 0 ? '<b>Note:</b> ' : ''}${escapeHtml(note)}</p>`).join('')}
+          </div>
+          <p style="margin: 0 0 4px; font-size: 13px; font-weight: 700;">BANK DETAILS:</p>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="font-size: 12px; font-weight: 700; margin: 0 0 20px;">
+            ${BANK_DETAILS.map(([label, value]) => `<tr><td style="padding: 1px 16px 1px 0;">${label}:</td><td>${value}</td></tr>`).join('')}
+          </table>
+          <p style="margin: 0; padding: 10px 0 0; border-top: 1px solid #000000; text-align: center; font-size: 15px; font-weight: 700;">${COMPANY_NAME}</p>
+        </div>
+        <p style="margin: 20px 0 12px; font-size: 14px; line-height: 1.5; color: ${MUTED};">${escapeHtml(doc.intro)}</p>
+        <a href="${APP_URL}/my-registrations" style="display: block; text-align: center; background: ${PRIMARY}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 20px; border-radius: 10px; margin: 0 0 24px;">${doc.ctaLabel}</a>
+        <p style="margin: 8px 0 0; text-align: center; font-size: 12px; color: ${MUTED};">
+          ARS Dream Sports · <a href="${APP_URL}" style="color: ${MUTED};">arsdreamsports.com</a>
+        </p>
+      </div>
+    </div>`
+}
+
+/** Shared by every invoice/receipt email. */
+interface ServiceDocumentContext {
+  marathon?: { title?: string; eventDate?: Date }
+  registrationId: string
+  /** Shared inclusions plus the package description, one per line — the INCLUSIONS row. */
+  inclusions?: string
+  recipient?: Recipient
+}
+
+/** Package + add-ons from the registration's snapshot, as invoice lines. */
+export function packageLineItems(registration: {
+  packageName: string
+  packagePriceAmount: number
+  selectedAddOns?: { name: string; priceAmount: number }[]
+}): { label: string; amount: number }[] {
+  return [
+    { label: registration.packageName, amount: registration.packagePriceAmount },
+    ...(registration.selectedAddOns ?? []).map((addOn) => ({ label: `Add-on: ${addOn.name}`, amount: addOn.priceAmount })),
+  ]
+}
+
+/** Final-invoice credits (isDeposit lines, e.g. "Deposit paid") become totals rows rather than items, like the spreadsheet's full-payment sheet. */
+function splitFinalInvoice(items: { label: string; amount: number; isDeposit?: boolean }[], money: (amount: number) => string) {
+  const charges = items.filter((item) => !item.isDeposit)
+  return {
+    charges,
+    balance: items.reduce((sum, item) => sum + item.amount, 0),
+    summary: [
+      { label: 'TOTAL', value: money(charges.reduce((sum, item) => sum + item.amount, 0)) },
+      ...items
+        .filter((item) => item.isDeposit)
+        .map((credit) => ({ label: credit.label.toUpperCase(), value: money(Math.abs(credit.amount)) })),
+    ],
+  }
+}
+
+export const INVOICE_COPY = {
+  title: 'Your invoice is ready',
+  body: 'Pay your deposit to the bank account on the invoice, then upload your proof of payment in ARS Dream.',
+}
+
+export interface InvoiceEmailInput extends ServiceDocumentContext {
+  marathon?: ServiceDocumentContext['marathon'] & {
     /** Computed by the caller: offer acceptance time + `depositDueDays`. */
     depositDeadline?: Date
     balanceDeadline?: Date
@@ -325,65 +473,54 @@ export interface InvoiceEmailInput {
   /** The package's current deposit amount; absent/0 means the full amount is due by the balance deadline. */
   depositAmount?: number
   /** Price/add-on snapshot from the registration, so the email shows what the registrant actually picked. */
-  registration: {
-    packageName: string
-    packagePriceAmount: number
-    packagePriceCurrency: string
-    selectedAddOns?: { name: string; priceAmount: number }[]
-  }
-  recipient?: AcceptanceEmailInput['recipient']
+  registration: Parameters<typeof packageLineItems>[0] & { packagePriceCurrency: string }
+  issuedAt: Date
 }
 
-/** Sent once the registrant accepts their offer (status → terms_accepted): the price breakdown with deposit and balance due dates. */
-export function buildInvoiceEmail({ marathon, depositAmount, registration, recipient }: InvoiceEmailInput): {
-  subject: string
-  body: string
-  html: string
-} {
+/** Sent once the registrant accepts their offer (status → terms_accepted): the deposit service invoice. */
+export function buildInvoiceEmail({
+  marathon,
+  depositAmount,
+  registration,
+  registrationId,
+  inclusions,
+  issuedAt,
+  recipient,
+}: InvoiceEmailInput): { subject: string; body: string; html: string } {
   const title = marathon?.title
-  const currency = escapeHtml(registration.packagePriceCurrency)
-  const money = (amount: number) => `${currency} ${amount.toLocaleString()}`
-  const addOns = registration.selectedAddOns ?? []
-  const total = registration.packagePriceAmount + addOns.reduce((sum, addOn) => sum + addOn.priceAmount, 0)
+  const money = moneyIn(registration.packagePriceCurrency)
+  const items = packageLineItems(registration)
+  const total = items.reduce((sum, item) => sum + item.amount, 0)
   const deposit = Math.min(depositAmount ?? 0, total)
-  const name = (recipient?.firstName || recipient?.displayName || '').trim()
-  const body = (name ? `Hi ${name}, thanks` : 'Thanks') + ` for accepting your offer${title ? ` for the ${title} tour` : ''}. ` + INVOICE_COPY.body
+  const dueDate = deposit > 0 ? marathon?.depositDeadline : marathon?.balanceDeadline
+  const runnerName = runnerNameOf(recipient)
+  const body =
+    (runnerName ? `Hi ${runnerName}, thanks` : 'Thanks') +
+    ` for accepting your offer${title ? ` for the ${title} tour` : ''}. ` +
+    INVOICE_COPY.body
 
-  const row = (label: string, amount: string, strong = false) =>
-    `<tr><td style="padding: 6px 0; font-size: 14px; ${strong ? 'font-weight: 700;' : `color: ${MUTED};`}">${label}</td><td style="padding: 6px 0; text-align: right; font-size: 14px; white-space: nowrap; ${strong ? 'font-weight: 700;' : ''}">${amount}</td></tr>`
-  const dueRow = (label: string, date: Date | undefined, amount: number) =>
-    row(`${label}${date ? ` <span style="font-weight: 400; color: ${MUTED};">· due ${formatDate(date)}</span>` : ''}`, money(amount), true)
-  const instructions = toBulletLines(marathon?.paymentInstructions)
-
-  const html = `
-    <div style="background: ${PAGE_BG}; font-family: ${SANS}; color: ${FOREGROUND};">
-      <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
-      ${HEADER_HTML}
-      <div style="max-width: 640px; margin: 0 auto; padding: 32px 16px;">
-        <div style="background: #ffffff; border: 1px solid ${BORDER}; border-radius: 16px; padding: 20px; margin: 0 0 24px;">
-          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin: 0 0 12px;">
-            <tr>
-              <td style="font-family: ${DISPLAY}; font-size: 26px; line-height: 1; letter-spacing: 1px;">Invoice${title ? ` — ${escapeHtml(title)}` : ''}</td>
-              <td style="text-align: right; vertical-align: top;">${pill('Invoiced', PRIMARY, '#ffffff')}</td>
-            </tr>
-          </table>
-          <p style="margin: 0 0 16px; font-size: 14px; line-height: 1.5; color: ${MUTED};">${escapeHtml(body)}</p>
-          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
-            ${row(`${escapeHtml(registration.packageName)} package`, money(registration.packagePriceAmount))}
-            ${addOns.map((addOn) => row(`Add-on: ${escapeHtml(addOn.name)}`, money(addOn.priceAmount))).join('')}
-            <tr><td colspan="2" style="border-top: 1px solid ${BORDER}; height: 0; line-height: 0;"></td></tr>
-            ${row('Total', money(total), true)}
-            ${deposit > 0 ? dueRow('Deposit', marathon?.depositDeadline, deposit) : ''}
-            ${dueRow(deposit > 0 ? 'Remaining balance' : 'Amount due', marathon?.balanceDeadline, total - deposit)}
-          </table>
-        </div>
-        ${instructions.length > 0 ? infoBox(eyebrow('Payment instructions') + bulletTable(instructions, '•', MUTED, FOREGROUND)) : ''}
-        <a href="${APP_URL}/my-registrations" style="display: block; text-align: center; background: ${PRIMARY}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 20px; border-radius: 10px; margin: 0 0 24px;">Submit proof of payment</a>
-        <p style="margin: 8px 0 0; text-align: center; font-size: 12px; color: ${MUTED};">
-          ARS Dream Sports · <a href="${APP_URL}" style="color: ${MUTED};">arsdreamsports.com</a>
-        </p>
-      </div>
-    </div>`
+  const html = serviceDocumentHtml({
+    heading: 'SERVICE INVOICE',
+    number: docNumber('INV', registrationId),
+    issuedAt,
+    marathonTitle: title,
+    eventDate: marathon?.eventDate,
+    runnerName,
+    currency: registration.packagePriceCurrency,
+    items,
+    inclusions: toBulletLines(inclusions),
+    summary: [
+      { label: 'TOTAL', value: money(total) },
+      { label: deposit > 0 ? 'DEPOSIT AMOUNT DUE' : 'AMOUNT DUE', value: money(deposit > 0 ? deposit : total) },
+      ...(dueDate ? [{ label: 'PAYMENT DUE DATE', value: formatDate(dueDate) }] : []),
+      ...(deposit > 0 && deposit < total && marathon?.balanceDeadline
+        ? [{ label: `BALANCE ${money(total - deposit)} DUE DATE`, value: formatDate(marathon.balanceDeadline) }]
+        : []),
+    ],
+    notes: INVOICE_NOTES,
+    intro: body,
+    ctaLabel: 'Submit proof of payment',
+  })
 
   return { subject: title ? `${INVOICE_COPY.title} — ${title}` : INVOICE_COPY.title, body, html }
 }
@@ -393,57 +530,110 @@ export const FINAL_INVOICE_COPY = {
   body: 'Review it, accept the terms & conditions, and upload your proof of payment for the balance in ARS Dream.',
 }
 
-export interface FinalInvoiceEmailInput {
-  marathon?: { title?: string; paymentInstructions?: string }
+export interface FinalInvoiceEmailInput extends ServiceDocumentContext {
   currency: string
-  items: { label: string; amount: number }[]
+  items: { label: string; amount: number; isDeposit?: boolean }[]
   dueDate?: Date
-  recipient?: AcceptanceEmailInput['recipient']
+  issuedAt: Date
 }
 
-/** Sent when the admin issues the final invoice (status → final_invoiced): the itemized balance with its due date. */
-export function buildFinalInvoiceEmail({ marathon, currency, items, dueDate, recipient }: FinalInvoiceEmailInput): {
-  subject: string
-  body: string
-  html: string
-} {
+/** Sent when the admin issues the final invoice (status → final_invoiced): the full-payment service invoice. */
+export function buildFinalInvoiceEmail({
+  marathon,
+  currency,
+  items,
+  dueDate,
+  issuedAt,
+  registrationId,
+  inclusions,
+  recipient,
+}: FinalInvoiceEmailInput): { subject: string; body: string; html: string } {
   const title = marathon?.title
-  const money = (amount: number) => `${amount < 0 ? '−' : ''}${escapeHtml(currency)} ${Math.abs(amount).toLocaleString()}`
-  const balance = items.reduce((sum, item) => sum + item.amount, 0)
-  const name = (recipient?.firstName || recipient?.displayName || '').trim()
-  const body = (name ? `Hi ${name}, your` : 'Your') + ` final invoice${title ? ` for the ${title} tour` : ''} is ready. ` + FINAL_INVOICE_COPY.body
-  const row = (label: string, amount: string, strong = false) =>
-    `<tr><td style="padding: 6px 0; font-size: 14px; ${strong ? 'font-weight: 700;' : `color: ${MUTED};`}">${label}</td><td style="padding: 6px 0; text-align: right; font-size: 14px; white-space: nowrap; ${strong ? 'font-weight: 700;' : ''}">${amount}</td></tr>`
-  const instructions = toBulletLines(marathon?.paymentInstructions)
+  const money = moneyIn(currency)
+  const { charges, balance, summary } = splitFinalInvoice(items, money)
+  const runnerName = runnerNameOf(recipient)
+  const body =
+    (runnerName ? `Hi ${runnerName}, your` : 'Your') +
+    ` final invoice${title ? ` for the ${title} tour` : ''} is ready. ` +
+    FINAL_INVOICE_COPY.body
 
-  const html = `
-    <div style="background: ${PAGE_BG}; font-family: ${SANS}; color: ${FOREGROUND};">
-      <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
-      ${HEADER_HTML}
-      <div style="max-width: 640px; margin: 0 auto; padding: 32px 16px;">
-        <div style="background: #ffffff; border: 1px solid ${BORDER}; border-radius: 16px; padding: 20px; margin: 0 0 24px;">
-          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin: 0 0 12px;">
-            <tr>
-              <td style="font-family: ${DISPLAY}; font-size: 26px; line-height: 1; letter-spacing: 1px;">Final Invoice${title ? ` — ${escapeHtml(title)}` : ''}</td>
-              <td style="text-align: right; vertical-align: top;">${pill('Final', PRIMARY, '#ffffff')}</td>
-            </tr>
-          </table>
-          <p style="margin: 0 0 16px; font-size: 14px; line-height: 1.5; color: ${MUTED};">${escapeHtml(body)}</p>
-          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
-            ${items.map((item) => row(escapeHtml(item.label), money(item.amount))).join('')}
-            <tr><td colspan="2" style="border-top: 1px solid ${BORDER}; height: 0; line-height: 0;"></td></tr>
-            ${row(`Balance due${dueDate ? ` <span style="font-weight: 400; color: ${MUTED};">· due ${formatDate(dueDate)}</span>` : ''}`, money(balance), true)}
-          </table>
-        </div>
-        ${instructions.length > 0 ? infoBox(eyebrow('Payment instructions') + bulletTable(instructions, '•', MUTED, FOREGROUND)) : ''}
-        <a href="${APP_URL}/my-registrations" style="display: block; text-align: center; background: ${PRIMARY}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 20px; border-radius: 10px; margin: 0 0 24px;">View final invoice</a>
-        <p style="margin: 8px 0 0; text-align: center; font-size: 12px; color: ${MUTED};">
-          ARS Dream Sports · <a href="${APP_URL}" style="color: ${MUTED};">arsdreamsports.com</a>
-        </p>
-      </div>
-    </div>`
+  const html = serviceDocumentHtml({
+    heading: 'SERVICE INVOICE',
+    number: docNumber('FIN', registrationId),
+    issuedAt,
+    marathonTitle: title,
+    eventDate: marathon?.eventDate,
+    runnerName,
+    currency,
+    items: charges,
+    inclusions: toBulletLines(inclusions),
+    summary: [
+      ...summary,
+      { label: 'BALANCE DUE', value: money(balance) },
+      ...(dueDate ? [{ label: 'FINAL PAYMENT DUE DATE', value: formatDate(dueDate) }] : []),
+    ],
+    notes: INVOICE_NOTES,
+    intro: body,
+    ctaLabel: 'View final invoice',
+  })
 
   return { subject: title ? `${FINAL_INVOICE_COPY.title} — ${title}` : FINAL_INVOICE_COPY.title, body, html }
+}
+
+export const DEPOSIT_RECEIPT_COPY = {
+  title: 'Deposit received',
+  body: "Your deposit was verified and your slot is locked in. We'll go over add-ons with you in your booking's messages, then send your final invoice.",
+}
+
+export const BALANCE_RECEIPT_COPY = {
+  title: "You're confirmed!",
+  body: "Your final payment was verified — you're all set for race day.",
+}
+
+export type ReceiptEmailInput = ServiceDocumentContext & { currency: string; receivedAt: Date } & (
+    | { kind: 'deposit'; amount: number; items: { label: string; amount: number }[] }
+    /** The paid final invoice — its balance is the amount received. */
+    | { kind: 'balance'; items: FinalInvoiceEmailInput['items'] }
+  )
+
+/** Sent for every approved payment (status → deposit_paid / confirmed): the acknowledgement receipt. */
+export function buildReceiptEmail(input: ReceiptEmailInput): { subject: string; body: string; html: string } {
+  const { marathon, currency, receivedAt, registrationId, inclusions, recipient } = input
+  const title = marathon?.title
+  const money = moneyIn(currency)
+  const copy = input.kind === 'deposit' ? DEPOSIT_RECEIPT_COPY : BALANCE_RECEIPT_COPY
+  const runnerName = runnerNameOf(recipient)
+  const body = (runnerName ? `Hi ${runnerName}! ` : '') + copy.body
+  const final = input.kind === 'balance' ? splitFinalInvoice(input.items, money) : undefined
+
+  const html = serviceDocumentHtml({
+    heading: 'ACKNOWLEDGEMENT RECEIPT',
+    number: docNumber(input.kind === 'deposit' ? 'ARD' : 'ARF', registrationId),
+    issuedAt: receivedAt,
+    marathonTitle: title,
+    eventDate: marathon?.eventDate,
+    runnerName,
+    currency,
+    items: final?.charges ?? input.items,
+    inclusions: toBulletLines(inclusions),
+    summary:
+      input.kind === 'deposit'
+        ? [
+            { label: 'DEPOSIT AMOUNT RECEIVED', value: money(input.amount) },
+            { label: 'DATE DEPOSIT RECEIVED', value: formatDate(receivedAt) },
+            { label: 'NOTE', value: 'DEPOSIT IS NON-REFUNDABLE' },
+          ]
+        : [
+            ...final!.summary,
+            { label: 'BALANCE PAYMENT RECEIVED', value: money(final!.balance) },
+            { label: 'DATE PAYMENT RECEIVED', value: formatDate(receivedAt) },
+          ],
+    notes: [`This is to acknowledge the receipt of your ${input.kind === 'deposit' ? 'deposit' : 'full payment'}.`],
+    intro: body,
+    ctaLabel: 'View my booking',
+  })
+
+  return { subject: title ? `${copy.title} — ${title}` : copy.title, body, html }
 }
 
 /** Simple branded layout, reused for every other status-change email. */

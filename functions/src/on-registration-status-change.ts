@@ -4,12 +4,16 @@ import { db } from './admin.js'
 import { describePackage, describeStatusEvent, logBookingEvent } from './booking-event.js'
 import {
   ACCEPTED_COPY,
+  BALANCE_RECEIPT_COPY,
+  DEPOSIT_RECEIPT_COPY,
   FINAL_INVOICE_COPY,
   INVOICE_COPY,
   buildAcceptanceEmail,
   buildFinalInvoiceEmail,
   buildInvoiceEmail,
+  buildReceiptEmail,
   getOfferAcceptanceDeadline,
+  packageLineItems,
 } from './email-template.js'
 import { notifyUser } from './notify-user.js'
 import { resendApiKey } from './send-email.js'
@@ -22,15 +26,9 @@ const NOTIFICATION_COPY: Record<string, { title: string; body: string }> = {
     title: 'Registration update',
     body: "We weren't able to offer you a slot on this marathon this time.",
   },
-  deposit_paid: {
-    title: 'Deposit received',
-    body: "Your deposit was verified and your slot is locked in. We'll go over add-ons with you in your booking's messages, then send your final invoice.",
-  },
+  deposit_paid: DEPOSIT_RECEIPT_COPY,
   final_invoiced: FINAL_INVOICE_COPY,
-  confirmed: {
-    title: "You're confirmed!",
-    body: "Your final payment was verified — you're all set for race day.",
-  },
+  confirmed: BALANCE_RECEIPT_COPY,
   payment_rejected: {
     title: 'Proof of payment rejected',
     body: 'Please review the note and resubmit your proof of payment.',
@@ -91,14 +89,20 @@ export const onRegistrationStatusChange = onDocumentUpdated(
 
     const [settingsDoc, userDoc] = await Promise.all([
       db.collection('settings').doc('notifications').get(),
-      after.status === 'accepted' || after.status === 'terms_accepted' || after.status === 'final_invoiced' || depositInvoiceAmended
-        ? db.collection('users').doc(after.userId).get()
-        : undefined,
+      db.collection('users').doc(after.userId).get(),
     ])
 
     const marathon = marathonDoc.data()
     const marathonTitle: string | undefined = marathon?.title
     const ccEmails: string[] = settingsDoc.data()?.ccEmails ?? []
+    const chosenPackage = marathon?.packages?.find((p: { id: string }) => p.id === after.packageId)
+    // Everything the invoice/receipt emails share (the office's SPORTS SITE INVOICING template).
+    const documentContext = {
+      marathon: marathon && { title: marathon.title, eventDate: marathon.eventDate?.toDate() },
+      registrationId: event.params.registrationId,
+      inclusions: [marathon?.sharedInclusions, chosenPackage?.description].filter(Boolean).join('\n'),
+      recipient: userDoc.data(),
+    }
 
     if (after.status === 'accepted') {
       const { subject, body, html } = buildAcceptanceEmail({
@@ -121,7 +125,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
           ((after.offeredPackageIds as string[] | undefined) ?? [after.packageId]).includes(p.id),
         ),
         offerImageUrl: after.offerImageUrl,
-        recipient: userDoc?.data(),
+        recipient: userDoc.data(),
       })
       await notifyUser({
         userId: after.userId,
@@ -137,23 +141,23 @@ export const onRegistrationStatusChange = onDocumentUpdated(
 
     if (after.status === 'terms_accepted' || depositInvoiceAmended) {
       const { subject, body, html } = buildInvoiceEmail({
+        ...documentContext,
         marathon: marathon && {
-          title: marathon.title,
-          paymentInstructions: marathon.paymentInstructions,
+          ...documentContext.marathon,
           depositDeadline:
             after.termsAcceptedAt
               ? new Date(after.termsAcceptedAt.toMillis() + (marathon.depositDueDays ?? 1) * 86_400_000)
               : undefined,
           balanceDeadline: marathon.balanceDeadline?.toDate(),
         },
-        depositAmount: marathon?.packages?.find((p: { id: string }) => p.id === after.packageId)?.depositAmount,
+        depositAmount: chosenPackage?.depositAmount,
         registration: {
           packageName: after.packageName,
           packagePriceAmount: after.packagePriceAmount,
           packagePriceCurrency: after.packagePriceCurrency,
           selectedAddOns: after.selectedAddOns,
         },
-        recipient: userDoc?.data(),
+        issuedAt: after.termsAcceptedAt?.toDate() ?? new Date(),
       })
       await notifyUser({
         userId: after.userId,
@@ -169,11 +173,43 @@ export const onRegistrationStatusChange = onDocumentUpdated(
 
     if (after.status === 'final_invoiced') {
       const { subject, body, html } = buildFinalInvoiceEmail({
-        marathon: marathon && { title: marathon.title, paymentInstructions: marathon.paymentInstructions },
+        ...documentContext,
         currency: after.packagePriceCurrency,
         items: after.finalInvoice?.items ?? [],
         dueDate: after.finalInvoice?.dueDate?.toDate(),
-        recipient: userDoc?.data(),
+        issuedAt: after.finalInvoice?.issuedAt?.toDate() ?? new Date(),
+      })
+      await notifyUser({
+        userId: after.userId,
+        pushTitle: copy.title,
+        pushBody: copy.body,
+        emailSubject: subject,
+        emailBody: body,
+        emailHtml: html,
+        cc: ccEmails,
+      })
+      return
+    }
+
+    // Every approved payment gets an acknowledgement receipt.
+    if (after.status === 'deposit_paid' || after.status === 'confirmed') {
+      const total = packageLineItems(after as Parameters<typeof packageLineItems>[0]).reduce((sum, item) => sum + item.amount, 0)
+      const { subject, body, html } = buildReceiptEmail({
+        ...documentContext,
+        currency: after.packagePriceCurrency,
+        ...(after.status === 'deposit_paid'
+          ? {
+              kind: 'deposit' as const,
+              receivedAt: after.depositPaidAt?.toDate() ?? new Date(),
+              items: packageLineItems(after as Parameters<typeof packageLineItems>[0]),
+              // Same deposit the invoice billed; no deposit set means the full amount was paid up front.
+              amount: Math.min(chosenPackage?.depositAmount || total, total),
+            }
+          : {
+              kind: 'balance' as const,
+              receivedAt: after.updatedAt?.toDate() ?? new Date(),
+              items: after.finalInvoice?.items ?? [],
+            }),
       })
       await notifyUser({
         userId: after.userId,
