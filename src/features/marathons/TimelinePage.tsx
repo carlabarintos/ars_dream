@@ -177,15 +177,25 @@ export function TimelinePage() {
           <p className="text-muted-foreground">No marathons match your search.</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {visible.map((marathon) => (
-                <MarathonCard
-                  key={marathon.id}
-                  marathon={marathon}
-                  myRegistration={registrationByMarathon.get(`${marathon.id}_${marathon.cycle ?? 1}`)}
-                />
-              ))}
-            </div>
+            {[false, true].map((closed) => {
+              // Closed sorts last, so splitting the paginated slice keeps Load more working across both groups.
+              const group = visible.filter((m) => (getMarathonAvailability(m) === 'closed') === closed)
+              if (group.length === 0) return null
+              return (
+                <div key={String(closed)} className="flex flex-col gap-4">
+                  {closed && <h2 className="font-display mt-4 text-3xl tracking-wide">Closed Marathons</h2>}
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {group.map((marathon) => (
+                      <MarathonCard
+                        key={marathon.id}
+                        marathon={marathon}
+                        myRegistration={registrationByMarathon.get(`${marathon.id}_${marathon.cycle ?? 1}`)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
             {hasMore && (
               <Button variant="outline" onClick={loadMore} className="self-center">
                 Load more ({filtered.length - visible.length} remaining)
