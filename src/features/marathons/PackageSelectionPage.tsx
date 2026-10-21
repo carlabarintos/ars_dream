@@ -176,6 +176,8 @@ export function PackageSelectionPage() {
         </div>
       </div>
 
+      {marathon.description && <p className="text-sm whitespace-pre-line">{marathon.description}</p>}
+
       {myRegistration && myRegistration.status !== 'cancelled' && (
         <Card>
           <CardHeader>
