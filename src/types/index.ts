@@ -96,6 +96,8 @@ export interface Marathon {
   code?: string
   /** null means the date hasn't been announced yet (shown as TBA). Stored as null rather than omitted so orderBy('eventDate') still returns it. */
   eventDate: Timestamp | null
+  /** Admin-set position among date-TBA marathons (lower first), set by the up/down arrows on the admin dashboard. Absent sorts after, newest first. */
+  sortOrder?: number
   /** null means not announced yet (TBA) — the waitlist is open regardless. */
   registrationOpensAt: Timestamp | null
   /** null means no closing date — registration stays open until the admin closes the marathon or it fills up. */

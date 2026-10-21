@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -14,7 +15,13 @@ import {
 } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useAuthStore } from '@/features/auth/auth-store'
-import { reopenMarathon, setMarathonStatus, unpublishMarathon } from '@/features/marathons/api'
+import {
+  compareManualOrder,
+  reopenMarathon,
+  reorderMarathons,
+  setMarathonStatus,
+  unpublishMarathon,
+} from '@/features/marathons/api'
 import { useAllMarathons } from '@/features/marathons/use-marathons'
 import type { Marathon, MarathonStatus } from '@/types'
 
@@ -38,6 +45,24 @@ export function AdminDashboard() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [reopening, setReopening] = useState<Marathon | null>(null)
   const [isReopening, setIsReopening] = useState(false)
+  const [isReordering, setIsReordering] = useState(false)
+
+  // Date-TBA marathons can't be ordered by date, so the admin orders them by hand; they stay listed first
+  const tbaMarathons = marathons.filter((m) => !m.eventDate).sort(compareManualOrder)
+  const rows = [...tbaMarathons, ...marathons.filter((m) => m.eventDate)]
+
+  async function handleMove(index: number, delta: -1 | 1) {
+    const ids = tbaMarathons.map((m) => m.id)
+    ;[ids[index], ids[index + delta]] = [ids[index + delta], ids[index]]
+    setIsReordering(true)
+    try {
+      await reorderMarathons(ids)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setIsReordering(false)
+    }
+  }
 
   async function handleStatusChange(marathon: Marathon, status: MarathonStatus) {
     setUpdatingId(marathon.id)
@@ -129,9 +154,33 @@ export function AdminDashboard() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {marathons.map((marathon) => (
+            {rows.map((marathon, index) => (
               <TableRow key={marathon.id}>
                 <TableCell className="font-medium">
+                  {index < tbaMarathons.length && (
+                    <span className="mr-2 inline-flex align-middle">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-6"
+                        aria-label={`Move ${marathon.title} up`}
+                        disabled={isReordering || index === 0}
+                        onClick={() => handleMove(index, -1)}
+                      >
+                        <ChevronUp />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-6"
+                        aria-label={`Move ${marathon.title} down`}
+                        disabled={isReordering || index === tbaMarathons.length - 1}
+                        onClick={() => handleMove(index, 1)}
+                      >
+                        <ChevronDown />
+                      </Button>
+                    </span>
+                  )}
                   {marathon.title}
                   {marathon.code && <span className="text-muted-foreground ml-2 font-mono text-xs">{marathon.code}</span>}
                 </TableCell>

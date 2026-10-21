@@ -12,6 +12,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore'
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 import { httpsCallable } from 'firebase/functions'
@@ -30,7 +31,22 @@ export function toBulletLines(text: string | undefined): string[] {
   return (text ?? '').split('\n').map((line) => line.trim()).filter(Boolean)
 }
 
+/** Admin-set order (`sortOrder`, lower first), then newest first for marathons never reordered. */
+export function compareManualOrder(a: Marathon, b: Marathon) {
+  return (
+    (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity) ||
+    b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()
+  )
+}
+
 const marathonsRef = collection(db, 'marathons')
+
+/** Saves the admin's up/down ordering: each id's position in the list becomes its `sortOrder`. */
+export async function reorderMarathons(orderedIds: string[]) {
+  const batch = writeBatch(db)
+  orderedIds.forEach((id, index) => batch.update(doc(db, 'marathons', id), { sortOrder: index }))
+  await batch.commit()
+}
 
 export function subscribeToPublishedMarathons(onData: (marathons: Marathon[]) => void) {
   const q = query(marathonsRef, where('status', '==', 'published'), orderBy('eventDate', 'asc'))

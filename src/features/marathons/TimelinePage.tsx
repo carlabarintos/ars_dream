@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
 import type { Marathon } from '@/types'
 
+import { compareManualOrder } from './api'
 import { MarathonCard } from './MarathonCard'
 import { getMarathonAvailability, type MarathonAvailability } from './marathon-status'
 import { useMarathonsByIds, usePublishedMarathons } from './use-marathons'
@@ -60,7 +61,7 @@ export function TimelinePage() {
       (a, b) =>
         homeSortTier(a) - homeSortTier(b) ||
         eventTime(a) - eventTime(b) ||
-        b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime(),
+        compareManualOrder(a, b),
     )
   const visibleAnnouncements = announcements
     .filter((a) => isAnnouncementVisibleTo(a, uid, registrations, marathonById))
