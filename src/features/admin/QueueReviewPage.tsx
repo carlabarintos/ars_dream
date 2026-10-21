@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -12,13 +11,21 @@ import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
 import { useMarathon } from '@/features/marathons/use-marathons'
 import { BookingChatDialog } from '@/features/messages/BookingChatDialog'
-import { cancelRegistration, decideQueueRegistration, swapQueuePositions } from '@/features/registrations/api'
-import { getPaymentProofs, hasChosenPackage, isOverdue } from '@/features/registrations/registration-flow'
+import { cancelRegistration, decideQueueRegistration, sendReminder, swapQueuePositions } from '@/features/registrations/api'
+import {
+  getPendingActionStep,
+  hasChosenPackage,
+  isBookingComplete,
+  isOverdue,
+  PENDING_ACTION_REMINDER,
+} from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
 import type { Registration } from '@/types'
 
+import { BookingDetailDialog } from './BookingDetailDialog'
+import { BookingProgress } from '@/features/registrations/BookingTimeline'
 import { BulkWaitlistDialog } from './BulkWaitlistDialog'
 import { exportQueueCsv } from './export-import/full-export'
 import { ImportDialog } from './export-import/ImportDialog'
@@ -26,30 +33,6 @@ import { ChangePackageDialog } from './ChangePackageDialog'
 import { FinalInvoiceDialog } from './FinalInvoiceDialog'
 import { OfferChatDialog } from './OfferChatDialog'
 import { PaymentProofsDialog } from './PaymentProofsDialog'
-
-const STATUS_BADGE_VARIANT: Record<Exclude<Registration['status'], 'queued'>, 'success' | 'destructive' | 'secondary'> = {
-  accepted: 'success',
-  rejected: 'destructive',
-  terms_accepted: 'success',
-  payment_submitted: 'success',
-  deposit_paid: 'success',
-  final_invoiced: 'success',
-  confirmed: 'success',
-  payment_rejected: 'destructive',
-  cancelled: 'secondary',
-}
-
-const STATUS_BADGE_LABEL: Record<Exclude<Registration['status'], 'queued'>, string> = {
-  accepted: 'Offered',
-  rejected: 'Rejected',
-  terms_accepted: 'Offered',
-  payment_submitted: 'Offered',
-  deposit_paid: 'Deposit Paid',
-  final_invoiced: 'Final Invoiced',
-  confirmed: 'Offered',
-  payment_rejected: 'Rejected',
-  cancelled: 'Cancelled',
-}
 
 // A registration only ever reaches these statuses by first being accepted out of the queue
 // (or, for 'cancelled', by being withdrawn by the registrant themselves at any step), so they
@@ -120,6 +103,8 @@ export function QueueReviewPage() {
   const packageRegistration = registrations.find((r) => r.id === packageRegistrationId)
   const [paymentsRegistrationId, setPaymentsRegistrationId] = useState<string | null>(null)
   const paymentsRegistration = registrations.find((r) => r.id === paymentsRegistrationId)
+  const [detailRegistrationId, setDetailRegistrationId] = useState<string | null>(null)
+  const detailRegistration = registrations.find((r) => r.id === detailRegistrationId)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const statusFilteredRegistrations = orderedRegistrations.filter((registration) =>
     matchesStatusFilter(registration, statusFilter),
@@ -175,8 +160,89 @@ export function QueueReviewPage() {
     }
   }
 
+  async function handleRemind(registration: Registration) {
+    const step = getPendingActionStep(registration, marathon ?? undefined)
+    if (!step) return
+    const name = formatUserName(profiles[registration.userId])
+    const text = prompt(`Remind ${name} by email and push:`, PENDING_ACTION_REMINDER[step])?.trim()
+    if (!text) return
+    setDecidingKey(`${registration.id}-remind`)
+    try {
+      await sendReminder(registration.id, text)
+      toast.success(`Reminder sent to ${name}.`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setDecidingKey(null)
+    }
+  }
+
+  // The actions this registration's status allows, shown in its BookingDetailDialog.
+  function renderActions(registration: Registration) {
+    return (
+      <>
+        {registration.status === 'queued' && (
+          <>
+            <Button onClick={() => setReviewingOffer(registration)}>Offer</Button>
+            <Button
+              variant="destructive"
+              loading={decidingKey === `${registration.id}-rejected`}
+              onClick={() => handleDecision(registration.id, 'rejected')}
+            >
+              Reject
+            </Button>
+          </>
+        )}
+        {['deposit_paid', 'final_invoiced', 'confirmed'].includes(registration.status) && (
+          <Button onClick={() => setInvoiceRegistrationId(registration.id)}>
+            {registration.status === 'confirmed'
+              ? 'Additional Invoice'
+              : registration.finalInvoice
+                ? 'Edit Final Invoice'
+                : 'Final Invoice'}
+          </Button>
+        )}
+        {hasChosenPackage(registration) && !['rejected', 'cancelled'].includes(registration.status) && (
+          <Button
+            variant="outline"
+            title={registration.packageName}
+            onClick={() => setPackageRegistrationId(registration.id)}
+          >
+            Change Package
+          </Button>
+        )}
+        {registration.status === 'payment_submitted' && (
+          <Button variant="outline" onClick={() => setPaymentsRegistrationId(registration.id)}>
+            Review Payment
+          </Button>
+        )}
+        {getPendingActionStep(registration, marathon ?? undefined) && (
+          <Button
+            variant="outline"
+            loading={decidingKey === `${registration.id}-remind`}
+            onClick={() => handleRemind(registration)}
+          >
+            Send Reminder
+          </Button>
+        )}
+        <Button variant="outline" onClick={() => setChatRegistrationId(registration.id)}>
+          Chat
+        </Button>
+        {isOverdue(registration) && (
+          <Button
+            variant="destructive"
+            loading={decidingKey === `${registration.id}-cancelled`}
+            onClick={() => handleCancel(registration)}
+          >
+            Cancel Booking
+          </Button>
+        )}
+      </>
+    )
+  }
+
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
+    <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-3xl tracking-wide">Queue Review</h1>
         {marathonId && (
@@ -239,16 +305,20 @@ export function QueueReviewPage() {
           <TableHeader>
             <TableRow>
               <TableHead>#</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Package</TableHead>
+              <TableHead>Progress</TableHead>
               <TableHead>Requested</TableHead>
-              <TableHead className="text-right">Decision</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {visible.map((registration) => (
-              <TableRow key={registration.id}>
-                <TableCell className="text-muted-foreground">
+              <TableRow
+                key={registration.id}
+                className="cursor-pointer"
+                onClick={() => setDetailRegistrationId(registration.id)}
+              >
+                <TableCell className="text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-1">
                     {registration.queuePosition ?? '—'}
                     {registration.status === 'queued' && registration.queuePosition != null && (
@@ -277,79 +347,23 @@ export function QueueReviewPage() {
                     )}
                   </div>
                 </TableCell>
-                <TableCell>{formatUserName(profiles[registration.userId])}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {profiles[registration.userId]?.email ?? '—'}
+                <TableCell>
+                  <div className="font-medium">{formatUserName(profiles[registration.userId])}</div>
+                  <div className="text-muted-foreground text-xs">{profiles[registration.userId]?.email ?? '—'}</div>
                 </TableCell>
-                <TableCell>{registration.createdAt?.toDate().toLocaleString()}</TableCell>
-                <TableCell className="flex justify-end gap-2">
-                  {registration.status === 'queued' ? (
-                    <>
-                      <Button size="sm" onClick={() => setReviewingOffer(registration)}>
-                        Offer
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        loading={decidingKey === `${registration.id}-rejected`}
-                        onClick={() => handleDecision(registration.id, 'rejected')}
-                      >
-                        Reject
-                      </Button>
-                    </>
-                  ) : isOverdue(registration) ? (
-                    <>
-                      <StatusBadge status={registration.status} overdue />
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        loading={decidingKey === `${registration.id}-cancelled`}
-                        onClick={() => handleCancel(registration)}
-                      >
-                        Cancel
-                      </Button>
-                    </>
-                  ) : (
-                    <Badge
-                      variant={
-                        STATUS_BADGE_VARIANT[registration.status as Exclude<Registration['status'], 'queued'>]
-                      }
-                    >
-                      {STATUS_BADGE_LABEL[registration.status as Exclude<Registration['status'], 'queued'>]}
-                    </Badge>
-                  )}
-                  {['deposit_paid', 'final_invoiced', 'confirmed'].includes(registration.status) && (
-                    <Button size="sm" onClick={() => setInvoiceRegistrationId(registration.id)}>
-                      {registration.status === 'confirmed'
-                        ? 'Additional Invoice'
-                        : registration.finalInvoice
-                          ? 'Edit Final Invoice'
-                          : 'Final Invoice'}
-                    </Button>
-                  )}
-                  {hasChosenPackage(registration) && !['rejected', 'cancelled'].includes(registration.status) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      title={registration.packageName}
-                      onClick={() => setPackageRegistrationId(registration.id)}
-                    >
-                      Change Package
-                    </Button>
-                  )}
-                  {(() => {
-                    const { approved, latest } = getPaymentProofs(registration)
-                    return (
-                      approved.length + latest.length > 0 && (
-                        <Button variant="outline" size="sm" onClick={() => setPaymentsRegistrationId(registration.id)}>
-                          Payments
-                        </Button>
-                      )
-                    )
-                  })()}
-                  <Button variant="outline" size="sm" onClick={() => setChatRegistrationId(registration.id)}>
-                    Chat
-                  </Button>
+                <TableCell className="text-muted-foreground">{registration.packageName || '—'}</TableCell>
+                <TableCell>
+                  <div className="flex flex-col items-start gap-1.5">
+                    <StatusBadge
+                      status={registration.status}
+                      overdue={isOverdue(registration)}
+                      incomplete={!isBookingComplete(registration, marathon ?? undefined)}
+                    />
+                    <BookingProgress registration={registration} />
+                  </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {registration.createdAt?.toDate().toLocaleDateString()}
                 </TableCell>
               </TableRow>
             ))}
@@ -360,6 +374,15 @@ export function QueueReviewPage() {
         <Button variant="outline" onClick={loadMore} className="self-center">
           Load more ({filtered.length - visible.length} remaining)
         </Button>
+      )}
+      {detailRegistration && (
+        <BookingDetailDialog
+          registration={detailRegistration}
+          marathon={marathon ?? undefined}
+          profile={profiles[detailRegistration.userId]}
+          onClose={() => setDetailRegistrationId(null)}
+          actions={renderActions(detailRegistration)}
+        />
       )}
       <OfferChatDialog
         registration={reviewingOffer}
@@ -388,6 +411,8 @@ export function QueueReviewPage() {
         <PaymentProofsDialog
           registration={paymentsRegistration}
           registrantName={formatUserName(profiles[paymentsRegistration.userId])}
+          marathon={marathon}
+          review
           onClose={() => setPaymentsRegistrationId(null)}
         />
       )}

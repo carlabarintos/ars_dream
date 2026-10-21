@@ -53,7 +53,11 @@ async function getTargetUserDocs(
     const userIds = [
       ...new Set(
         registrationsSnapshot.docs
-          .filter((doc) => hasCompletedQuestionnaire(questions, doc.data().answers as QuestionAnswer[] | undefined))
+          .filter(
+            (doc) =>
+              !!doc.data().passportPhotoUrl &&
+              hasCompletedQuestionnaire(questions, doc.data().answers as QuestionAnswer[] | undefined),
+          )
           .map((doc) => doc.data().userId as string),
       ),
     ]

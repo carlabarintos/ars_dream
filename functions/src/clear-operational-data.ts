@@ -93,6 +93,7 @@ export const clearOperationalData = onCall(
     deleteStoragePrefix('marathon-packages/'),
     deleteStoragePrefix('announcement-banners/'),
     ...registrationsToDelete.map((d) => deleteStoragePrefix(`proof-of-payment/${d.id}/`)),
+    ...registrationsToDelete.map((d) => deleteStoragePrefix(`passports/${d.id}/`)),
   ])
 
   for (const group of chunk(deleteUserIds, AUTH_DELETE_LIMIT)) {

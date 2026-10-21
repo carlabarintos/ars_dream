@@ -73,6 +73,7 @@ export const confirmPayment = onCall<ConfirmPaymentInput>(
         depositProofUrls: registration.proofOfPaymentUrls ?? [],
         // The deposit receipt's "date received"; proofSubmittedAt is overwritten by the balance upload.
         depositProofSubmittedAt: registration.proofSubmittedAt ?? null,
+        approvedPaymentReferences: [registration.paymentReference ?? ''],
         adminNote: null,
         updatedAt: new Date(),
       })

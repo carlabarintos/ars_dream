@@ -172,6 +172,14 @@ export interface FinalInvoice {
   issuedAt: Timestamp
 }
 
+/** A final invoice replaced by a re-issue (edit or Additional Invoice), kept so the booking's history can show every version. */
+export interface SupersededFinalInvoice extends FinalInvoice {
+  /** When its balance proof was uploaded — set only if it had been paid (booking confirmed) before it was replaced. */
+  paidAt?: Timestamp | null
+  /** The balance proof that paid it, if it was paid. */
+  paidProofUrls?: string[]
+}
+
 export interface Registration {
   id: string
   userId: string
@@ -192,8 +200,12 @@ export interface Registration {
   termsAcceptedAt: Timestamp | null
   /** Answers to the marathon's registration questions, submitted together with acceptance. Absent until submitted. */
   answers?: QuestionAnswer[]
+  /** Photo of the passport bio page, uploaded by the registrant once confirmed — required before the booking counts as complete. */
+  passportPhotoUrl?: string
   proofOfPaymentUrls: string[]
   proofSubmittedAt: Timestamp | null
+  /** Branch visited (over-the-counter) or online transaction reference number, entered with the latest proof. */
+  paymentReference?: string
   adminNote: string | null
   /** The package's standard offer image, snapshotted at accept time (see OfferChatDialog) — included in the acceptance email and chat message. Absent if no offer image was set/attached. */
   offerImageUrl?: string
@@ -216,8 +228,12 @@ export interface Registration {
   depositProofUrls?: string[]
   /** The deposit proof's `proofSubmittedAt`, kept by confirmPayment for the deposit receipt's "date received". Absent on deposits approved before this field existed. */
   depositProofSubmittedAt?: Timestamp | null
+  /** `paymentReference` of each approved payment, archived alongside `depositProofUrls`: [0] is the deposit, later entries paid balances ('' if none was entered). */
+  approvedPaymentReferences?: string[]
   /** Present once the admin issues the final invoice (→ 'final_invoiced'). A payment_submitted/payment_rejected registration with this set is on its balance payment, not its deposit. */
   finalInvoice?: FinalInvoice
+  /** Earlier versions of `finalInvoice`, oldest first, archived by issueFinalInvoice. Absent until the final invoice is first re-issued. */
+  previousFinalInvoices?: SupersededFinalInvoice[]
   /** When the registrant accepted the T&C on the final invoice. */
   finalTermsAcceptedAt?: Timestamp
   createdAt: Timestamp

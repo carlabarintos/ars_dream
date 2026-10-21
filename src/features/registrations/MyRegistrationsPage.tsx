@@ -6,7 +6,7 @@ import {
   CalendarIcon,
   CheckCircle2Icon,
   ClockIcon,
-  DownloadIcon,
+  HistoryIcon,
   type LucideIcon,
   MapPinIcon,
   MessageCircleIcon,
@@ -29,12 +29,14 @@ import { BookingChat } from '@/features/messages/BookingChatDialog'
 import { cn } from '@/lib/utils'
 import type { Registration, RegistrationStatus } from '@/types'
 
-import { getBookingDocuments, printBookingDocument } from './booking-documents'
+import { BookingTimeline } from './BookingTimeline'
 import { CancelRegistrationButton } from './CancelRegistrationButton'
+import { QuestionnaireLink } from './QuestionnaireLink'
 import {
   canReopenWizard,
   canReRegister,
   getPendingActionStep,
+  isBookingComplete,
   getRegistrationStatusMessage,
   getRegistrationTotalAmount,
   getWizardButtonLabel,
@@ -258,7 +260,7 @@ export function MyRegistrationsPage() {
         </div>
       )}
 
-      <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 pt-8 pb-8">
+      <div className="mx-auto flex max-w-4xl flex-col gap-4 px-4 pt-8 pb-8">
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Spinner size="lg" />
@@ -301,6 +303,7 @@ export function MyRegistrationsPage() {
                   <StatusBadge
                     status={registration.status}
                     overdue={isOverdue(registration)}
+                    incomplete={!isBookingComplete(registration, marathon)}
                     className="absolute top-3 right-3"
                   />
                   {marathon &&
@@ -369,25 +372,35 @@ export function MyRegistrationsPage() {
                     >
                       <StatusIcon className="size-3.5" />
                     </span>
-                    <span>{getRegistrationStatusMessage(registration)}</span>
+                    <span>{getRegistrationStatusMessage(registration, marathon)}</span>
                   </div>
 
-                  {uid && (
-                    <div className="flex flex-col gap-2">
-                      <div className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase">
-                        <MessageCircleIcon className="size-3.5" />
-                        Messages &amp; History
+                  <div className="grid gap-4 md:grid-cols-[1fr_18rem]">
+                    {uid && (
+                      <div className="flex min-w-0 flex-col gap-2">
+                        <div className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase">
+                          <MessageCircleIcon className="size-3.5" />
+                          Messages
+                        </div>
+                        <BookingChat
+                          registration={registration}
+                          marathonTitle={marathon?.title ?? 'Your booking'}
+                          viewerId={uid}
+                          viewerRole="user"
+                          otherPartyLabel="Support team"
+                          className="h-96"
+                        />
                       </div>
-                      <BookingChat
-                        registration={registration}
-                        marathonTitle={marathon?.title ?? 'Your booking'}
-                        viewerId={uid}
-                        viewerRole="user"
-                        otherPartyLabel="Support team"
-                        className="h-80"
-                      />
+                    )}
+                    <div className="flex flex-col gap-3 md:max-h-[26rem] md:overflow-y-auto">
+                      <div className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase">
+                        <HistoryIcon className="size-3.5" />
+                        Timeline
+                      </div>
+                      {profile && <BookingTimeline registration={registration} marathon={marathon} profile={profile} />}
+                      <QuestionnaireLink registration={registration} marathon={marathon} />
                     </div>
-                  )}
+                  </div>
                 </CardContent>
 
                 <CardFooter className="border-border flex flex-col gap-2 border-t pt-4 pb-5">
@@ -401,17 +414,6 @@ export function MyRegistrationsPage() {
                       <Link to={`/marathons/${registration.marathonId}/packages`}>Join Waitlist Again</Link>
                     </Button>
                   )}
-                  {getBookingDocuments(registration, marathon, profile).map((document) => (
-                    <Button
-                      key={document.label}
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => printBookingDocument(document, marathon?.title)}
-                    >
-                      <DownloadIcon />
-                      Download {document.label}
-                    </Button>
-                  ))}
                   <CancelRegistrationButton registration={registration} />
                 </CardFooter>
               </Card>

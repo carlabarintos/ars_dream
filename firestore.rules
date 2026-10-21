@@ -108,9 +108,9 @@ service cloud.firestore {
           .hasOnly([
             'packageId', 'packageName', 'packagePriceAmount', 'packagePriceCurrency',
             'selectedAddOns', 'offeredPackageIds', 'status', 'queuePosition', 'queueSortAt', 'termsAcceptedAt', 'answers',
-            'proofOfPaymentUrls', 'proofSubmittedAt', 'adminNote', 'cancelledAt',
-            'depositPaidAt', 'depositProofUrls', 'depositProofSubmittedAt', 'finalInvoice', 'finalTermsAcceptedAt',
-            'createdAt', 'updatedAt',
+            'proofOfPaymentUrls', 'proofSubmittedAt', 'paymentReference', 'adminNote', 'cancelledAt',
+            'depositPaidAt', 'depositProofUrls', 'depositProofSubmittedAt', 'approvedPaymentReferences', 'finalInvoice', 'previousFinalInvoices',
+            'finalTermsAcceptedAt', 'createdAt', 'updatedAt',
           ]);
 
       // User may only progress their own registration through the
@@ -141,17 +141,19 @@ service cloud.firestore {
           (resource.data.status in ['terms_accepted', 'payment_rejected'] &&
             request.resource.data.status == 'payment_submitted' &&
             request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['status', 'proofOfPaymentUrls', 'proofSubmittedAt', 'updatedAt'])) ||
+              .hasOnly(['status', 'proofOfPaymentUrls', 'proofSubmittedAt', 'paymentReference', 'updatedAt'])) ||
           // Balance proof against the final invoice, accepting its T&C in the same write.
           (resource.data.status == 'final_invoiced' &&
             request.resource.data.status == 'payment_submitted' &&
             request.resource.data.finalTermsAcceptedAt == request.time &&
             request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['status', 'proofOfPaymentUrls', 'proofSubmittedAt', 'finalTermsAcceptedAt', 'updatedAt'])) ||
-          // The questionnaire is answered last, once the booking is confirmed.
+              .hasOnly(['status', 'proofOfPaymentUrls', 'proofSubmittedAt', 'paymentReference', 'finalTermsAcceptedAt', 'updatedAt'])) ||
+          // The passport bio page and questionnaire come last, once the booking is confirmed. Submitted
+          // answers are read-only: a later write may only add answers (e.g. to a question added afterwards).
           (resource.data.status == 'confirmed' &&
             request.resource.data.status == 'confirmed' &&
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'updatedAt']))
+            request.resource.data.get('answers', []).hasAll(resource.data.get('answers', [])) &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'passportPhotoUrl', 'updatedAt']))
         );
 
       allow update: if isAdmin();

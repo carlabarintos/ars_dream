@@ -136,7 +136,10 @@ export async function joinQueue(userId: string, marathonId: string, cycle: numbe
       depositPaidAt: deleteField(),
       depositProofUrls: deleteField(),
       depositProofSubmittedAt: deleteField(),
+      paymentReference: deleteField(),
+      approvedPaymentReferences: deleteField(),
       finalInvoice: deleteField(),
+      previousFinalInvoices: deleteField(),
       finalTermsAcceptedAt: deleteField(),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -189,7 +192,17 @@ export async function submitQuestionnaireAnswers(registrationId: string, answers
   await updateDoc(doc(db, 'registrations', registrationId), { answers, updatedAt: serverTimestamp() })
 }
 
-export async function submitProofOfPayment(registrationId: string, files: File[]) {
+/** Passport bio page photo, required once the booking is confirmed. Re-uploading replaces it. */
+export async function submitPassportPhoto(registrationId: string, file: File) {
+  const storageRef = ref(storage, `passports/${registrationId}/${Date.now()}-${file.name}`)
+  await uploadBytes(storageRef, file)
+  await updateDoc(doc(db, 'registrations', registrationId), {
+    passportPhotoUrl: await getDownloadURL(storageRef),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export async function submitProofOfPayment(registrationId: string, files: File[], paymentReference: string) {
   const urls = await Promise.all(
     files.map(async (file, index) => {
       const storageRef = ref(storage, `proof-of-payment/${registrationId}/${Date.now()}-${index}-${file.name}`)
@@ -202,12 +215,13 @@ export async function submitProofOfPayment(registrationId: string, files: File[]
     status: 'payment_submitted' satisfies Registration['status'],
     proofOfPaymentUrls: urls,
     proofSubmittedAt: serverTimestamp(),
+    paymentReference,
     updatedAt: serverTimestamp(),
   })
 }
 
 /** Balance proof against the final invoice. From 'final_invoiced' this also records T&C acceptance; a resubmit after rejection doesn't re-ask. */
-export async function submitFinalPayment(registration: Registration, files: File[]) {
+export async function submitFinalPayment(registration: Registration, files: File[], paymentReference: string) {
   const urls = await Promise.all(
     files.map(async (file, index) => {
       const storageRef = ref(storage, `proof-of-payment/${registration.id}/${Date.now()}-balance-${index}-${file.name}`)
@@ -220,6 +234,7 @@ export async function submitFinalPayment(registration: Registration, files: File
     status: 'payment_submitted' satisfies Registration['status'],
     proofOfPaymentUrls: urls,
     proofSubmittedAt: serverTimestamp(),
+    paymentReference,
     ...(registration.status === 'final_invoiced' ? { finalTermsAcceptedAt: serverTimestamp() } : {}),
     updatedAt: serverTimestamp(),
   })
@@ -261,10 +276,35 @@ export async function changeRegistrationPackage(
 /** Approved proofs (deposit, or the paid balance on an Additional Invoice) are archived to depositProofUrls so the next balance upload doesn't overwrite them. */
 export async function issueFinalInvoice(registration: Registration, items: InvoiceLineItem[], dueDate: Date) {
   const isPaid = registration.status === 'deposit_paid' || registration.status === 'confirmed'
+  const { finalInvoice } = registration
   await updateDoc(doc(db, 'registrations', registration.id), {
     status: 'final_invoiced' satisfies Registration['status'],
+    // Keep the version being replaced for the booking's history (with its payment, on an Additional Invoice).
+    ...(finalInvoice
+      ? {
+          previousFinalInvoices: arrayUnion({
+            items: finalInvoice.items,
+            dueDate: finalInvoice.dueDate,
+            issuedAt: finalInvoice.issuedAt,
+            ...(registration.status === 'confirmed'
+              ? { paidAt: registration.proofSubmittedAt, paidProofUrls: registration.proofOfPaymentUrls }
+              : {}),
+          }),
+        }
+      : {}),
     ...(isPaid && registration.proofOfPaymentUrls.length > 0
-      ? { depositProofUrls: arrayUnion(...registration.proofOfPaymentUrls) }
+      ? {
+          depositProofUrls: arrayUnion(...registration.proofOfPaymentUrls),
+          // Only a paid balance is new here; the deposit's reference was archived by confirmPayment.
+          ...(registration.status === 'confirmed'
+            ? {
+                approvedPaymentReferences: [
+                  ...(registration.approvedPaymentReferences ?? []),
+                  registration.paymentReference ?? '',
+                ],
+              }
+            : {}),
+        }
       : {}),
     finalInvoice: { items, dueDate: Timestamp.fromDate(dueDate), issuedAt: serverTimestamp() },
     updatedAt: serverTimestamp(),
@@ -349,6 +389,16 @@ const cancelRegistrationCallable = httpsCallable<{ registrationId: string }, { s
 
 export async function cancelRegistration(registrationId: string) {
   await cancelRegistrationCallable({ registrationId })
+}
+
+const sendReminderCallable = httpsCallable<{ registrationId: string; text: string }, { sent: boolean }>(
+  functions,
+  'sendReminder',
+)
+
+/** Admin-only: emails + pushes the registrant about their pending step (functions/src/send-reminder.ts). */
+export async function sendReminder(registrationId: string, text: string) {
+  await sendReminderCallable({ registrationId, text })
 }
 
 /** Recomputes a marathon's confirmedCount from its actual confirmed registrations — used after a restore, since the counter must never be trusted verbatim from a CSV snapshot (see restore-plan.ts). */

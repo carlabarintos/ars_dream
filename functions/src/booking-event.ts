@@ -47,7 +47,7 @@ export function describeStatusEvent(registration: FirebaseFirestore.DocumentData
       return `Final invoice ${reissued ? 'updated' : 'issued'} — balance ${money(registration, balance)}${due ? `, due ${due}` : ''}`
     }
     case 'confirmed':
-      return 'Balance approved — booking confirmed'
+      return 'Balance approved — passport & questionnaire next'
     case 'cancelled':
       return registration.cancelledBy === 'admin' ? 'Booking cancelled by ARS Dream' : 'Booking cancelled by registrant'
     default:

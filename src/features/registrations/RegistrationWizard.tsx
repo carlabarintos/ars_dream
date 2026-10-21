@@ -22,8 +22,14 @@ import type { Marathon, QuestionAnswer, Registration } from '@/types'
 
 import { useAuthStore } from '@/features/auth/auth-store'
 
-import { submitFinalPayment, submitProofOfPayment, submitQuestionnaireAnswers, submitTermsAndConditions } from './api'
-import { bookingDocumentPage, getBookingDocuments, printBookingDocument } from './booking-documents'
+import {
+  submitFinalPayment,
+  submitPassportPhoto,
+  submitProofOfPayment,
+  submitQuestionnaireAnswers,
+  submitTermsAndConditions,
+} from './api'
+import { bookingDocumentPage, getBookingDocuments, downloadBookingDocument } from './booking-documents'
 import {
   getFinalInvoiceBalance,
   getOfferedPackages,
@@ -44,11 +50,15 @@ export function RegistrationWizard({
 }) {
   const profile = useAuthStore((state) => state.profile)
   const [files, setFiles] = useState<File[]>([])
+  const [passportFile, setPassportFile] = useState<File | null>(null)
   const [answerValues, setAnswerValues] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
     for (const answer of registration.answers ?? []) initial[answer.questionId] = answer.value
     return initial
   })
+  // Submitted answers are read-only (the rules only allow adding new ones).
+  const lockedAnswers = registration.answers ?? []
+  const isLocked = (questionId: string) => lockedAnswers.some((answer) => answer.questionId === questionId)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [finalTermsAccepted, setFinalTermsAccepted] = useState(false)
   const offeredPackages = getOfferedPackages(registration, marathon)
@@ -63,36 +73,51 @@ export function RegistrationWizard({
   const chosenAddOns = (chosenPackage?.addOns ?? []).filter(
     (addOn) => addOn.mandatory || chosenAddOnIds.includes(addOn.id),
   )
-  const chosenTotal = (chosenPackage?.priceAmount ?? 0) + chosenAddOns.reduce((sum, addOn) => sum + addOn.priceAmount, 0)
+  const chosenTotal =
+    (chosenPackage?.priceAmount ?? 0) + chosenAddOns.reduce((sum, addOn) => sum + addOn.priceAmount, 0)
   const chosenDeposit = Math.min(chosenPackage?.depositAmount ?? 0, chosenTotal)
 
   const items = marathon?.questions ?? []
   const pendingStep = getPendingActionStep(registration, marathon)
   const step =
     pendingStep ??
-    (registration.status === 'payment_submitted' ? (isOnFinalInvoice(registration) ? 'final_payment' : 'payment') : 'done')
+    (registration.status === 'payment_submitted'
+      ? isOnFinalInvoice(registration)
+        ? 'final_payment'
+        : 'payment'
+      : 'done')
   const isFinal = step === 'final_payment'
   // T&C are accepted with the first balance submission; a resubmit after rejection doesn't re-ask.
   const needsFinalTerms = registration.status === 'final_invoiced'
   // On a fresh final invoice, proofOfPaymentUrls still holds the already-approved payment's proof (kept in depositProofUrls) — not a submission to replace.
   const currentProofs = needsFinalTerms ? [] : registration.proofOfPaymentUrls
+  const [paymentReference, setPaymentReference] = useState(() =>
+    needsFinalTerms ? '' : (registration.paymentReference ?? ''),
+  )
   const finalBalance = getFinalInvoiceBalance(registration)
   // The office-template invoice the registrant was emailed; shown in full on wider screens, the compact summary below on phones.
   const invoiceDocument = getBookingDocuments(registration, marathon, profile).find(
     (document) => document.label === (isFinal ? 'Final Invoice' : 'Invoice'),
   )
   const canSubmitPayment =
-    (files.length > 0 || (isFinal && finalBalance <= 0)) && (!needsFinalTerms || finalTermsAccepted)
+    ((files.length > 0 && paymentReference.trim() !== '') || (isFinal && finalBalance <= 0)) &&
+    (!needsFinalTerms || finalTermsAccepted)
 
   const total =
-    registration.packagePriceAmount + (registration.selectedAddOns ?? []).reduce((sum, addOn) => sum + addOn.priceAmount, 0)
+    registration.packagePriceAmount +
+    (registration.selectedAddOns ?? []).reduce((sum, addOn) => sum + addOn.priceAmount, 0)
   // Before acceptance the package isn't on the registration yet — use the one being picked.
   const deposit =
     step === 'terms'
       ? chosenDeposit
       : Math.min(marathon?.packages?.find((p) => p.id === registration.packageId)?.depositAmount ?? 0, total)
   const money = (amount: number) => `${registration.packagePriceCurrency} ${amount.toLocaleString()}`
-  const formatDue = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const formatDue = (date: Date) =>
+    date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
   const dueDate = (date: Date | undefined) => (date ? ` · due ${formatDue(date)}` : '')
   const offerAcceptanceDeadline = registration.offeredAt
     ? getOfferAcceptanceDeadline(registration.offeredAt.toDate(), marathon?.offerAcceptanceDays)
@@ -122,20 +147,21 @@ export function RegistrationWizard({
   }
 
   async function handleSubmitAnswers() {
-    const missingRequired = items.some(
-      (item) => item.required && !isQuestionAnswered(item, answerValues[item.id]),
-    )
+    const missingRequired = items.some((item) => item.required && !isQuestionAnswered(item, answerValues[item.id]))
     if (missingRequired) {
       toast.error('Please complete all required items.')
       return
     }
-    const answers: QuestionAnswer[] = items
-      .filter((item) => isQuestionAnswered(item, answerValues[item.id]))
-      .map((item) => ({
-        questionId: item.id,
-        label: item.label,
-        value: item.type === 'bool' ? (answerValues[item.id] === 'Yes' ? 'Yes' : 'No') : answerValues[item.id],
-      }))
+    const answers: QuestionAnswer[] = [
+      ...lockedAnswers,
+      ...items
+        .filter((item) => !isLocked(item.id) && isQuestionAnswered(item, answerValues[item.id]))
+        .map((item) => ({
+          questionId: item.id,
+          label: item.label,
+          value: item.type === 'bool' ? (answerValues[item.id] === 'Yes' ? 'Yes' : 'No') : answerValues[item.id],
+        })),
+    ]
     setIsSubmitting(true)
     try {
       await submitQuestionnaireAnswers(registration.id, answers)
@@ -148,11 +174,27 @@ export function RegistrationWizard({
     }
   }
 
+  async function handleSubmitPassport() {
+    if (!passportFile) return
+    setIsSubmitting(true)
+    try {
+      await submitPassportPhoto(registration.id, passportFile)
+      toast.success(items.length ? 'Passport uploaded. Last step: the questionnaire.' : 'Thanks! Your booking is complete.')
+      onClose()
+    } catch (error) {
+      toast.error(getFriendlyErrorMessage(error, 'payment'))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   async function handleSubmitPayment() {
     if (!canSubmitPayment) return
     setIsSubmitting(true)
     try {
-      await (isFinal ? submitFinalPayment(registration, files) : submitProofOfPayment(registration.id, files))
+      await (isFinal
+        ? submitFinalPayment(registration, files, paymentReference.trim())
+        : submitProofOfPayment(registration.id, files, paymentReference.trim()))
       toast.success('Proof of payment submitted. An admin will review it shortly.')
       onClose()
     } catch (error) {
@@ -174,9 +216,11 @@ export function RegistrationWizard({
                 ? 'Your invoice is below. Send payment using the instructions, then upload your proof of payment.'
                 : isFinal
                   ? 'Your final invoice is below. Pay the balance using the instructions, then upload your proof of payment.'
-                  : step === 'questionnaire'
-                    ? 'Your booking is paid. Answer this last questionnaire to complete it.'
-                    : ''}
+                  : step === 'passport'
+                    ? 'Your booking is paid. Upload a clear photo of your passport bio page (the page with your photo and details) to complete it.'
+                    : step === 'questionnaire'
+                      ? 'Your booking is paid. Answer this last questionnaire to complete it.'
+                      : ''}
           </DialogDescription>
         </DialogHeader>
 
@@ -221,7 +265,10 @@ export function RegistrationWizard({
                 return (
                   <div
                     key={pkg.id}
-                    className={cn('rounded-md border border-border p-3 text-sm', isChosen && 'border-primary ring-primary/25 ring-2')}
+                    className={cn(
+                      'rounded-md border border-border p-3 text-sm',
+                      isChosen && 'border-primary ring-primary/25 ring-2',
+                    )}
                   >
                     <button
                       type="button"
@@ -231,9 +278,7 @@ export function RegistrationWizard({
                     >
                       <span className="font-semibold">{pkg.name}</span>
                       <span className="text-right tabular-nums">
-                        <span className="font-semibold">
-                          {formatPackagePrice(pkg.priceCurrency, pkg.priceAmount)}
-                        </span>
+                        <span className="font-semibold">{formatPackagePrice(pkg.priceCurrency, pkg.priceAmount)}</span>
                         {pkg.depositAmount ? (
                           <span className="text-muted-foreground block text-xs">
                             Deposit {pkg.priceCurrency} {pkg.depositAmount.toLocaleString()}
@@ -299,6 +344,32 @@ export function RegistrationWizard({
           </div>
         )}
 
+        {step === 'passport' && (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="passport">Passport bio page photo</Label>
+              <Input
+                id="passport"
+                type="file"
+                accept="image/*"
+                onChange={(e) => setPassportFile(e.target.files?.[0] ?? null)}
+              />
+              <p className="text-muted-foreground text-xs">
+                Make sure all four corners are visible and the text is readable, with no glare. Your passport should be
+                valid for at least 6 months after the event.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button disabled={!passportFile} loading={isSubmitting} onClick={handleSubmitPassport}>
+                Upload Passport
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+
         {step === 'questionnaire' && (
           <div className="flex flex-col gap-4">
             {items.map((item) => (
@@ -313,15 +384,25 @@ export function RegistrationWizard({
                 {item.type === 'bool' ? (
                   <Checkbox
                     id={item.id}
+                    disabled={isLocked(item.id)}
                     checked={answerValues[item.id] === 'Yes'}
                     onCheckedChange={(v) =>
-                      setAnswerValues((values) => ({ ...values, [item.id]: v === true ? 'Yes' : 'No' }))
+                      setAnswerValues((values) => ({
+                        ...values,
+                        [item.id]: v === true ? 'Yes' : 'No',
+                      }))
                     }
                   />
                 ) : item.type === 'dropdown' ? (
                   <Select
+                    disabled={isLocked(item.id)}
                     value={answerValues[item.id] ?? ''}
-                    onValueChange={(value) => setAnswerValues((values) => ({ ...values, [item.id]: value }))}
+                    onValueChange={(value) =>
+                      setAnswerValues((values) => ({
+                        ...values,
+                        [item.id]: value,
+                      }))
+                    }
                   >
                     <SelectTrigger id={item.id} className="h-auto min-h-10 text-left whitespace-normal">
                       <SelectValue placeholder="Select…" />
@@ -337,9 +418,15 @@ export function RegistrationWizard({
                 ) : (
                   <Input
                     id={item.id}
+                    disabled={isLocked(item.id)}
                     type={item.type === 'int' ? 'number' : 'text'}
                     value={answerValues[item.id] ?? ''}
-                    onChange={(e) => setAnswerValues((values) => ({ ...values, [item.id]: e.target.value }))}
+                    onChange={(e) =>
+                      setAnswerValues((values) => ({
+                        ...values,
+                        [item.id]: e.target.value,
+                      }))
+                    }
                   />
                 )}
               </div>
@@ -364,8 +451,7 @@ export function RegistrationWizard({
             )}
             {registration.status === 'payment_submitted' && (
               <div className="bg-muted/50 rounded-md border border-border p-3 text-sm">
-                Your proof of payment is under review. You can still replace it below if you submitted the
-                wrong file.
+                Your proof of payment is under review. You can still replace it below if you submitted the wrong file.
               </div>
             )}
             {invoiceDocument && (
@@ -383,7 +469,7 @@ export function RegistrationWizard({
                 <Button
                   variant="outline"
                   className="w-fit"
-                  onClick={() => printBookingDocument(invoiceDocument, marathon?.title)}
+                  onClick={() => downloadBookingDocument(invoiceDocument, marathon?.title)}
                 >
                   <DownloadIcon />
                   Download {invoiceDocument.label}
@@ -391,7 +477,12 @@ export function RegistrationWizard({
               </div>
             )}
             {isFinal ? (
-              <div className={cn('flex flex-col gap-1 rounded-md border border-border p-3 text-sm', invoiceDocument && 'sm:hidden')}>
+              <div
+                className={cn(
+                  'flex flex-col gap-1 rounded-md border border-border p-3 text-sm',
+                  invoiceDocument && 'sm:hidden',
+                )}
+              >
                 <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Final Invoice</p>
                 {registration.finalInvoice?.items.map((item, index) => (
                   <div key={index} className="flex justify-between gap-3">
@@ -403,12 +494,20 @@ export function RegistrationWizard({
                   </div>
                 ))}
                 <div className="flex justify-between border-t border-border pt-1">
-                  <span>Balance due{dueDate(registration.finalInvoice?.dueDate.toDate())}</span>
+                  <span>
+                    Balance due
+                    {dueDate(registration.finalInvoice?.dueDate.toDate())}
+                  </span>
                   <span className="font-semibold">{money(finalBalance)}</span>
                 </div>
               </div>
             ) : (
-              <div className={cn('flex flex-col gap-1 rounded-md border border-border p-3 text-sm', invoiceDocument && 'sm:hidden')}>
+              <div
+                className={cn(
+                  'flex flex-col gap-1 rounded-md border border-border p-3 text-sm',
+                  invoiceDocument && 'sm:hidden',
+                )}
+              >
                 <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Invoice</p>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Total</span>
@@ -493,6 +592,16 @@ export function RegistrationWizard({
                 className="sr-only"
               />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="payment-reference">Branch visited or online reference number</Label>
+              <Input
+                id="payment-reference"
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+                placeholder="e.g. BDO Makati Ayala branch, or ref. no. 123456789"
+                maxLength={200}
+              />
+            </div>
             {needsFinalTerms && (
               <div className="flex items-start gap-2">
                 <Checkbox
@@ -522,9 +631,7 @@ export function RegistrationWizard({
 
         {step === 'done' && (
           <div className="flex flex-col gap-4">
-            <p className="text-muted-foreground text-sm">
-              This registration doesn't require further action right now.
-            </p>
+            <p className="text-muted-foreground text-sm">This registration doesn't require further action right now.</p>
             <DialogFooter>
               <Button onClick={onClose}>Close</Button>
             </DialogFooter>

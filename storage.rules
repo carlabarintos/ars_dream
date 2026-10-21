@@ -24,6 +24,19 @@ service firebase.storage {
         request.resource.contentType.matches('image/.*|application/pdf');
     }
 
+    // Passport bio page photos — private to the registrant and admins, like proof of payment.
+    match /passports/{registrationId}/{fileName} {
+      function isOwner() {
+        return request.auth != null &&
+          firestore.get(/databases/(default)/documents/registrations/$(registrationId)).data.userId == request.auth.uid;
+      }
+
+      allow read: if isOwner() || isAdmin();
+      allow write: if isOwner() &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+
     // Marathon and announcement banners are public-facing images shown to
     // every signed-in user (timeline, home feed) — only admins may upload them.
     match /marathon-banners/{allPaths=**} {

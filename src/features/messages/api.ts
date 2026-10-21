@@ -12,7 +12,7 @@ import {
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 
 import { db, storage } from '@/firebase/config'
-import { isConfirmedAndQuestionnaireComplete } from '@/features/registrations/registration-flow'
+import { isBookingComplete } from '@/features/registrations/registration-flow'
 import type { Announcement, GroupMessage, Marathon, MessageSenderRole, PersonalMessage, PersonalThread, Registration } from '@/types'
 
 const personalThreadsRef = collection(db, 'personalThreads')
@@ -134,7 +134,7 @@ export function isAnnouncementVisibleTo(
     return registrations.some(
       (r) =>
         r.marathonId === announcement.targetMarathonId &&
-        isConfirmedAndQuestionnaireComplete(r, marathonById[r.marathonId]),
+        isBookingComplete(r, marathonById[r.marathonId]),
     )
   }
   if (announcement.audience === 'users') {

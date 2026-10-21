@@ -19,10 +19,13 @@ const STATUS_CONFIG: Record<RegistrationStatus, { label: string; variant: 'defau
 export function StatusBadge({
   status,
   overdue,
+  incomplete,
   className,
 }: {
   status: RegistrationStatus
   overdue?: boolean
+  /** Paid but still missing the passport or questionnaire (see isBookingComplete) — not "Confirmed" yet. */
+  incomplete?: boolean
   className?: string
 }) {
   if (overdue) {
@@ -33,7 +36,10 @@ export function StatusBadge({
       </Badge>
     )
   }
-  const config = STATUS_CONFIG[status]
+  const config =
+    status === 'confirmed' && incomplete
+      ? { label: 'Paid — Final Steps Needed', variant: 'warning' as const }
+      : STATUS_CONFIG[status]
   return (
     <Badge variant={config.variant} className={className}>
       {config.label}

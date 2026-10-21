@@ -26,6 +26,7 @@ import {
   canReopenWizard,
   canReRegister,
   getPendingActionStep,
+  isBookingComplete,
   getRegistrationStatusMessage,
   getRegistrationTotalAmount,
   getWizardButtonLabel,
@@ -183,7 +184,10 @@ export function PackageSelectionPage() {
           <CardHeader>
             <div className="flex items-start justify-between gap-3">
               <CardTitle>You already have a registration for this event</CardTitle>
-              <StatusBadge status={myRegistration.status} />
+              <StatusBadge
+                status={myRegistration.status}
+                incomplete={!isBookingComplete(myRegistration, marathon ?? undefined)}
+              />
             </div>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm">
@@ -204,7 +208,7 @@ export function PackageSelectionPage() {
                 {getRegistrationTotalAmount(myRegistration).toLocaleString()}
               </p>
             )}
-            <p className="text-muted-foreground">{getRegistrationStatusMessage(myRegistration)}</p>
+            <p className="text-muted-foreground">{getRegistrationStatusMessage(myRegistration, marathon ?? undefined)}</p>
           </CardContent>
           {(canReopenWizard(myRegistration, marathon ?? undefined) || canCancelRegistration(myRegistration)) && (
             <CardFooter className="border-border flex flex-col gap-2 border-t pt-4">

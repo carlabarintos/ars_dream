@@ -57,12 +57,19 @@ export function getRegistrationTotalAmount(registration: Registration) {
   return registration.packagePriceAmount + addOnsTotal
 }
 
+/** The deposit this proof should cover — the full total when the package has no deposit split (same rule as FinalInvoiceDialog). */
+export function getDepositDue(registration: Registration, marathon: Marathon | null | undefined) {
+  const total = getRegistrationTotalAmount(registration)
+  const depositAmount = marathon?.packages?.find((p) => p.id === registration.packageId)?.depositAmount
+  return Math.min(depositAmount ?? total, total)
+}
+
 /** Flagged by flagOverdueRegistrations and still sitting in the status it went overdue in. */
 export function isOverdue(registration: Registration) {
   return registration.overdueStatus === registration.status
 }
 
-export function getRegistrationStatusMessage(registration: Registration) {
+export function getRegistrationStatusMessage(registration: Registration, marathon: Marathon | undefined) {
   if (isOverdue(registration)) {
     if (registration.status === 'accepted') {
       return 'Overdue: the window to accept your offer has passed. Accept it now — your slot may be cancelled otherwise.'
@@ -89,7 +96,12 @@ export function getRegistrationStatusMessage(registration: Registration) {
         ? `Your payment proof was rejected: ${registration.adminNote} Please resubmit.`
         : 'Your payment proof was rejected. Please resubmit.'
     case 'confirmed':
-      return "You're all set for this event — see you at the starting line."
+      if (!registration.passportPhotoUrl) {
+        return 'Payment received! Upload a photo of your passport bio page, then answer the event questionnaire (if any), to complete your booking.'
+      }
+      return isBookingComplete(registration, marathon)
+        ? "You're all set for this event — see you at the starting line."
+        : 'Passport received! Answer the event questionnaire to complete your booking.'
     case 'rejected':
       return registration.adminNote
         ? `Your registration wasn't accepted: ${registration.adminNote} You can join the waitlist again.`
@@ -111,9 +123,9 @@ export function areRequiredItemsAnswered(marathon: Marathon | undefined, answerV
   return items.filter((item) => item.required).every((item) => isQuestionAnswered(item, answerValues[item.id]))
 }
 
-/** Whether this registration has payment confirmed and, if the marathon defines a questionnaire, has answered every required question. */
-export function isConfirmedAndQuestionnaireComplete(registration: Registration, marathon: Marathon | undefined) {
-  if (registration.status !== 'confirmed') return false
+/** Whether this registration has payment confirmed, a passport bio page uploaded and, if the marathon defines a questionnaire, every required question answered. */
+export function isBookingComplete(registration: Registration, marathon: Marathon | undefined) {
+  if (registration.status !== 'confirmed' || !registration.passportPhotoUrl) return false
   const answerValues = Object.fromEntries((registration.answers ?? []).map((a) => [a.questionId, a.value]))
   return areRequiredItemsAnswered(marathon, answerValues)
 }
@@ -145,13 +157,23 @@ export function canReRegister(registration: Registration) {
   return REREGISTERABLE_STATUSES.includes(registration.status)
 }
 
-export type PendingActionStep = 'terms' | 'payment' | 'final_payment' | 'questionnaire'
+export type PendingActionStep = 'terms' | 'payment' | 'final_payment' | 'passport' | 'questionnaire'
 
 export const PENDING_ACTION_LABEL: Record<PendingActionStep, string> = {
   terms: 'Choose Package & Accept Offer',
   payment: 'View Invoice & Pay',
   final_payment: 'View Final Invoice & Pay',
+  passport: 'Upload Passport Bio Page',
   questionnaire: 'Answer Questionnaire',
+}
+
+/** What an admin's "Send Reminder" tells the registrant, per pending step. */
+export const PENDING_ACTION_REMINDER: Record<PendingActionStep, string> = {
+  terms: "You have an offer waiting — choose your package and accept it before it expires.",
+  payment: 'Your deposit is still due — please pay using your invoice and upload your proof of payment.',
+  final_payment: 'Your final balance is still due — please pay using your final invoice and upload your proof of payment.',
+  passport: 'Please upload a photo of your passport bio page to complete your booking.',
+  questionnaire: 'Please answer the event questionnaire to complete your booking.',
 }
 
 /** What the registrant still needs to do next, or null if nothing is required of them right now. */
@@ -163,10 +185,9 @@ export function getPendingActionStep(
   if (registration.status === 'final_invoiced') return 'final_payment'
   if (registration.status === 'payment_rejected') return isOnFinalInvoice(registration) ? 'final_payment' : 'payment'
   if (registration.status === 'terms_accepted') return 'payment'
-  // The questionnaire is the last step, once payment is fully confirmed.
-  if (registration.status === 'confirmed' && !isConfirmedAndQuestionnaireComplete(registration, marathon)) {
-    return 'questionnaire'
-  }
+  // Passport bio page, then the questionnaire, are the last steps once payment is fully confirmed.
+  if (registration.status === 'confirmed' && !registration.passportPhotoUrl) return 'passport'
+  if (registration.status === 'confirmed' && !isBookingComplete(registration, marathon)) return 'questionnaire'
   return null
 }
 

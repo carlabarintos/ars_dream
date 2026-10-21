@@ -394,7 +394,7 @@ function serviceDocumentHtml(doc: ServiceDocument): string {
             </tr>
           </table>
           <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;">
-            <tr><td style="${head} width: 70px;">日付 (DATE)</td><td style="${head}">項目 (ITEM)</td><td style="${head} width: 110px;">金額 (PRICE)</td><td style="${head} width: 36px;">数 (QTY)</td><td style="${head} width: 120px;">合計 (TOTAL)</td></tr>
+            <tr><td style="${head} width: 70px;">DATE</td><td style="${head}">ITEM</td><td style="${head} width: 110px;">PRICE</td><td style="${head} width: 36px;">QTY</td><td style="${head} width: 120px;">TOTAL</td></tr>
             ${doc.marathonTitle ? itemRow(doc.eventDate ? formatDate(doc.eventDate) : '', escapeHtml(doc.marathonTitle), '', '', '', true) : ''}
             ${doc.items.map((item) => itemRow('', escapeHtml(item.label), money(item.amount), '1', money(item.amount))).join('')}
             ${
@@ -588,8 +588,8 @@ export const DEPOSIT_RECEIPT_COPY = {
 }
 
 export const BALANCE_RECEIPT_COPY = {
-  title: "You're confirmed!",
-  body: "Your final payment was verified — you're all set for race day.",
+  title: 'Final payment received',
+  body: 'Your final payment was verified. To complete your booking, upload a photo of your passport bio page and answer the event questionnaire (if there is one) in the app.',
 }
 
 export type ReceiptEmailInput = ServiceDocumentContext & { currency: string; receivedAt: Date } & (
@@ -632,7 +632,7 @@ export function buildReceiptEmail(input: ReceiptEmailInput): { subject: string; 
           ],
     notes: [`This is to acknowledge the receipt of your ${input.kind === 'deposit' ? 'deposit' : 'full payment'}.`],
     intro: body,
-    ctaLabel: 'View my booking',
+    ctaLabel: input.kind === 'balance' ? 'Complete my booking' : 'View my booking',
   })
 
   return { subject: title ? `${copy.title} — ${title}` : copy.title, body, html }

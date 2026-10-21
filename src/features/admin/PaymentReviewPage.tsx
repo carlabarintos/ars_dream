@@ -19,21 +19,14 @@ import { confirmPayment, rejectPayment } from '@/features/registrations/api'
 import {
   getPaymentProofs,
   getFinalInvoiceBalance,
-  getRegistrationTotalAmount,
+  getDepositDue,
   isOnFinalInvoice,
 } from '@/features/registrations/registration-flow'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
-import type { Marathon, Registration } from '@/types'
+import type { Registration } from '@/types'
 
 import { PaymentProofsDialog } from './PaymentProofsDialog'
-
-/** The deposit this proof should cover — the full total when the package has no deposit split (same rule as FinalInvoiceDialog). */
-function depositDue(registration: Registration, marathon: Marathon | null) {
-  const total = getRegistrationTotalAmount(registration)
-  const depositAmount = marathon?.packages?.find((p) => p.id === registration.packageId)?.depositAmount
-  return Math.min(depositAmount ?? total, total)
-}
 
 export function PaymentReviewPage() {
   const { marathonId } = useParams<{ marathonId: string }>()
@@ -133,13 +126,18 @@ export function PaymentReviewPage() {
                       ) : (
                         <>
                           <span className="font-semibold">Deposit</span> · {registration.packageName} ·{' '}
-                          {registration.packagePriceCurrency} {depositDue(registration, marathon).toLocaleString()}
+                          {registration.packagePriceCurrency} {getDepositDue(registration, marathon).toLocaleString()}
                         </>
                       )}
                     </p>
                     <p className="text-muted-foreground text-xs">
                       Submitted {registration.proofSubmittedAt?.toDate().toLocaleString() ?? '—'}
                     </p>
+                    {registration.paymentReference && (
+                      <p className="text-sm">
+                        <span className="font-semibold">Branch / Ref. no.</span> · {registration.paymentReference}
+                      </p>
+                    )}
                   </CardHeader>
                   <CardContent className="grid grid-cols-2 gap-2">
                     {getPaymentProofs(registration).latest.map((url, index) => (

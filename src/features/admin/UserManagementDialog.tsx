@@ -1,3 +1,4 @@
+import { ChevronRightIcon } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 
@@ -15,12 +16,14 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { requestPasswordReset, updateUserProfileAsAdmin, updateUserRole } from '@/features/auth/auth-actions'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName } from '@/features/auth/use-user-profiles'
 import { useMarathonsByIds } from '@/features/marathons/use-marathons'
+import { BookingTimeline } from '@/features/registrations/BookingTimeline'
+import { QuestionnaireLink } from '@/features/registrations/QuestionnaireLink'
+import { isBookingComplete } from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
 import type { Gender, UserProfile, UserRole } from '@/types'
@@ -46,8 +49,8 @@ export const ROLE_BADGE_VARIANT: Record<UserRole, 'success' | 'warning' | 'secon
   user: 'secondary',
 }
 
-function BookingsTab({ userId }: { userId: string }) {
-  const { registrations, isLoading } = useUserRegistrations(userId)
+function BookingsTab({ profile }: { profile: UserProfile }) {
+  const { registrations, isLoading } = useUserRegistrations(profile.uid)
   const marathons = useMarathonsByIds(registrations.map((registration) => registration.marathonId))
 
   if (isLoading) return <p className="text-muted-foreground text-sm">Loading…</p>
@@ -56,28 +59,30 @@ function BookingsTab({ userId }: { userId: string }) {
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Marathon</TableHead>
-          <TableHead>Package</TableHead>
-          <TableHead>Status</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {registrations.map((registration) => (
-          <TableRow key={registration.id}>
-            <TableCell className="font-medium">
+    <div className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto">
+      {registrations.map((registration, index) => (
+        <details key={registration.id} open={index === 0} className="group rounded-lg border">
+          <summary className="flex cursor-pointer list-none items-center gap-2 p-3">
+            <ChevronRightIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-open:rotate-90" />
+            <span className="min-w-0 flex-1 truncate font-medium">
               {marathons[registration.marathonId]?.title ?? 'Unknown event'}
-            </TableCell>
-            <TableCell className="text-muted-foreground">{registration.packageName || '—'}</TableCell>
-            <TableCell>
-              <StatusBadge status={registration.status} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+            </span>
+            <StatusBadge
+              status={registration.status}
+              incomplete={!isBookingComplete(registration, marathons[registration.marathonId])}
+            />
+          </summary>
+          <div className="flex flex-col gap-3 border-t p-4">
+            <BookingTimeline
+              registration={registration}
+              marathon={marathons[registration.marathonId]}
+              profile={profile}
+            />
+            <QuestionnaireLink registration={registration} marathon={marathons[registration.marathonId]} />
+          </div>
+        </details>
+      ))}
+    </div>
   )
 }
 
@@ -301,7 +306,7 @@ export function UserManagementDialog({ profile }: { profile: UserProfile }) {
             <ProfileTab profile={profile} onSaved={() => setOpen(false)} />
           </TabsContent>
           <TabsContent value="bookings">
-            <BookingsTab userId={profile.uid} />
+            <BookingsTab profile={profile} />
           </TabsContent>
         </Tabs>
       </DialogContent>

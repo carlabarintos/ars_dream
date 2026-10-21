@@ -1,4 +1,4 @@
-import type { Marathon, Registration, UserProfile } from '@/types'
+import type { FinalInvoice, Marathon, Registration, UserProfile } from '@/types'
 
 import {
   buildFinalInvoiceEmail,
@@ -25,12 +25,7 @@ export function getBookingDocuments(
 ): BookingDocument[] {
   if (!hasChosenPackage(registration)) return []
   const chosenPackage = marathon?.packages?.find((p) => p.id === registration.packageId)
-  const context = {
-    marathon: marathon && { title: marathon.title, eventDate: marathon.eventDate?.toDate() },
-    registrationId: registration.id,
-    inclusions: [marathon?.sharedInclusions, chosenPackage?.description].filter(Boolean).join('\n'),
-    recipient: profile ?? undefined,
-  }
+  const context = documentContext(registration, marathon, profile)
   const currency = registration.packagePriceCurrency
   const items = packageLineItems(registration)
   const total = items.reduce((sum, item) => sum + item.amount, 0)
@@ -70,31 +65,50 @@ export function getBookingDocuments(
     })
   }
   if (finalInvoice) {
-    documents.push({
+    // While confirmed, proofSubmittedAt is the balance proof's upload.
+    const paidAt =
+      registration.status === 'confirmed' ? (registration.proofSubmittedAt ?? registration.updatedAt).toDate() : undefined
+    documents.push(...getFinalInvoiceDocuments(registration, marathon, profile, finalInvoice, paidAt))
+  }
+  return documents
+}
+
+function documentContext(registration: Registration, marathon: Marathon | undefined, profile: UserProfile | null) {
+  const chosenPackage = marathon?.packages?.find((p) => p.id === registration.packageId)
+  return {
+    marathon: marathon && { title: marathon.title, eventDate: marathon.eventDate?.toDate() },
+    registrationId: registration.id,
+    inclusions: [marathon?.sharedInclusions, chosenPackage?.description].filter(Boolean).join('\n'),
+    recipient: profile ?? undefined,
+  }
+}
+
+/** One version of the final invoice, plus its receipt once paid (`paidAt` = when the balance proof was uploaded). */
+export function getFinalInvoiceDocuments(
+  registration: Registration,
+  marathon: Marathon | undefined,
+  profile: UserProfile | null,
+  invoice: FinalInvoice,
+  paidAt?: Date,
+): BookingDocument[] {
+  const context = { ...documentContext(registration, marathon, profile), currency: registration.packagePriceCurrency }
+  const documents: BookingDocument[] = [
+    {
       label: 'Final Invoice',
       build: () =>
         buildFinalInvoiceEmail({
           ...context,
-          currency,
-          items: finalInvoice.items,
-          dueDate: finalInvoice.dueDate?.toDate(),
-          issuedAt: finalInvoice.issuedAt.toDate(),
+          items: invoice.items,
+          dueDate: invoice.dueDate?.toDate(),
+          issuedAt: invoice.issuedAt?.toDate() ?? new Date(),
         }).html,
+    },
+  ]
+  if (paidAt) {
+    documents.push({
+      label: 'Receipt',
+      build: () => buildReceiptEmail({ ...context, kind: 'balance', receivedAt: paidAt, items: invoice.items }).html,
     })
-    if (registration.status === 'confirmed') {
-      documents.push({
-        label: 'Receipt',
-        build: () =>
-          buildReceiptEmail({
-            ...context,
-            currency,
-            kind: 'balance',
-            // While confirmed, proofSubmittedAt is the balance proof's upload.
-            receivedAt: (registration.proofSubmittedAt ?? registration.updatedAt).toDate(),
-            items: finalInvoice.items,
-          }).html,
-      })
-    }
   }
   return documents
 }
@@ -104,12 +118,12 @@ export function bookingDocumentPage(document: BookingDocument, title: string, me
   return `<!doctype html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${escapeHtml(title)}</title><style>@media ${media} { .no-print { display: none !important; } }</style></head><body style="margin: 0;">${document.build()}</body></html>`
 }
 
-/** Opens the document in a new tab and brings up the print dialog, where "Save as PDF" downloads it. */
-export function printBookingDocument(document: BookingDocument, marathonTitle: string | undefined) {
-  const win = window.open('', '_blank')
-  if (!win) return
-  win.document.write(bookingDocumentPage(document, [document.label, marathonTitle].filter(Boolean).join(' — ')))
-  win.document.close()
-  // Waits for the logo to load so it makes it into the PDF.
-  win.addEventListener('load', () => win.print())
+/** Saves the document as a standalone .html file — opens in any browser looking exactly like the email, minus its email-only intro/CTA. */
+export function downloadBookingDocument(document: BookingDocument, marathonTitle: string | undefined) {
+  const title = [document.label, marathonTitle].filter(Boolean).join(' - ')
+  const link = window.document.createElement('a')
+  link.href = URL.createObjectURL(new Blob([bookingDocumentPage(document, title, 'all')], { type: 'text/html' }))
+  link.download = `${title.replace(/[\\/:*?"<>|]/g, '')}.html`
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(link.href))
 }

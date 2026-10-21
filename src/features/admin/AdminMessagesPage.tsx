@@ -345,8 +345,8 @@ function AnnouncementsTab() {
             </Select>
             {audience === 'marathon_confirmed' && (
               <p className="text-muted-foreground text-xs">
-                Only sent to registrants with a confirmed (payment-accepted) registration who have also answered
-                every required questionnaire item, if this marathon has one.
+                Only sent to registrants with a confirmed (payment-accepted) registration who have also uploaded
+                their passport bio page and answered every required questionnaire item, if this marathon has one.
               </p>
             )}
           </div>
