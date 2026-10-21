@@ -32,7 +32,7 @@ export function describeStatusEvent(registration: FirebaseFirestore.DocumentData
     case 'payment_rejected':
       return `${onFinalInvoice ? 'Balance' : 'Deposit'} proof rejected${registration.adminNote ? `: ${registration.adminNote}` : ''}`
     case 'deposit_paid':
-      return 'Deposit approved — slot locked'
+      return 'Deposit approved — slot locked; passport & questionnaire next'
     case 'final_invoiced': {
       const balance = (registration.finalInvoice?.items ?? []).reduce(
         (sum: number, item: { amount: number }) => sum + item.amount,
@@ -47,7 +47,7 @@ export function describeStatusEvent(registration: FirebaseFirestore.DocumentData
       return `Final invoice ${reissued ? 'updated' : 'issued'} — balance ${money(registration, balance)}${due ? `, due ${due}` : ''}`
     }
     case 'confirmed':
-      return 'Balance approved — passport & questionnaire next'
+      return 'Balance approved'
     case 'cancelled':
       return registration.cancelledBy === 'admin' ? 'Booking cancelled by ARS Dream' : 'Booking cancelled by registrant'
     default:

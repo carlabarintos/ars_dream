@@ -58,7 +58,7 @@ export function TermsOfServicePage() {
         <ul>
           <li>Provide accurate personal, contact, and payment information.</li>
           <li>Meet any event-specific eligibility requirements (age, medical fitness, visa/travel documents).</li>
-          <li>Complete any event questionnaire once your booking is confirmed.</li>
+          <li>Provide your passport bio page and complete any event questionnaire once your deposit is approved.</li>
         </ul>
       </section>
 

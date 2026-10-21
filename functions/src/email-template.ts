@@ -584,12 +584,12 @@ export function buildFinalInvoiceEmail({
 
 export const DEPOSIT_RECEIPT_COPY = {
   title: 'Deposit received',
-  body: "Your deposit was verified and your slot is locked in. We'll go over add-ons with you in your booking's messages, then send your final invoice.",
+  body: "Your deposit was verified and your slot is locked in. Next, upload a photo of your passport bio page and answer the event questionnaire (if there is one) in the app. We'll go over add-ons with you in your booking's messages, then send your final invoice.",
 }
 
 export const BALANCE_RECEIPT_COPY = {
   title: 'Final payment received',
-  body: 'Your final payment was verified. To complete your booking, upload a photo of your passport bio page and answer the event questionnaire (if there is one) in the app.',
+  body: "Your final payment was verified. If you haven't yet, upload your passport bio page and answer the event questionnaire (if there is one) in the app to complete your booking.",
 }
 
 export type ReceiptEmailInput = ServiceDocumentContext & { currency: string; receivedAt: Date } & (

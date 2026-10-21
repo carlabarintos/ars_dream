@@ -187,12 +187,12 @@ export async function submitTermsAndConditions(
   })
 }
 
-/** The questionnaire, answered as the last step once the booking is confirmed. */
+/** The questionnaire, answered right after the passport once the deposit is approved. */
 export async function submitQuestionnaireAnswers(registrationId: string, answers: QuestionAnswer[]) {
   await updateDoc(doc(db, 'registrations', registrationId), { answers, updatedAt: serverTimestamp() })
 }
 
-/** Passport bio page photo, required once the booking is confirmed. Re-uploading replaces it. */
+/** Passport bio page photo, required once the deposit is approved. Re-uploading replaces it. */
 export async function submitPassportPhoto(registrationId: string, file: File) {
   const storageRef = ref(storage, `passports/${registrationId}/${Date.now()}-${file.name}`)
   await uploadBytes(storageRef, file)
