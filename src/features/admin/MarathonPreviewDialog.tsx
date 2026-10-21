@@ -39,7 +39,6 @@ export interface MarathonPreviewData {
   registrationClosesAt: Date | null
   capacity: number | null
   confirmedCount: number
-  paymentInstructions: string
   sharedInclusions: string
   packageNotes: string
   packages: PreviewPackage[]
@@ -234,15 +233,6 @@ export function MarathonPreviewDialog({
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-
-          {data.paymentInstructions && (
-            <div className="flex flex-col gap-1.5">
-              <h4 className="text-sm font-medium">Payment instructions</h4>
-              <p className="text-muted-foreground border-border rounded-md border p-3 text-sm whitespace-pre-line">
-                {data.paymentInstructions}
-              </p>
             </div>
           )}
         </div>

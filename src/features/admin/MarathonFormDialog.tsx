@@ -337,7 +337,6 @@ export function MarathonFormDialog({
       registrationClosesAt: dateFromField('registrationClosesAt'),
       capacity: Number(formData.get('capacity')) || null,
       confirmedCount: marathon?.confirmedCount ?? 0,
-      paymentInstructions: String(formData.get('paymentInstructions') ?? ''),
       sharedInclusions: String(formData.get('sharedInclusions') ?? ''),
       packageNotes: String(formData.get('packageNotes') ?? ''),
       packages: packageRows
