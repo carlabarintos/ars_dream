@@ -158,7 +158,7 @@ export function rowToMarathonRestoreInput(row: MarathonRow): RowResult<MarathonR
     eventDate: parseIsoNullable(row.eventDate, 'eventDate'),
     registrationOpensAt: parseIsoNullable(row.registrationOpensAt, 'registrationOpensAt'),
     registrationClosesAt: parseIsoNullable(row.registrationClosesAt, 'registrationClosesAt'),
-    capacity: row.capacity.trim() === '' ? null : Number(row.capacity),
+    capacity: Number(row.capacity) || null,
     paymentInstructions: row.paymentInstructions,
     // Absent in backups exported before this column existed.
     sharedInclusions: row.sharedInclusions ?? '',

@@ -73,7 +73,7 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
       }
       const capacity = marathonSnap.data()!.capacity as number | null
       // null = capacity not set yet: the waitlist can fill, but no offers until it's set.
-      if (capacity == null) {
+      if (!capacity) {
         throw new HttpsError('failed-precondition', "Set this marathon's capacity before sending offers.")
       }
       const cycle = (registration.cycle as number | undefined) ?? 1

@@ -60,7 +60,7 @@ export const confirmPayment = onCall<ConfirmPaymentInput>(
         throw new HttpsError('not-found', 'Marathon not found.')
       }
       const marathon = marathonSnap.data()!
-      if (marathon.capacity == null) {
+      if (!marathon.capacity) {
         throw new HttpsError('failed-precondition', "Set this marathon's capacity before approving deposits.")
       }
       if (marathon.confirmedCount >= marathon.capacity) {

@@ -25,7 +25,7 @@ export function MarathonCard({
   myRegistration?: Registration
 }) {
   const eventDate = marathon.eventDate?.toDate()
-  const spotsLeft = marathon.capacity == null ? Infinity : Math.max(marathon.capacity - marathon.confirmedCount, 0)
+  const spotsLeft = !marathon.capacity ? Infinity : Math.max(marathon.capacity - marathon.confirmedCount, 0)
   const percentFull = marathon.capacity ? (marathon.confirmedCount / marathon.capacity) * 100 : 0
   const closesAt = marathon.registrationClosesAt?.toDate()
   const isFull = spotsLeft <= 0
@@ -70,9 +70,9 @@ export function MarathonCard({
 
         <div className="flex flex-col gap-1.5">
           <div className="text-muted-foreground flex justify-between text-xs">
-            <span>{marathon.capacity == null ? 'Spots TBA' : `${spotsLeft} spots left`}</span>
+            <span>{!marathon.capacity ? 'Spots TBA' : `${spotsLeft} spots left`}</span>
             <span>
-              {marathon.confirmedCount}/{marathon.capacity ?? 'TBA'}
+              {marathon.confirmedCount}/{marathon.capacity || 'TBA'}
             </span>
           </div>
           <Progress value={percentFull} />

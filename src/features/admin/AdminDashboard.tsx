@@ -139,7 +139,7 @@ export function AdminDashboard() {
                   <Badge variant={STATUS_VARIANT[marathon.status]}>{marathon.status}</Badge>
                 </TableCell>
                 <TableCell>
-                  {marathon.confirmedCount}/{marathon.capacity ?? 'TBA'}
+                  {marathon.confirmedCount}/{marathon.capacity || 'TBA'}
                 </TableCell>
                 <TableCell>{marathon.eventDate?.toDate().toLocaleDateString() ?? 'TBA'}</TableCell>
                 <TableCell className="flex justify-end gap-2">

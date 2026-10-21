@@ -25,10 +25,15 @@ function isBeforeFeedDeadline(item: { feedDeadline?: { toDate: () => Date } }) {
   return !item.feedDeadline || item.feedDeadline.toDate().getTime() >= Date.now()
 }
 
-/** Home ordering: open with capacity + event date set, then open with either still TBA, then closed. */
+/** Home ordering: open with an event date, then open with the date still TBA, then closed. */
 function homeSortTier(marathon: Marathon) {
   if (getMarathonAvailability(marathon) === 'closed') return 2
-  return marathon.capacity != null && marathon.eventDate ? 0 : 1
+  return marathon.eventDate ? 0 : 1
+}
+
+/** Soonest event date first; TBA dates sort last. */
+function eventTime(marathon: Marathon) {
+  return marathon.eventDate?.toDate().getTime() ?? Infinity
 }
 
 const AVAILABILITY_FILTERS: { label: string; value: MarathonAvailability | 'all' }[] = [
@@ -53,7 +58,9 @@ export function TimelinePage() {
     .filter(isBeforeFeedDeadline)
     .sort(
       (a, b) =>
-        homeSortTier(a) - homeSortTier(b) || b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime(),
+        homeSortTier(a) - homeSortTier(b) ||
+        eventTime(a) - eventTime(b) ||
+        b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime(),
     )
   const visibleAnnouncements = announcements
     .filter((a) => isAnnouncementVisibleTo(a, uid, registrations, marathonById))

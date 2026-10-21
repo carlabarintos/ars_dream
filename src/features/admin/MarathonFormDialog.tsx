@@ -335,7 +335,7 @@ export function MarathonFormDialog({
       bannerSideImageUrl: bannerVertical ? (sidePreviewUrl ?? '') : '',
       eventDate: dateFromField('eventDate'),
       registrationClosesAt: dateFromField('registrationClosesAt'),
-      capacity: formData.get('capacity') ? Number(formData.get('capacity')) : null,
+      capacity: Number(formData.get('capacity')) || null,
       confirmedCount: marathon?.confirmedCount ?? 0,
       paymentInstructions: String(formData.get('paymentInstructions') ?? ''),
       sharedInclusions: String(formData.get('sharedInclusions') ?? ''),
@@ -449,7 +449,7 @@ export function MarathonFormDialog({
         eventDate: form.get('eventDate') ? new Date(String(form.get('eventDate'))) : null,
         registrationOpensAt: form.get('registrationOpensAt') ? new Date(String(form.get('registrationOpensAt'))) : null,
         registrationClosesAt: form.get('registrationClosesAt') ? new Date(String(form.get('registrationClosesAt'))) : null,
-        capacity: form.get('capacity') ? Number(form.get('capacity')) : null,
+        capacity: Number(form.get('capacity')) || null,
         paymentInstructions: String(form.get('paymentInstructions')),
         sharedInclusions: String(form.get('sharedInclusions') ?? '').trim(),
         packageNotes: String(form.get('packageNotes') ?? '').trim(),
@@ -593,7 +593,7 @@ export function MarathonFormDialog({
             label="Capacity (optional — leave blank if not set yet; users can still join the waitlist)"
             name="capacity"
             type="number"
-            defaultValue={marathon?.capacity?.toString()}
+            defaultValue={marathon?.capacity ? String(marathon.capacity) : undefined}
           />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="feedDeadline">Show in feed until (optional)</Label>

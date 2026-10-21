@@ -66,7 +66,7 @@ export function PackageSelectionPage() {
   const pendingStep = myRegistration ? getPendingActionStep(myRegistration, marathon ?? undefined) : null
   const canReRegisterNow = myRegistration ? canReRegister(myRegistration) : false
 
-  const spotsLeft = !marathon ? 0 : marathon.capacity == null ? Infinity : Math.max(marathon.capacity - marathon.confirmedCount, 0)
+  const spotsLeft = !marathon ? 0 : !marathon.capacity ? Infinity : Math.max(marathon.capacity - marathon.confirmedCount, 0)
   const isFull = spotsLeft <= 0
   // A fresh join and a cancelled/rejected re-registration both require the
   // marathon to still be 'published' (see firestore.rules) — an admin can
@@ -169,7 +169,7 @@ export function PackageSelectionPage() {
               Spots Left
             </span>
             <span className="text-sm font-semibold tabular-nums">
-              {marathon.capacity == null ? 'TBA' : `${spotsLeft} of ${marathon.capacity}`}
+              {!marathon.capacity ? 'TBA' : `${spotsLeft} of ${marathon.capacity}`}
             </span>
             <Progress value={percentFull} className="h-1.5" />
           </div>

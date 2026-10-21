@@ -14,8 +14,8 @@ export const AVAILABILITY_PILL: Record<
 
 /** Shared with the Home/Timeline availability filter so its pills classify marathons identically to the card badges. */
 export function getMarathonAvailability(marathon: Marathon): MarathonAvailability {
-  // null capacity = not set yet (TBA): never full, so the waitlist stays open.
-  const spotsLeft = marathon.capacity == null ? Infinity : Math.max(marathon.capacity - marathon.confirmedCount, 0)
+  // null/0 capacity = not set yet (0 is what pre-TBA saves stored for blank) (TBA): never full, so the waitlist stays open.
+  const spotsLeft = !marathon.capacity ? Infinity : Math.max(marathon.capacity - marathon.confirmedCount, 0)
   const percentFull = marathon.capacity ? (marathon.confirmedCount / marathon.capacity) * 100 : 0
   const isClosed = !!marathon.registrationClosesAt && new Date() > marathon.registrationClosesAt.toDate()
 
