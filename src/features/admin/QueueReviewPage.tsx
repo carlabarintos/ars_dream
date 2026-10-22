@@ -35,6 +35,7 @@ import { ChangePackageDialog } from './ChangePackageDialog'
 import { FinalInvoiceDialog } from './FinalInvoiceDialog'
 import { OfferChatDialog } from './OfferChatDialog'
 import { PaymentProofsDialog } from './PaymentProofsDialog'
+import { useAcknowledgeMarathon } from './use-acknowledge-marathon'
 
 // A registration only ever reaches these statuses by first being accepted out of the queue
 // (or, for 'cancelled', by being withdrawn by the registrant themselves at any step), so they
@@ -88,6 +89,7 @@ function matchesStatusFilter(registration: Registration, filter: StatusFilter) {
 export function QueueReviewPage() {
   const { marathonId } = useParams<{ marathonId: string }>()
   const { marathon } = useMarathon(marathonId)
+  useAcknowledgeMarathon(marathon)
   const { registrations, isLoading } = useMarathonRegistrations(marathonId, marathon?.cycle ?? 1, ALL_DECIDED_STATUSES)
   const orderedRegistrations = [...registrations].sort(
     (a, b) => (a.queuePosition ?? Infinity) - (b.queuePosition ?? Infinity),

@@ -28,10 +28,12 @@ import { usePaginatedSearch } from '@/lib/use-paginated-search'
 import type { Registration } from '@/types'
 
 import { PaymentProofsDialog } from './PaymentProofsDialog'
+import { useAcknowledgeMarathon } from './use-acknowledge-marathon'
 
 export function PaymentReviewPage() {
   const { marathonId } = useParams<{ marathonId: string }>()
   const { marathon } = useMarathon(marathonId)
+  useAcknowledgeMarathon(marathon)
   const { registrations, isLoading } = useMarathonRegistrations(marathonId, marathon?.cycle ?? 1, 'payment_submitted')
   const profiles = useUserProfilesByIds(registrations.map((registration) => registration.userId))
   const [rejecting, setRejecting] = useState<Registration | null>(null)

@@ -30,6 +30,7 @@ import { CsvWaitlistImportDialog } from './CsvWaitlistImportDialog'
 import { ClearDataDialog } from './danger-zone/ClearDataDialog'
 import { ExportImportControls } from './export-import/ExportImportControls'
 import { MarathonFormDialog } from './MarathonFormDialog'
+import { hasUnseenActivity } from './use-acknowledge-marathon'
 import { NotificationSettingsDialog } from './NotificationSettingsDialog'
 
 const STATUS_VARIANT: Record<MarathonStatus, 'secondary' | 'success' | 'destructive'> = {
@@ -182,6 +183,13 @@ export function AdminDashboard() {
                     </span>
                   )}
                   {marathon.title}
+                  {hasUnseenActivity(marathon, actorProfile) && (
+                    <span
+                      className="bg-destructive ml-2 inline-block size-2 rounded-full align-middle"
+                      title="New activity since you last opened this marathon"
+                      aria-label="New activity"
+                    />
+                  )}
                   {marathon.code && <span className="text-muted-foreground ml-2 font-mono text-xs">{marathon.code}</span>}
                 </TableCell>
                 <TableCell>

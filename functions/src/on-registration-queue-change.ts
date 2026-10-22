@@ -1,8 +1,10 @@
-import type { Timestamp } from 'firebase-admin/firestore'
+import { FieldValue, type Timestamp } from 'firebase-admin/firestore'
 import { onDocumentWritten } from 'firebase-functions/v2/firestore'
 
 import { db } from './admin.js'
 import { withSentry } from './sentry.js'
+
+const REGISTRANT_STATUSES = ['queued', 'terms_accepted', 'payment_submitted', 'cancelled']
 
 // Keeps `queuePosition` on every queued registration in sync with its place
 // in line (1 = next up), recomputed whenever a registration joins or leaves
@@ -13,6 +15,16 @@ export const onRegistrationQueueChange = onDocumentWritten(
   withSentry(async (event) => {
     const before = event.data?.before.data()
     const after = event.data?.after.data()
+
+    // Flags the marathon on the admin dashboard. Only statuses the registrant
+    // moves to themselves, so an admin's own actions don't flag it.
+    if (after && before?.status !== after.status && REGISTRANT_STATUSES.includes(after.status)) {
+      // Best-effort: a missing marathon (deleted) must not block the queue resync below.
+      await db
+        .doc(`marathons/${after.marathonId}`)
+        .update({ lastActivityAt: FieldValue.serverTimestamp() })
+        .catch(() => {})
+    }
 
     const wasQueued = before?.status === 'queued'
     const isQueued = after?.status === 'queued'

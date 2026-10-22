@@ -20,6 +20,8 @@ export interface UserProfile {
   contactNumber?: string
   dateOfBirth?: string
   gender?: Gender
+  /** Admin only: when this admin last opened each marathon's Queue/Payments page, keyed by marathon id. Compared against `Marathon.lastActivityAt` to flag unseen activity on the dashboard. */
+  marathonsSeenAt?: Record<string, Timestamp>
 }
 
 export type MarathonStatus = 'draft' | 'published' | 'closed'
@@ -105,6 +107,8 @@ export interface Marathon {
   /** null means not set yet (TBA): users can still join the waitlist, but offers can't be sent until it's set. */
   capacity: number | null
   confirmedCount: number
+  /** Server-maintained: last registrant-driven change (joined, accepted offer, submitted payment, cancelled). */
+  lastActivityAt?: Timestamp
   paymentInstructions: string
   /** Inclusions common to every package (e.g. race bib, airport transfers), one per line. Shown once above the package cards instead of repeated in each package's description. */
   sharedInclusions?: string
