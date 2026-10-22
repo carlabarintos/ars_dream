@@ -48,9 +48,14 @@ export function AdminDashboard() {
   const [isReopening, setIsReopening] = useState(false)
   const [isReordering, setIsReordering] = useState(false)
 
-  // Date-TBA marathons can't be ordered by date, so the admin orders them by hand; they stay listed first
-  const tbaMarathons = marathons.filter((m) => !m.eventDate).sort(compareManualOrder)
-  const rows = [...tbaMarathons, ...marathons.filter((m) => m.eventDate)]
+  // Open = draft or published. Date-TBA marathons can't be ordered by date, so the admin orders them by hand
+  const open = marathons.filter((m) => m.status !== 'closed')
+  const tbaMarathons = open.filter((m) => !m.eventDate).sort(compareManualOrder)
+  const groups = [
+    { label: 'Open', rows: open.filter((m) => m.eventDate) },
+    { label: 'Open — Date TBA', rows: tbaMarathons },
+    { label: 'Closed', rows: marathons.filter((m) => m.status === 'closed') },
+  ].filter((group) => group.rows.length > 0)
 
   async function handleMove(index: number, delta: -1 | 1) {
     const ids = tbaMarathons.map((m) => m.id)
@@ -155,10 +160,16 @@ export function AdminDashboard() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((marathon, index) => (
+            {groups.flatMap((group) => [
+              <TableRow key={group.label} className="hover:bg-transparent">
+                <TableCell colSpan={5} className="text-muted-foreground pt-6 text-xs font-semibold tracking-wide uppercase">
+                  {group.label}
+                </TableCell>
+              </TableRow>,
+              ...group.rows.map((marathon, index) => (
               <TableRow key={marathon.id}>
                 <TableCell className="font-medium">
-                  {index < tbaMarathons.length && (
+                  {group.rows === tbaMarathons && (
                     <span className="mr-2 inline-flex align-middle">
                       <Button
                         variant="ghost"
@@ -243,7 +254,8 @@ export function AdminDashboard() {
                   )}
                 </TableCell>
               </TableRow>
-            ))}
+              )),
+            ])}
           </TableBody>
         </Table>
       )}

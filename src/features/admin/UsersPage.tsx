@@ -9,7 +9,10 @@ import { ROLE_BADGE_VARIANT, UserManagementDialog } from './UserManagementDialog
 
 export function UsersPage() {
   const { profiles, isLoading } = useAllUsers()
-  const sortedProfiles = [...profiles].sort((a, b) => formatUserName(a).localeCompare(formatUserName(b)))
+  // Admins first, then by name
+  const sortedProfiles = [...profiles].sort(
+    (a, b) => Number(b.role === 'admin') - Number(a.role === 'admin') || formatUserName(a).localeCompare(formatUserName(b)),
+  )
   const { query, setQuery, filtered, visible, hasMore, loadMore } = usePaginatedSearch(
     sortedProfiles,
     (profile, q) =>
