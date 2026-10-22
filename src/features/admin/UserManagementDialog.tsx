@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -20,13 +21,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { requestPasswordReset, updateUserProfileAsAdmin, updateUserRole } from '@/features/auth/auth-actions'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName } from '@/features/auth/use-user-profiles'
-import { useMarathonsByIds } from '@/features/marathons/use-marathons'
+import { useMarathonsByIds, usePublishedMarathons } from '@/features/marathons/use-marathons'
+import { bulkWaitlist } from '@/features/registrations/api'
 import { BookingTimeline } from '@/features/registrations/BookingTimeline'
 import { QuestionnaireLink } from '@/features/registrations/QuestionnaireLink'
 import { isBookingComplete } from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
-import type { Gender, UserProfile, UserRole } from '@/types'
+import type { Gender, Marathon, UserProfile, UserRole } from '@/types'
 
 import { logAdminAction } from './audit-log/api'
 
@@ -82,6 +84,73 @@ function BookingsTab({ profile }: { profile: UserProfile }) {
           </div>
         </details>
       ))}
+    </div>
+  )
+}
+
+function WaitlistTab({ profile }: { profile: UserProfile }) {
+  const { marathons, isLoading } = usePublishedMarathons()
+  const { registrations } = useUserRegistrations(profile.uid)
+  const [selected, setSelected] = useState<string[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  // Same rule as bulkWaitlist: an active entry on the current cycle blocks re-adding; rejected/cancelled don't.
+  const isListed = (marathon: Marathon) =>
+    registrations.some(
+      (registration) =>
+        registration.marathonId === marathon.id &&
+        (registration.cycle ?? 1) === (marathon.cycle ?? 1) &&
+        !['rejected', 'cancelled'].includes(registration.status),
+    )
+
+  async function handleSubmit() {
+    if (!profile.email) {
+      toast.error('This user has no email on file.')
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      const { added, alreadyListed } = await bulkWaitlist([{ email: profile.email, marathonIds: selected }])
+      toast.success(
+        added > 0
+          ? `${formatUserName(profile)} added to the waitlist and emailed.`
+          : `Already listed (${alreadyListed}).`,
+      )
+      setSelected([])
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (isLoading) return <p className="text-muted-foreground text-sm">Loading…</p>
+  if (marathons.length === 0) return <p className="text-muted-foreground text-sm">No open marathons.</p>
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
+        {marathons.map((marathon) => {
+          const listed = isListed(marathon)
+          return (
+            <label key={marathon.id} className="flex items-center gap-3 rounded-lg border p-3">
+              <Checkbox
+                checked={listed || selected.includes(marathon.id)}
+                disabled={listed}
+                onCheckedChange={(checked) =>
+                  setSelected((ids) => (checked ? [...ids, marathon.id] : ids.filter((id) => id !== marathon.id)))
+                }
+              />
+              <span className="min-w-0 flex-1 truncate font-medium">{marathon.title}</span>
+              {listed && <Badge variant="secondary">Already listed</Badge>}
+            </label>
+          )
+        })}
+      </div>
+      <DialogFooter>
+        <Button onClick={handleSubmit} disabled={selected.length === 0} loading={isSubmitting}>
+          Add to waitlist{selected.length > 0 ? ` (${selected.length})` : ''}
+        </Button>
+      </DialogFooter>
     </div>
   )
 }
@@ -301,12 +370,16 @@ export function UserManagementDialog({ profile }: { profile: UserProfile }) {
           <TabsList>
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="bookings">Bookings</TabsTrigger>
+            <TabsTrigger value="waitlist">Waitlist</TabsTrigger>
           </TabsList>
           <TabsContent value="profile">
             <ProfileTab profile={profile} onSaved={() => setOpen(false)} />
           </TabsContent>
           <TabsContent value="bookings">
             <BookingsTab profile={profile} />
+          </TabsContent>
+          <TabsContent value="waitlist">
+            <WaitlistTab profile={profile} />
           </TabsContent>
         </Tabs>
       </DialogContent>
