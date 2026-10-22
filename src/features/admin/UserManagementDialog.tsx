@@ -23,14 +23,14 @@ import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName } from '@/features/auth/use-user-profiles'
 import { useMarathonsByIds, usePublishedMarathons } from '@/features/marathons/use-marathons'
 import { bulkWaitlist } from '@/features/registrations/api'
-import { BookingTimeline } from '@/features/registrations/BookingTimeline'
-import { QuestionnaireLink } from '@/features/registrations/QuestionnaireLink'
-import { isBookingComplete } from '@/features/registrations/registration-flow'
+import { BookingProgress } from '@/features/registrations/BookingTimeline'
+import { isBookingComplete, isOverdue } from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
 import type { Gender, Marathon, UserProfile, UserRole } from '@/types'
 
 import { logAdminAction } from './audit-log/api'
+import { useBookingActions } from './use-booking-actions'
 
 const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: 'male', label: 'Male' },
@@ -54,6 +54,11 @@ export const ROLE_BADGE_VARIANT: Record<UserRole, 'success' | 'warning' | 'secon
 function BookingsTab({ profile }: { profile: UserProfile }) {
   const { registrations, isLoading } = useUserRegistrations(profile.uid)
   const marathons = useMarathonsByIds(registrations.map((registration) => registration.marathonId))
+  const { openDetail, dialogs } = useBookingActions(
+    registrations,
+    (registration) => marathons[registration.marathonId],
+    () => profile,
+  )
 
   if (isLoading) return <p className="text-muted-foreground text-sm">Loading…</p>
   if (registrations.length === 0) {
@@ -61,29 +66,27 @@ function BookingsTab({ profile }: { profile: UserProfile }) {
   }
 
   return (
-    <div className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto">
-      {registrations.map((registration, index) => (
-        <details key={registration.id} open={index === 0} className="group rounded-lg border">
-          <summary className="flex cursor-pointer list-none items-center gap-2 p-3">
-            <ChevronRightIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-open:rotate-90" />
-            <span className="min-w-0 flex-1 truncate font-medium">
-              {marathons[registration.marathonId]?.title ?? 'Unknown event'}
-            </span>
-            <StatusBadge
-              status={registration.status}
-              incomplete={!isBookingComplete(registration, marathons[registration.marathonId])}
-            />
-          </summary>
-          <div className="flex flex-col gap-3 border-t p-4">
-            <BookingTimeline
-              registration={registration}
-              marathon={marathons[registration.marathonId]}
-              profile={profile}
-            />
-            <QuestionnaireLink registration={registration} marathon={marathons[registration.marathonId]} />
-          </div>
-        </details>
+    <div className="flex max-h-[70vh] flex-col gap-2 overflow-y-auto">
+      {registrations.map((registration) => (
+        <button
+          key={registration.id}
+          type="button"
+          onClick={() => openDetail(registration.id)}
+          className="hover:bg-muted/50 flex items-center gap-3 rounded-lg border p-3 text-left"
+        >
+          <span className="min-w-0 flex-1 truncate font-medium">
+            {marathons[registration.marathonId]?.title ?? 'Unknown event'}
+          </span>
+          <BookingProgress registration={registration} />
+          <StatusBadge
+            status={registration.status}
+            overdue={isOverdue(registration)}
+            incomplete={!isBookingComplete(registration, marathons[registration.marathonId])}
+          />
+          <ChevronRightIcon className="text-muted-foreground size-4 shrink-0" />
+        </button>
       ))}
+      {dialogs}
     </div>
   )
 }
@@ -357,7 +360,7 @@ export function UserManagementDialog({ profile }: { profile: UserProfile }) {
           Manage
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>Manage user</DialogTitle>
           <DialogDescription className="flex items-center gap-2">
