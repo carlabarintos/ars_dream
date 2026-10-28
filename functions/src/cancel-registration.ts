@@ -3,7 +3,12 @@ import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/
 
 import { db } from './admin.js'
 import { logAuditEntry } from './audit-log.js'
-import { OFFER_EXPIRED_COPY, OFFER_WITHDRAWN_COPY, getOfferAcceptanceDeadline } from './email-template.js'
+import {
+  DEPOSIT_MISSED_COPY,
+  OFFER_EXPIRED_COPY,
+  OFFER_WITHDRAWN_COPY,
+  getOfferAcceptanceDeadline,
+} from './email-template.js'
 import { APP_URL, notifyUser } from './notify-user.js'
 import { requireAdmin } from './require-admin.js'
 import { resendApiKey } from './send-email.js'
@@ -99,6 +104,24 @@ export const cancelRegistration = onCall<CancelRegistrationInput>(
           pushBody: copy.body,
           emailSubject: marathonTitle ? `${copy.title} — ${marathonTitle}` : copy.title,
           emailBody: marathonTitle ? `Your offer for the ${marathonTitle} tour: ${copy.body}` : copy.body,
+          ctaLabel: 'Rejoin the Waitlist',
+          ctaUrl: APP_URL,
+        })
+        return { status: 'cancelled' }
+      }
+      // A rejected deposit proof that was never re-uploaded counts as missing too; an admin decides, so no auto-flag needed.
+      const awaitingDeposit =
+        registration.status === 'terms_accepted' || (registration.status === 'payment_rejected' && !registration.finalInvoice)
+      if (awaitingDeposit) {
+        const marathon = (await db.collection('marathons').doc(registration.marathonId).get()).data()
+        const marathonTitle: string | undefined = marathon?.title
+        const copy = DEPOSIT_MISSED_COPY
+        await notifyUser({
+          userId: registration.userId,
+          pushTitle: copy.title,
+          pushBody: copy.body,
+          emailSubject: marathonTitle ? `${copy.title} — ${marathonTitle}` : copy.title,
+          emailBody: marathonTitle ? `Your booking for the ${marathonTitle} tour: ${copy.body}` : copy.body,
           ctaLabel: 'Rejoin the Waitlist',
           ctaUrl: APP_URL,
         })

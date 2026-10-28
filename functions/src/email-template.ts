@@ -134,6 +134,12 @@ export const OFFER_EXPIRED_COPY = {
   body: 'We did not hear back from you on time — unfortunately you missed the deadline to accept your offer, so it has been cancelled. Should you wish to queue up again, kindly rejoin the waitlist.',
 }
 
+/** Sent when an admin cancels a booking still awaiting its deposit proof. */
+export const DEPOSIT_MISSED_COPY = {
+  title: 'Your booking has been cancelled',
+  body: 'We did not receive your proof of payment on time — unfortunately you missed the deadline, so your booking has been cancelled. Should you wish to queue up again, kindly rejoin the waitlist, or message us if you have any questions.',
+}
+
 /** Sent when an admin cancels an offer before its deadline. */
 export const OFFER_WITHDRAWN_COPY = {
   title: 'Your offer has been withdrawn',
@@ -142,7 +148,9 @@ export const OFFER_WITHDRAWN_COPY = {
 
 export const ACCEPTED_COPY = {
   title: "You've got an offer!",
-  body: 'Open ARS Dream to choose your package, accept the terms and submit your proof of deposit payment.',
+  body:
+    'Open ARS Dream to choose your package, accept the terms and submit your proof of deposit payment. ' +
+    'Please note: the system automatically cancels your offer if it is not accepted by the deadline. If you are having trouble accepting it in time, kindly contact our team ASAP.',
 }
 
 /** The bits of a marathon/package/registration the acceptance email shows — plain types so both the Admin SDK and the web SDK side can fill them in. */
@@ -504,7 +512,9 @@ function splitFinalInvoice(items: { label: string; amount: number; isDeposit?: b
 
 export const INVOICE_COPY = {
   title: 'Your invoice is ready',
-  body: 'Pay your deposit to the bank account on the invoice, then upload your proof of payment in ARS Dream.',
+  body:
+    'Pay your deposit to the bank account on the invoice, then upload your proof of payment in ARS Dream. ' +
+    'Please note: the system automatically cancels your slot reservation when the deadline to upload your proof of payment is missed. If you have paid but are unable to upload, kindly contact our team ASAP.',
 }
 
 export interface InvoiceEmailInput extends ServiceDocumentContext {
