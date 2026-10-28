@@ -307,6 +307,17 @@ export async function issueFinalInvoice(registration: Registration, items: Invoi
         }
       : {}),
     finalInvoice: { items, dueDate: Timestamp.fromDate(dueDate), issuedAt: serverTimestamp() },
+    dueExtension: deleteField(),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/** Admin-only (plain update): extend the pending step's due date and clear its overdue flag. onRegistrationStatusChange logs and notifies. */
+export async function extendDueDate(registration: Registration, dueDate: Date) {
+  await updateDoc(doc(db, 'registrations', registration.id), {
+    dueExtension: { status: registration.status, dueDate: Timestamp.fromDate(dueDate) },
+    overdueStatus: deleteField(),
+    overdueAt: deleteField(),
     updatedAt: serverTimestamp(),
   })
 }

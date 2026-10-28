@@ -87,9 +87,6 @@ export function isOverdue(registration: Registration) {
 
 export function getRegistrationStatusMessage(registration: Registration, marathon: Marathon | undefined) {
   if (isOverdue(registration)) {
-    if (registration.status === 'accepted') {
-      return 'Overdue: the window to accept your offer has passed. Accept it now — your slot may be cancelled otherwise.'
-    }
     return registration.status === 'final_invoiced'
       ? 'Overdue: your final invoice due date has passed. Pay your balance and upload your proof now — your slot may be cancelled otherwise.'
       : 'Overdue: your deposit due date has passed. Submit your proof of payment now — your slot may be cancelled otherwise.'

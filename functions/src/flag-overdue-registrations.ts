@@ -3,18 +3,12 @@ import { onSchedule } from 'firebase-functions/v2/scheduler'
 
 import { db } from './admin.js'
 import { logBookingEvent } from './booking-event.js'
-import { getOfferAcceptanceDeadline } from './email-template.js'
-import { notifyUser } from './notify-user.js'
+import { OFFER_EXPIRED_COPY, getStepDueDate } from './email-template.js'
+import { APP_URL, notifyUser } from './notify-user.js'
 import { resendApiKey } from './send-email.js'
 import { withSentry } from './sentry.js'
 
-const DAY_MS = 86_400_000
-
 const OVERDUE_COPY: Record<string, { title: string; body: string }> = {
-  accepted: {
-    title: 'Your offer is overdue',
-    body: 'The window to accept your offer has passed. Accept it now to keep your slot — it may be cancelled otherwise.',
-  },
   terms_accepted: {
     title: 'Your deposit is overdue',
     body: 'Your deposit due date has passed. Submit your proof of payment now to keep your slot — it may be cancelled otherwise.',
@@ -26,12 +20,13 @@ const OVERDUE_COPY: Record<string, { title: string; body: string }> = {
 }
 
 /**
- * Flags registrations that sat past their offer-acceptance window ('accepted')
- * deposit due date ('terms_accepted') or final invoice due date ('final_invoiced'). `overdueStatus` records which status
+ * Auto-cancels offers ('accepted') left past their acceptance window, and flags
+ * registrations past their deposit due date ('terms_accepted') or final invoice due date ('final_invoiced'). `overdueStatus` records which status
  * it was overdue in, so the flag goes stale on its own once the registrant
  * moves on — no clearing write needed on the client's next step (which the
  * self-update rules wouldn't allow anyway). Admins then decide whether to
- * cancel via cancelRegistration; nothing is auto-cancelled here.
+ * cancel overdue payments via cancelRegistration. An expired offer holds no counted
+ * seat (confirmedCount moves at deposit approval), so cancelling it needs no capacity update.
  */
 export const flagOverdueRegistrations = onSchedule(
   { schedule: 'every 1 hours', timeZone: 'Asia/Manila', secrets: [resendApiKey] },
@@ -44,25 +39,43 @@ export const flagOverdueRegistrations = onSchedule(
 
     const overdue = snap.docs.filter((doc) => {
       const registration = doc.data()
-      if (registration.overdueStatus === registration.status) return false
+      if (registration.status !== 'accepted' && registration.overdueStatus === registration.status) return false
       const marathon = marathons.get(registration.marathonId)
-      const deadline =
-        registration.status === 'final_invoiced'
-          ? registration.finalInvoice?.dueDate?.toMillis()
-          : registration.status === 'accepted'
-          ? registration.offeredAt &&
-            getOfferAcceptanceDeadline(registration.offeredAt.toDate(), marathon?.offerAcceptanceDays).getTime()
-          : registration.termsAcceptedAt &&
-            registration.termsAcceptedAt.toMillis() + (marathon?.depositDueDays ?? 1) * DAY_MS
+      const deadline = getStepDueDate(registration, marathon, registration.status)?.getTime()
       return deadline && deadline < now
     })
 
     await Promise.all(
       overdue.map(async (doc) => {
         const registration = doc.data()
+        const marathonTitle: string | undefined = marathons.get(registration.marathonId)?.title
+
+        if (registration.status === 'accepted') {
+          // Transaction so a registrant accepting the offer at the same moment isn't cancelled.
+          const cancelled = await db.runTransaction(async (transaction) => {
+            if ((await transaction.get(doc.ref)).data()?.status !== 'accepted') return false
+            const now = new Date()
+            // cancelledBy 'admin' → the booking history reads "Booking cancelled by ARS Dream" (onRegistrationStatusChange).
+            transaction.update(doc.ref, { status: 'cancelled', cancelledAt: now, cancelledBy: 'admin', updatedAt: now })
+            return true
+          })
+          if (!cancelled) return
+          await notifyUser({
+            userId: registration.userId,
+            pushTitle: OFFER_EXPIRED_COPY.title,
+            pushBody: OFFER_EXPIRED_COPY.body,
+            emailSubject: marathonTitle ? `${OFFER_EXPIRED_COPY.title} — ${marathonTitle}` : OFFER_EXPIRED_COPY.title,
+            emailBody: marathonTitle
+              ? `Your offer for the ${marathonTitle} tour: ${OFFER_EXPIRED_COPY.body}`
+              : OFFER_EXPIRED_COPY.body,
+            ctaLabel: 'Rejoin the Waitlist',
+            ctaUrl: APP_URL,
+          })
+          return
+        }
+
         await doc.ref.update({ overdueStatus: registration.status, overdueAt: new Date() })
         const copy = OVERDUE_COPY[registration.status]
-        const marathonTitle: string | undefined = marathons.get(registration.marathonId)?.title
         await logBookingEvent(doc.id, registration, `Flagged overdue — ${copy.title.toLowerCase()}`, marathonTitle)
         await notifyUser({
           userId: registration.userId,
@@ -74,6 +87,6 @@ export const flagOverdueRegistrations = onSchedule(
       }),
     )
 
-    logger.info('Flagged overdue registrations', { count: overdue.length })
+    logger.info('Processed overdue registrations', { count: overdue.length })
   }),
 )

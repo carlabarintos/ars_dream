@@ -79,7 +79,7 @@ export interface EmailContent {
   ctaUrl: string
 }
 
-const formatDate = (date: Date) =>
+export const formatDate = (date: Date) =>
   date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' })
 
 const formatDateTime = (date: Date) =>
@@ -97,6 +97,47 @@ const DAY_MS = 86_400_000
 /** offeredAt + the marathon's acceptance window (default 1 day). Shared by onRegistrationStatusChange, the admin preview and the registrant's offer step. */
 export function getOfferAcceptanceDeadline(offeredAt: Date, offerAcceptanceDays: number | undefined): Date {
   return new Date(offeredAt.getTime() + (offerAcceptanceDays ?? 1) * DAY_MS)
+}
+
+type TimestampLike = { toDate(): Date }
+
+/**
+ * When a step is due: offer acceptance ('accepted'), deposit ('terms_accepted') or balance ('final_invoiced').
+ * An admin's extension (`dueExtension`, set for that step's status) replaces the computed date.
+ * Shared by flagOverdueRegistrations and the client so both agree on the deadline.
+ */
+export function getStepDueDate(
+  registration: {
+    offeredAt?: TimestampLike | null
+    termsAcceptedAt?: TimestampLike | null
+    finalInvoice?: { dueDate: TimestampLike } | null
+    dueExtension?: { status: string; dueDate: TimestampLike } | null
+  },
+  marathon: { offerAcceptanceDays?: number; depositDueDays?: number } | undefined,
+  status: 'accepted' | 'terms_accepted' | 'final_invoiced',
+): Date | undefined {
+  if (registration.dueExtension?.status === status) return registration.dueExtension.dueDate.toDate()
+  if (status === 'final_invoiced') return registration.finalInvoice?.dueDate.toDate()
+  if (status === 'accepted') {
+    return registration.offeredAt
+      ? getOfferAcceptanceDeadline(registration.offeredAt.toDate(), marathon?.offerAcceptanceDays)
+      : undefined
+  }
+  return registration.termsAcceptedAt
+    ? new Date(registration.termsAcceptedAt.toDate().getTime() + (marathon?.depositDueDays ?? 1) * DAY_MS)
+    : undefined
+}
+
+/** Sent when an offer is cancelled past its deadline, automatically or by an admin. */
+export const OFFER_EXPIRED_COPY = {
+  title: 'Your offer has expired',
+  body: 'We did not hear back from you on time — unfortunately you missed the deadline to accept your offer, so it has been cancelled. Should you wish to queue up again, kindly rejoin the waitlist.',
+}
+
+/** Sent when an admin cancels an offer before its deadline. */
+export const OFFER_WITHDRAWN_COPY = {
+  title: 'Your offer has been withdrawn',
+  body: 'ARS Dream has withdrawn your offer, so it has been cancelled. Should you wish to queue up again, kindly rejoin the waitlist, or message us if you have any questions.',
 }
 
 export const ACCEPTED_COPY = {
@@ -205,7 +246,7 @@ export function buildAcceptanceEmail({
         ${lineItem(escapeHtml(body))}
         ${lineItem(`${packages.length === 1 ? 'Package' : 'Choose from'}: ${packageNames}`)}
         ${packages.some((pkg) => pkg.depositAmount) ? lineItem(`Deposit due within ${depositDueDays} day${depositDueDays === 1 ? '' : 's'} of accepting this offer`, true) : ''}
-        ${marathon?.offerAcceptanceDeadline ? lineItem(`Accept this offer by: ${formatDateTime(marathon.offerAcceptanceDeadline)} (Manila time)`, true) : ''}
+        ${marathon?.offerAcceptanceDeadline ? lineItem(`Accept this offer by: ${formatDateTime(marathon.offerAcceptanceDeadline)} (Manila time) — unaccepted offers are cancelled automatically`, true) : ''}
       </div>
       <div style="border-top: 1px solid ${BORDER}; padding: 16px 20px 20px;">
         <a href="${ctaUrl}" style="display: block; text-align: center; background: ${PRIMARY}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 20px; border-radius: 10px;">Accept Offer</a>

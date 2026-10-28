@@ -16,6 +16,7 @@ import type { Marathon, Registration, UserProfile } from '@/types'
 
 import { BookingDetailDialog } from './BookingDetailDialog'
 import { ChangePackageDialog } from './ChangePackageDialog'
+import { EXTENDABLE_STATUSES, ExtendDueDateDialog } from './ExtendDueDateDialog'
 import { FinalInvoiceDialog } from './FinalInvoiceDialog'
 import { OfferChatDialog } from './OfferChatDialog'
 import { PaymentProofsDialog } from './PaymentProofsDialog'
@@ -38,6 +39,7 @@ export function useBookingActions(
   const [packageRegistrationId, setPackageRegistrationId] = useState<string | null>(null)
   const [paymentsRegistrationId, setPaymentsRegistrationId] = useState<string | null>(null)
   const [detailRegistrationId, setDetailRegistrationId] = useState<string | null>(null)
+  const [extendRegistrationId, setExtendRegistrationId] = useState<string | null>(null)
   const find = (id: string | null) => registrations.find((r) => r.id === id)
   const offerRegistration = registrations.find((r) => r.id === offerRegistrationId && r.status === 'queued') ?? null
   const chatRegistration = find(chatRegistrationId)
@@ -45,6 +47,10 @@ export function useBookingActions(
   const packageRegistration = find(packageRegistrationId)
   const paymentsRegistration = find(paymentsRegistrationId)
   const detailRegistration = find(detailRegistrationId)
+  // Closes itself if the registration moves past the step being extended.
+  const extendRegistration = registrations.find(
+    (r) => r.id === extendRegistrationId && (EXTENDABLE_STATUSES as string[]).includes(r.status),
+  )
 
   async function handleReject(id: string) {
     setDecidingKey(`${id}-rejected`)
@@ -138,6 +144,11 @@ export function useBookingActions(
             Send Reminder
           </Button>
         )}
+        {(EXTENDABLE_STATUSES as string[]).includes(registration.status) && (
+          <Button variant="outline" onClick={() => setExtendRegistrationId(registration.id)}>
+            Extend Due Date
+          </Button>
+        )}
         <Button variant="outline" onClick={() => setChatRegistrationId(registration.id)}>
           Chat
         </Button>
@@ -195,6 +206,13 @@ export function useBookingActions(
           marathon={getMarathon(paymentsRegistration)}
           review
           onClose={() => setPaymentsRegistrationId(null)}
+        />
+      )}
+      {extendRegistration && (
+        <ExtendDueDateDialog
+          registration={extendRegistration}
+          marathon={getMarathon(extendRegistration)}
+          onClose={() => setExtendRegistrationId(null)}
         />
       )}
       {invoiceRegistration && (

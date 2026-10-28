@@ -1,3 +1,4 @@
+import { toDateInputValue } from '@/lib/utils'
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { PlusIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -96,13 +97,6 @@ const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   text: 'Short text',
   int: 'Number',
   dropdown: 'Multiple choice',
-}
-
-function toDateInputValue(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
 }
 
 function toPackageRows(packages: MarathonPackage[] | undefined): PackageRow[] {

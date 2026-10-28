@@ -1,3 +1,4 @@
+import { toDateInputValue } from '@/lib/utils'
 import { useState } from 'react'
 import { PlusIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -32,10 +33,6 @@ function buildDefaultItems(registration: Registration, marathon: Marathon | null
     ...(existingCredits.length > 0 ? existingCredits : [{ label: 'Deposit paid', amount: -deposit, isDeposit: true }]),
     ...paidBalanceCredit(registration),
   ]
-}
-
-function toDateInputValue(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 export function FinalInvoiceDialog({

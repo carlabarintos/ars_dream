@@ -224,6 +224,8 @@ export interface Registration {
   /** Set by flagOverdueRegistrations to the status the registration went overdue in ('accepted' = offer not accepted in time, 'terms_accepted' = deposit not paid in time). Only meaningful while it still equals `status` — see `isOverdue`. */
   overdueStatus?: RegistrationStatus
   overdueAt?: Timestamp
+  /** Admin-extended due date for the step pending in `status` (offer acceptance, deposit or balance) — see getStepDueDate. Ignored once the status moves on; cleared on a new offer or final invoice. */
+  dueExtension?: { status: RegistrationStatus; dueDate: Timestamp }
   /** Set when the registrant self-cancels (see 'cancelled' status). Absent/null otherwise. */
   cancelledAt?: Timestamp | null
   /** Who cancelled, set by cancelRegistration alongside `cancelledAt`. Only meaningful while status is 'cancelled'. */

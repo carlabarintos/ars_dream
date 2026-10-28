@@ -12,6 +12,7 @@ import {
   buildFinalInvoiceEmail,
   buildInvoiceEmail,
   buildReceiptEmail,
+  formatDate,
   getOfferAcceptanceDeadline,
   packageLineItems,
 } from './email-template.js'
@@ -54,6 +55,26 @@ export const onRegistrationStatusChange = onDocumentUpdated(
       after.packageId !== '' &&
       (before.packageId !== after.packageId ||
         JSON.stringify(before.selectedAddOns ?? []) !== JSON.stringify(after.selectedAddOns ?? []))
+
+    // An admin extending the current step's due date (ExtendDueDateDialog) also leaves the status as is.
+    const dueExtended =
+      before.status === after.status &&
+      after.dueExtension != null &&
+      before.dueExtension?.dueDate?.toMillis() !== after.dueExtension.dueDate.toMillis()
+    if (dueExtended) {
+      const marathonTitle: string | undefined = (await db.collection('marathons').doc(after.marathonId).get()).data()?.title
+      const due = formatDate(after.dueExtension.dueDate.toDate())
+      await logBookingEvent(event.params.registrationId, after, `Due date extended by ARS Dream to ${due}`, marathonTitle)
+      const body = `Your due date has been extended to ${due}.`
+      await notifyUser({
+        userId: after.userId,
+        pushTitle: 'Due date extended',
+        pushBody: body,
+        emailSubject: marathonTitle ? `Due date extended — ${marathonTitle}` : 'Due date extended',
+        emailBody: marathonTitle ? `Your registration for the ${marathonTitle} tour: ${body}` : body,
+      })
+      return
+    }
 
     if (before.status === after.status && !finalInvoiceReissued && !packageChanged) return
 

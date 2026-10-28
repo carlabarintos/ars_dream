@@ -3,7 +3,8 @@ import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/
 
 import { db } from './admin.js'
 import { logAuditEntry } from './audit-log.js'
-import { notifyUser } from './notify-user.js'
+import { OFFER_EXPIRED_COPY, OFFER_WITHDRAWN_COPY, getOfferAcceptanceDeadline } from './email-template.js'
+import { APP_URL, notifyUser } from './notify-user.js'
 import { requireAdmin } from './require-admin.js'
 import { resendApiKey } from './send-email.js'
 import { withSentry } from './sentry.js'
@@ -85,6 +86,24 @@ export const cancelRegistration = onCall<CancelRegistrationInput>(
         targetId: registrationId,
         metadata: { marathonId: registration.marathonId as string, userId: registration.userId as string },
       })
+      if (registration.status === 'accepted') {
+        const marathon = (await db.collection('marathons').doc(registration.marathonId).get()).data()
+        const marathonTitle: string | undefined = marathon?.title
+        const expired =
+          registration.offeredAt &&
+          getOfferAcceptanceDeadline(registration.offeredAt.toDate(), marathon?.offerAcceptanceDays).getTime() < Date.now()
+        const copy = expired ? OFFER_EXPIRED_COPY : OFFER_WITHDRAWN_COPY
+        await notifyUser({
+          userId: registration.userId,
+          pushTitle: copy.title,
+          pushBody: copy.body,
+          emailSubject: marathonTitle ? `${copy.title} — ${marathonTitle}` : copy.title,
+          emailBody: marathonTitle ? `Your offer for the ${marathonTitle} tour: ${copy.body}` : copy.body,
+          ctaLabel: 'Rejoin the Waitlist',
+          ctaUrl: APP_URL,
+        })
+        return { status: 'cancelled' }
+      }
       const body = 'Your registration was cancelled by ARS Dream. Message us if you think this is a mistake.'
       await notifyUser({
         userId: registration.userId,

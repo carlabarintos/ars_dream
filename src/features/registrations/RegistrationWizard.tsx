@@ -40,7 +40,7 @@ import {
   isOnFinalInvoice,
   isQuestionAnswered,
 } from './registration-flow'
-import { getOfferAcceptanceDeadline } from '../../../functions/src/email-template'
+import { getStepDueDate } from '../../../functions/src/email-template'
 
 export function RegistrationWizard({
   registration,
@@ -134,15 +134,10 @@ export function RegistrationWizard({
       year: 'numeric',
     })
   const dueDate = (date: Date | undefined) => (date ? ` · due ${formatDue(date)}` : '')
-  const offerAcceptanceDeadline = registration.offeredAt
-    ? getOfferAcceptanceDeadline(registration.offeredAt.toDate(), marathon?.offerAcceptanceDays)
-    : undefined
+  const offerAcceptanceDeadline = getStepDueDate(registration, marathon, 'accepted')
   // Only relevant when the package has a deposit; defaults to 1 day.
   const depositDueDays = deposit > 0 ? (marathon?.depositDueDays ?? 1) : undefined
-  const depositDeadline =
-    depositDueDays && registration.termsAcceptedAt
-      ? new Date(registration.termsAcceptedAt.toMillis() + depositDueDays * 86_400_000)
-      : undefined
+  const depositDeadline = depositDueDays ? getStepDueDate(registration, marathon, 'terms_accepted') : undefined
 
   async function handleSubmitTerms() {
     if (!chosenPackage) {
@@ -270,6 +265,7 @@ export function RegistrationWizard({
                         minute: '2-digit',
                       })}
                     </span>
+                    {' '}— after that it's cancelled automatically.
                   </p>
                 )}
                 {depositDueDays && (
@@ -560,7 +556,7 @@ export function RegistrationWizard({
                 <div className="flex justify-between border-t border-border pt-1">
                   <span>
                     Balance due
-                    {dueDate(registration.finalInvoice?.dueDate.toDate())}
+                    {dueDate(getStepDueDate(registration, marathon, 'final_invoiced'))}
                   </span>
                   <span className="font-semibold">{money(finalBalance)}</span>
                 </div>

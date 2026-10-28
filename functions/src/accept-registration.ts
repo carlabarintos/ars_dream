@@ -104,6 +104,7 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
         // A re-registered doc may still carry a flag from an earlier overdue offer.
         overdueStatus: FieldValue.delete(),
         overdueAt: FieldValue.delete(),
+        dueExtension: FieldValue.delete(),
         ...(offerImageUrl ? { offerImageUrl } : {}),
       })
     })
