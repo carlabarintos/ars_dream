@@ -7,10 +7,11 @@ import {
   getBookingDocuments,
   getFinalInvoiceDocuments,
 } from '@/features/registrations/booking-documents'
+import { getQuestionnaires, isQuestionAnswered } from '@/features/registrations/registration-flow'
 import { cn, formatPackagePrice } from '@/lib/utils'
 import type { Marathon, Registration, UserProfile } from '@/types'
 
-import { BookingDocumentDialog } from './BookingDocumentDialog'
+import { BookingDocumentDialog, UploadedFileThumb } from './BookingDocumentDialog'
 
 interface Step {
   label: string
@@ -20,6 +21,8 @@ interface Step {
   failed?: boolean
   /** Viewable/downloadable from this step once it's done. */
   document?: BookingDocument
+  /** Uploaded file shown as a thumbnail under the step. */
+  upload?: { url: string; label: string }
 }
 
 /** A booking's journey rebuilt from its timestamps; steps not reached yet stay greyed out. */
@@ -49,6 +52,13 @@ function getSteps(registration: Registration, marathon?: Marathon, profile: User
         document: invoiceDocument,
       },
     ]
+    if (isCurrent) {
+      versionSteps.push({
+        label: 'Terms & conditions accepted',
+        at: registration.finalTermsAcceptedAt?.toDate(),
+        done: !!registration.finalTermsAcceptedAt || !!paidAt,
+      })
+    }
     if (paidAt || isCurrent) {
       versionSteps.push({
         label: paidBefore ? 'Additional balance paid — confirmed' : 'Balance paid — confirmed',
@@ -60,6 +70,7 @@ function getSteps(registration: Registration, marathon?: Marathon, profile: User
     paidBefore ||= !!paidAt
     return versionSteps
   })
+  const answerValues = Object.fromEntries((registration.answers ?? []).map((a) => [a.questionId, a.value]))
   const addOns = registration.selectedAddOns?.map((addOn) => addOn.name).join(', ')
   const steps: Step[] = [
     { label: 'Waitlisted', at: registration.createdAt?.toDate(), done: true },
@@ -93,10 +104,22 @@ function getSteps(registration: Registration, marathon?: Marathon, profile: User
       done: !!depositPaidAt,
       document: documentFor('Deposit Receipt'),
     },
+    {
+      label: 'Passport bio page uploaded',
+      done: !!registration.passportPhotoUrl,
+      upload: registration.passportPhotoUrl ? { url: registration.passportPhotoUrl, label: 'Passport bio page' } : undefined,
+    },
+    ...getQuestionnaires(marathon).map((questionnaire) => ({
+      label: `${questionnaire.name} answered`,
+      done: questionnaire.questions
+        .filter((question) => question.required)
+        .every((question) => isQuestionAnswered(question, answerValues[question.id])),
+    })),
     ...(invoiceSteps.length > 0
       ? invoiceSteps
       : [
           { label: 'Final invoice sent', done: false },
+          { label: 'Terms & conditions accepted', done: false },
           { label: 'Balance paid — confirmed', done: false },
         ]),
   ]
@@ -132,6 +155,7 @@ export function BookingTimeline({
       <ol className="flex flex-col">
         {getSteps(registration, marathon, profile).map((step, index, steps) => {
           const document = step.done && step.document
+          const isNext = index === steps.findIndex((s) => !s.done)
           return (
             <li key={index} className="relative flex gap-3 pb-4 last:pb-0">
               {index < steps.length - 1 && (
@@ -146,18 +170,23 @@ export function BookingTimeline({
                     ? 'border-destructive bg-destructive text-white'
                     : step.done
                       ? 'border-primary bg-primary text-primary-foreground'
-                      : 'bg-background',
+                      : isNext
+                        ? 'border-primary bg-background'
+                        : 'bg-background',
                 )}
               >
                 {step.failed ? <XIcon className="size-3.5" /> : step.done && <CheckIcon className="size-3.5" />}
               </span>
               <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-x-3 gap-y-1">
                 <div className="min-w-0">
-                  <p className={cn('text-sm font-medium', !step.done && 'text-muted-foreground')}>{step.label}</p>
+                  <p className={cn('text-sm font-medium', !step.done && !isNext && 'text-muted-foreground')}>
+                    {isNext ? `Waiting: ${step.label}` : step.label}
+                  </p>
                   {step.detail && <p className="text-muted-foreground text-xs">{step.detail}</p>}
                   {step.done && step.at && (
                     <p className="text-muted-foreground text-xs">{step.at.toLocaleString()}</p>
                   )}
+                  {step.upload && <UploadedFileThumb {...step.upload} className="mt-1.5 h-20" />}
                 </div>
                 {document && (
                   <Button

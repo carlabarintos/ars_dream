@@ -8,8 +8,6 @@ import { UploadedFileThumb } from '@/features/registrations/BookingDocumentDialo
 import {
   getLabelledPaymentProofs,
   getPaymentProofs,
-  isBookingComplete,
-  isOverdue,
 } from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { formatPackagePrice } from '@/lib/utils'
@@ -41,9 +39,8 @@ export function BookingDetailDialog({
           <DialogTitle className="flex flex-wrap items-center gap-2">
             {formatUserName(profile)}
             <StatusBadge
-              status={registration.status}
-              overdue={isOverdue(registration)}
-              incomplete={!isBookingComplete(registration, marathon)}
+              registration={registration}
+              marathon={marathon}
             />
           </DialogTitle>
           <DialogDescription>

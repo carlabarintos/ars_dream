@@ -26,7 +26,6 @@ import {
   canReopenWizard,
   canReRegister,
   getPendingActionStep,
-  isBookingComplete,
   getRegistrationStatusMessage,
   getRegistrationTotalAmount,
   getWizardButtonLabel,
@@ -185,8 +184,8 @@ export function PackageSelectionPage() {
             <div className="flex items-start justify-between gap-3">
               <CardTitle>You already have a registration for this event</CardTitle>
               <StatusBadge
-                status={myRegistration.status}
-                incomplete={!isBookingComplete(myRegistration, marathon ?? undefined)}
+                registration={myRegistration}
+                marathon={marathon}
               />
             </div>
           </CardHeader>

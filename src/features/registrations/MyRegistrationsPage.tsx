@@ -39,13 +39,11 @@ import {
   canReRegister,
   getLabelledPaymentProofs,
   getPendingActionStep,
-  isBookingComplete,
   isPastDeposit,
   getRegistrationStatusMessage,
   getRegistrationTotalAmount,
   getWizardButtonLabel,
   isOnFinalInvoice,
-  isOverdue,
   hasChosenPackage,
 } from './registration-flow'
 import { RegistrationWizard } from './RegistrationWizard'
@@ -306,9 +304,8 @@ export function MyRegistrationsPage() {
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-brand-navy/25 to-transparent" />
                   <StatusBadge
-                    status={registration.status}
-                    overdue={isOverdue(registration)}
-                    incomplete={!isBookingComplete(registration, marathon)}
+                    registration={registration}
+                    marathon={marathon}
                     className="absolute top-3 right-3"
                   />
                   {marathon &&

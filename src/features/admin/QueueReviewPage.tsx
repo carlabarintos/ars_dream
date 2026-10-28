@@ -14,7 +14,6 @@ import { swapQueuePositions } from '@/features/registrations/api'
 import {
   getPendingActionLabel,
   getPendingActionStep,
-  isBookingComplete,
   isOverdue,
 } from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
@@ -242,9 +241,8 @@ export function QueueReviewPage() {
                 <TableCell>
                   <div className="flex flex-col items-start gap-1.5">
                     <StatusBadge
-                      status={registration.status}
-                      overdue={isOverdue(registration)}
-                      incomplete={!isBookingComplete(registration, marathon ?? undefined)}
+                      registration={registration}
+                      marathon={marathon}
                     />
                     <BookingProgress registration={registration} />
                     <PendingActionNote registration={registration} marathon={marathon ?? undefined} />

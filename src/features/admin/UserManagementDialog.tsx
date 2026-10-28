@@ -24,7 +24,6 @@ import { formatUserName } from '@/features/auth/use-user-profiles'
 import { useMarathonsByIds, usePublishedMarathons } from '@/features/marathons/use-marathons'
 import { bulkWaitlist } from '@/features/registrations/api'
 import { BookingProgress } from '@/features/registrations/BookingTimeline'
-import { isBookingComplete, isOverdue } from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
 import type { Gender, Marathon, UserProfile, UserRole } from '@/types'
@@ -79,9 +78,8 @@ function BookingsTab({ profile }: { profile: UserProfile }) {
           </span>
           <BookingProgress registration={registration} />
           <StatusBadge
-            status={registration.status}
-            overdue={isOverdue(registration)}
-            incomplete={!isBookingComplete(registration, marathons[registration.marathonId])}
+            registration={registration}
+            marathon={marathons[registration.marathonId]}
           />
           <ChevronRightIcon className="text-muted-foreground size-4 shrink-0" />
         </button>

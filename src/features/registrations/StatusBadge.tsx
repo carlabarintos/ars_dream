@@ -1,7 +1,9 @@
 import { ClockAlertIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
-import type { RegistrationStatus } from '@/types'
+import type { Marathon, Registration, RegistrationStatus } from '@/types'
+
+import { hasSubmittedBookingDetails, isBookingComplete, isOverdue } from './registration-flow'
 
 const STATUS_CONFIG: Record<RegistrationStatus, { label: string; variant: 'default' | 'secondary' | 'success' | 'warning' | 'destructive' }> = {
   queued: { label: 'In Queue', variant: 'secondary' },
@@ -17,18 +19,16 @@ const STATUS_CONFIG: Record<RegistrationStatus, { label: string; variant: 'defau
 }
 
 export function StatusBadge({
-  status,
-  overdue,
-  incomplete,
+  registration,
+  marathon,
   className,
 }: {
-  status: RegistrationStatus
-  overdue?: boolean
-  /** Paid but still missing the passport or questionnaire (see isBookingComplete) — not "Confirmed" yet. */
-  incomplete?: boolean
+  registration: Registration
+  marathon: Marathon | null | undefined
   className?: string
 }) {
-  if (overdue) {
+  const { status } = registration
+  if (isOverdue(registration)) {
     return (
       <Badge variant="destructive" className={className}>
         <ClockAlertIcon />
@@ -37,9 +37,13 @@ export function StatusBadge({
     )
   }
   const config =
-    status === 'confirmed' && incomplete
-      ? { label: 'Paid — Final Steps Needed', variant: 'warning' as const }
-      : STATUS_CONFIG[status]
+    status === 'deposit_paid' && !registration.passportPhotoUrl
+      ? { label: 'Deposit Paid — Passport Needed', variant: 'warning' as const }
+      : status === 'deposit_paid' && !hasSubmittedBookingDetails(registration, marathon ?? undefined)
+        ? { label: 'Deposit Paid — Questionnaire Needed', variant: 'warning' as const }
+        : status === 'confirmed' && !isBookingComplete(registration, marathon ?? undefined)
+          ? { label: 'Paid — Final Steps Needed', variant: 'warning' as const }
+          : STATUS_CONFIG[status]
   return (
     <Badge variant={config.variant} className={className}>
       {config.label}
