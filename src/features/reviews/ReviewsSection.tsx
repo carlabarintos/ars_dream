@@ -20,7 +20,8 @@ import { photoToDataUrl, REVIEW_COMMENT_MAX, REVIEW_NAME_MAX, REVIEW_PHOTOS_MAX,
 import { ReviewCard } from './ReviewCard'
 
 function WriteReviewDialog() {
-  const [open, setOpen] = useState(false)
+  // Shareable link: arsdreamsports.com/?review opens this dialog straight away.
+  const [open, setOpen] = useState(() => new URLSearchParams(window.location.search).has('review'))
   const [name, setName] = useState('')
   const [rating, setRating] = useState(0)
   const [comment, setComment] = useState('')
