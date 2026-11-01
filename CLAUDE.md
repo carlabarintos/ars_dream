@@ -18,7 +18,7 @@ Run from the repo root (`package.json` lives there, not in `AppHost/`):
 - `npm run lint` — oxlint (config in `.oxlintrc.json`)
 - Or press F5 on the Aspire `AppHost` project to start both the frontend and emulators together with a unified logs/traces dashboard
 
-Cloud Functions (`functions/`, separate `package.json`, Node 20, ESM):
+Cloud Functions (`functions/`, separate `package.json`, Node 22, ESM):
 - `npm --prefix functions run build` — compile TypeScript to `functions/lib`
 - `npm --prefix functions run deploy` — `firebase deploy --only functions`
 - `npm --prefix functions run logs` — `firebase functions:log`
