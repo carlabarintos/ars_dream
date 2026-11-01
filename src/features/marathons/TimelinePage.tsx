@@ -7,6 +7,7 @@ import { useAuthStore } from '@/features/auth/auth-store'
 import { AnnouncementsBoard } from '@/features/messages/AnnouncementsBoard'
 import { isAnnouncementVisibleTo } from '@/features/messages/api'
 import { useAnnouncements } from '@/features/messages/use-messages'
+import { ReviewsSection } from '@/features/reviews/ReviewsSection'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
 import { cn } from '@/lib/utils'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
@@ -205,6 +206,7 @@ export function TimelinePage() {
           </>
         )}
       </div>
+      <ReviewsSection className="max-w-5xl pt-8 pb-16" />
     </>
   )
 }

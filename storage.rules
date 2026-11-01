@@ -37,6 +37,13 @@ service firebase.storage {
         request.resource.contentType.matches('image/.*');
     }
 
+    // Review photos, uploaded by the submitReview callable (Admin SDK). Public once the review is approved.
+    match /reviews/{reviewId}/{fileName} {
+      allow read: if isAdmin() ||
+        firestore.get(/databases/(default)/documents/reviews/$(reviewId)).data.status == 'approved';
+      allow delete: if isAdmin();
+    }
+
     // Marathon and announcement banners are public-facing images shown to
     // every signed-in user (timeline, home feed) — only admins may upload them.
     match /marathon-banners/{allPaths=**} {

@@ -13,6 +13,7 @@ export { onRegistrationCreated } from './booking-event.js'
 export { onNewPersonalMessage } from './on-new-personal-message.js'
 export { onAnnouncementCreated } from './on-announcement-created.js'
 export { flagOverdueRegistrations } from './flag-overdue-registrations.js'
+export { submitReview } from './submit-review.js'
 
 // Kept exported (unlike a plain removal) so the code stays intact, but
 // deploy.yml deliberately excludes this one from its --only functions:... list

@@ -16,6 +16,7 @@ import { LogoBadge } from '@/components/LogoBadge'
 import { MedalOrbit } from '@/components/MedalOrbit'
 import { MedalIcon, type MedalCity } from '@/components/MedalIcon'
 import { RouteLines } from '@/components/RouteLines'
+import { ReviewsSection } from '@/features/reviews/ReviewsSection'
 import { FlowRibbon } from './FlowRibbon'
 
 const DESTINATIONS: { city: string; medalCity: MedalCity; country: string; note: string }[] = [
@@ -231,6 +232,8 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+
+      <ReviewsSection />
 
       {/* Final CTA */}
       <section className="relative overflow-hidden border-t border-border px-4 py-24 text-center sm:py-32">

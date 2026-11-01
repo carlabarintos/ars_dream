@@ -63,6 +63,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Public reviews: written only by the submitReview callable (rate-limited, App Check), shown on
+    // the landing page once approved. Admins approve by update and reject by delete.
+    match /reviews/{reviewId} {
+      allow read: if resource.data.status == 'approved' || isAdmin();
+      allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+      allow delete: if isAdmin();
+    }
+
     match /registrations/{registrationId} {
       // `resource` is null for a registration id that doesn't exist yet — e.g.
       // joinQueue()'s existence check (getDoc at the deterministic id) before

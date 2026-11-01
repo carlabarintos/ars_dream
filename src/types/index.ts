@@ -349,3 +349,19 @@ export interface LegalContent {
   body: string
   updatedAt: Timestamp
 }
+
+export type ReviewStatus = 'pending' | 'approved'
+
+/** Public, anonymous review — created only by the submitReview callable; rejected ones are deleted. */
+export interface Review {
+  id: string
+  name: string | null
+  rating: number
+  comment: string
+  /** Storage paths under reviews/{id}/, readable by anyone once approved. */
+  photoPaths: string[]
+  status: ReviewStatus
+  /** Submitted while signed in. Missing on older reviews. */
+  verified?: boolean
+  createdAt: Timestamp
+}

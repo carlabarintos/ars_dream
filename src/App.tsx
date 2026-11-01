@@ -18,6 +18,7 @@ import { PaymentReviewPage } from '@/features/admin/PaymentReviewPage'
 import { QueueReviewPage } from '@/features/admin/QueueReviewPage'
 import { QuestionnaireTemplatesPage } from '@/features/admin/QuestionnaireTemplatesPage'
 import { RevenuePage } from '@/features/admin/RevenuePage'
+import { ReviewsPage } from '@/features/admin/ReviewsPage'
 import { UsersPage } from '@/features/admin/UsersPage'
 import { LandingPage } from '@/features/marketing/LandingPage'
 import { LegalContentPage } from '@/features/admin/LegalContentPage'
@@ -169,6 +170,16 @@ function AppRoutes() {
               <RequireFinanceAccess>
                 <RevenuePage />
               </RequireFinanceAccess>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/reviews"
+          element={
+            <RequireAuth>
+              <RequireAdmin>
+                <ReviewsPage />
+              </RequireAdmin>
             </RequireAuth>
           }
         />

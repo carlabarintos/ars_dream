@@ -138,6 +138,9 @@ export function AdminDashboard() {
           <Button variant="outline" asChild>
             <Link to="/admin/legal-content">Legal Pages</Link>
           </Button>
+          <Button variant="outline" asChild>
+            <Link to="/admin/reviews">Reviews</Link>
+          </Button>
           <ExportImportControls />
           <CsvWaitlistImportDialog marathons={marathons} />
           <NotificationSettingsDialog />
