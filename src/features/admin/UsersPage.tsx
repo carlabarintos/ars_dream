@@ -29,7 +29,7 @@ export function UsersPage() {
           <h1 className="font-display text-3xl tracking-wide">Users</h1>
           <p className="text-muted-foreground mt-1">View accounts, edit personal info, reset passwords, and see booking history.</p>
         </div>
-        <CreateUserDialog />
+        <CreateUserDialog existingEmails={profiles.flatMap((p) => p.email ?? [])} />
       </div>
 
       <Input
