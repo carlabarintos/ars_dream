@@ -323,6 +323,7 @@ export type AuditAction =
   | 'marathon_unpublished'
   | 'marathon_reopened'
   | 'user_role_changed'
+  | 'user_created'
   | 'operational_data_cleared'
 
 export type AuditTargetType = 'registration' | 'marathon' | 'user' | 'system'

@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatUserName, useAllUsers } from '@/features/auth/use-user-profiles'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
 
+import { CreateUserDialog } from './CreateUserDialog'
 import { ROLE_BADGE_VARIANT, UserManagementDialog } from './UserManagementDialog'
 
 export function UsersPage() {
@@ -23,9 +24,12 @@ export function UsersPage() {
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
-      <div>
-        <h1 className="font-display text-3xl tracking-wide">Users</h1>
-        <p className="text-muted-foreground mt-1">View accounts, edit personal info, reset passwords, and see booking history.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl tracking-wide">Users</h1>
+          <p className="text-muted-foreground mt-1">View accounts, edit personal info, reset passwords, and see booking history.</p>
+        </div>
+        <CreateUserDialog />
       </div>
 
       <Input

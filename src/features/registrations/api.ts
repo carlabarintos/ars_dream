@@ -429,3 +429,11 @@ export async function countConfirmedRegistrations(marathonId: string): Promise<n
 export async function restoreRegistrationFields(registrationId: string, patch: RegistrationRestorePatch) {
   await updateDoc(doc(db, 'registrations', registrationId), { ...patch })
 }
+
+const createUserCallable = httpsCallable<{ email: string }, { uid: string }>(functions, 'createUser')
+
+/** Admin creates an account from an email and sends a set-your-password invite (functions/src/create-user.ts). */
+export async function createUser(email: string) {
+  const result = await createUserCallable({ email })
+  return result.data
+}
