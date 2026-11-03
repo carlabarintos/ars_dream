@@ -98,13 +98,18 @@ export function QueueReviewPage() {
       matchesStatusFilter(registration, statusFilter) &&
       (showCancelled || statusFilter === 'cancelled' || registration.status !== 'cancelled'),
   )
-  const { query, setQuery, filtered, visible, hasMore, loadMore } = usePaginatedSearch(
+  const { query, setQuery, filtered, visible, loadMore } = usePaginatedSearch(
     statusFilteredRegistrations,
     (registration, q) => {
       const profile = profiles[registration.userId]
       return formatUserName(profile).toLowerCase().includes(q) || (profile?.email ?? '').toLowerCase().includes(q)
     },
   )
+
+  // Confirmed bookings always show in full; only "Others" pages, reusing the hook's page size.
+  const confirmed = filtered.filter(hasLockedSlot)
+  const others = filtered.filter((r) => !hasLockedSlot(r))
+  const othersShown = others.slice(0, visible.length)
 
   // Neighbours come from the full queue, not the filtered/paginated view.
   const queued = orderedRegistrations.filter((r) => r.status === 'queued' && r.queuePosition != null)
@@ -187,83 +192,103 @@ export function QueueReviewPage() {
       ) : filtered.length === 0 ? (
         <p className="text-muted-foreground">No registrations match your search.</p>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>#</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Package</TableHead>
-              <TableHead>Progress</TableHead>
-              <TableHead>Requested</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {visible.map((registration) => (
-              <TableRow
-                key={registration.id}
-                className="cursor-pointer"
-                onClick={() => openDetail(registration.id)}
-              >
-                <TableCell className="text-muted-foreground" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center gap-1">
-                    {registration.queuePosition ?? '—'}
-                    {registration.status === 'queued' && registration.queuePosition != null && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-6"
-                          aria-label="Move up"
-                          disabled={decidingKey !== null || queued[0]?.id === registration.id}
-                          onClick={() => handleMove(registration, -1)}
-                        >
-                          <ChevronUp />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-6"
-                          aria-label="Move down"
-                          disabled={decidingKey !== null || queued.at(-1)?.id === registration.id}
-                          onClick={() => handleMove(registration, 1)}
-                        >
-                          <ChevronDown />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="font-medium">{formatUserName(profiles[registration.userId])}</div>
-                  <div className="text-muted-foreground text-xs">{profiles[registration.userId]?.email ?? '—'}</div>
-                </TableCell>
-                <TableCell className="text-muted-foreground">{registration.packageName || '—'}</TableCell>
-                <TableCell>
-                  <div className="flex flex-col items-start gap-1.5">
-                    <StatusBadge
-                      registration={registration}
-                      marathon={marathon}
-                    />
-                    <BookingProgress registration={registration} />
-                    <PendingActionNote registration={registration} marathon={marathon ?? undefined} />
-                  </div>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {registration.createdAt?.toDate().toLocaleDateString()}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <div className="flex flex-col gap-4">
+          {[
+            { title: 'Confirmed (deposit paid)', group: confirmed },
+            { title: 'Others', group: othersShown },
+          ].map(({ title, group }) =>
+            group.length === 0 ? null : (
+              <details key={title} open className="group">
+                <summary className="flex cursor-pointer list-none items-center gap-2 font-medium">
+                  <ChevronDown className="size-4 -rotate-90 transition-transform group-open:rotate-0" />
+                  {title} <span className="text-muted-foreground text-sm">({group.length})</span>
+                </summary>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Package</TableHead>
+                      <TableHead>Progress</TableHead>
+                      <TableHead>Requested</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {group.map((registration) => (
+                      <TableRow
+                        key={registration.id}
+                        className="cursor-pointer"
+                        onClick={() => openDetail(registration.id)}
+                      >
+                        <TableCell className="text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1">
+                            {registration.queuePosition ?? '—'}
+                            {registration.status === 'queued' && registration.queuePosition != null && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-6"
+                                  aria-label="Move up"
+                                  disabled={decidingKey !== null || queued[0]?.id === registration.id}
+                                  onClick={() => handleMove(registration, -1)}
+                                >
+                                  <ChevronUp />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-6"
+                                  aria-label="Move down"
+                                  disabled={decidingKey !== null || queued.at(-1)?.id === registration.id}
+                                  onClick={() => handleMove(registration, 1)}
+                                >
+                                  <ChevronDown />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{formatUserName(profiles[registration.userId])}</div>
+                          <div className="text-muted-foreground text-xs">{profiles[registration.userId]?.email ?? '—'}</div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{registration.packageName || '—'}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col items-start gap-1.5">
+                            <StatusBadge
+                              registration={registration}
+                              marathon={marathon}
+                            />
+                            <BookingProgress registration={registration} />
+                            <PendingActionNote registration={registration} marathon={marathon ?? undefined} />
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {registration.createdAt?.toDate().toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </details>
+            ),
+          )}
+        </div>
       )}
-      {hasMore && (
+      {othersShown.length < others.length && (
         <Button variant="outline" onClick={loadMore} className="self-center">
-          Load more ({filtered.length - visible.length} remaining)
+          Load more ({others.length - othersShown.length} remaining)
         </Button>
       )}
       {dialogs}
     </div>
   )
+}
+
+/** Deposit approved and the seat still held — includes balance proofs under review. */
+function hasLockedSlot(registration: Registration) {
+  return registration.depositPaidAt != null && registration.status !== 'cancelled'
 }
 
 /** What the registrant still owes, e.g. "Waiting on: Answer Health Declaration". */
