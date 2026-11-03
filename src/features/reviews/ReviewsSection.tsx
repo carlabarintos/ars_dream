@@ -1,5 +1,5 @@
 import { ChevronLeftIcon, ChevronRightIcon, StarIcon, XIcon } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -152,10 +152,28 @@ function WriteReviewDialog() {
   )
 }
 
+const REVIEWS_PAGE = 12
+
 export function ReviewsSection({ className = 'max-w-7xl pb-24 sm:pb-32' }: { className?: string }) {
-  const { reviews } = useReviews('approved', 12)
+  const [max, setMax] = useState(REVIEWS_PAGE)
+  const { reviews, hasMore } = useReviews('approved', max)
   const trackRef = useRef<HTMLDivElement>(null)
+  const pausedRef = useRef(false)
   const scroll = (direction: 1 | -1) => trackRef.current?.scrollBy({ left: direction * trackRef.current.clientWidth })
+
+  // Auto-advance one card every 5s, wrapping to the start; pauses while hovered/touched.
+  useEffect(() => {
+    if (reviews.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const id = setInterval(() => {
+      const track = trackRef.current
+      if (!track || pausedRef.current || document.hidden) return
+      const [first, second] = track.children as HTMLCollectionOf<HTMLElement>
+      if (track.scrollLeft + track.clientWidth >= track.scrollWidth - 1) {
+        if (!hasMore) track.scrollTo({ left: 0 }) // otherwise wait for the next page to load
+      } else track.scrollBy({ left: second.offsetLeft - first.offsetLeft })
+    }, 5000)
+    return () => clearInterval(id)
+  }, [reviews.length, hasMore])
 
   return (
     <section className={`mx-auto w-full px-4 ${className}`}>
@@ -167,6 +185,13 @@ export function ReviewsSection({ className = 'max-w-7xl pb-24 sm:pb-32' }: { cla
         <div className="relative mt-10">
           <div
             ref={trackRef}
+            onScroll={(e) => {
+              // Fetch the next page once within one screen of the end.
+              const t = e.currentTarget
+              if (hasMore && t.scrollLeft + 2 * t.clientWidth >= t.scrollWidth) setMax(reviews.length + REVIEWS_PAGE)
+            }}
+            onPointerEnter={() => (pausedRef.current = true)}
+            onPointerLeave={() => (pausedRef.current = false)}
             className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none]"
           >
             {reviews.map((review) => (

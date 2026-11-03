@@ -33,7 +33,8 @@ export function useReviews(status: ReviewStatus, max = 50) {
     [status, max],
   )
 
-  return { reviews, isLoading }
+  // A full page means there may be more; grow `max` to fetch the next page.
+  return { reviews, isLoading, hasMore: reviews.length >= max }
 }
 
 export function usePhotoUrls(paths: string[]) {
