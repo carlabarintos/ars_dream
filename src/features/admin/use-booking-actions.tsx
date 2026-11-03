@@ -20,6 +20,7 @@ import { EXTENDABLE_STATUSES, ExtendDueDateDialog } from './ExtendDueDateDialog'
 import { FinalInvoiceDialog } from './FinalInvoiceDialog'
 import { OfferChatDialog } from './OfferChatDialog'
 import { PaymentProofsDialog } from './PaymentProofsDialog'
+import { TRANSFERABLE_STATUSES, TransferSlotDialog } from './TransferSlotDialog'
 
 /**
  * The admin actions a booking's status allows (offer, reject, invoice, chat…) and the dialogs they open,
@@ -40,6 +41,7 @@ export function useBookingActions(
   const [paymentsRegistrationId, setPaymentsRegistrationId] = useState<string | null>(null)
   const [detailRegistrationId, setDetailRegistrationId] = useState<string | null>(null)
   const [extendRegistrationId, setExtendRegistrationId] = useState<string | null>(null)
+  const [transferRegistrationId, setTransferRegistrationId] = useState<string | null>(null)
   const find = (id: string | null) => registrations.find((r) => r.id === id)
   const offerRegistration = registrations.find((r) => r.id === offerRegistrationId && r.status === 'queued') ?? null
   const chatRegistration = find(chatRegistrationId)
@@ -47,6 +49,10 @@ export function useBookingActions(
   const packageRegistration = find(packageRegistrationId)
   const paymentsRegistration = find(paymentsRegistrationId)
   const detailRegistration = find(detailRegistrationId)
+  // Closes itself once transferred (the booking turns 'cancelled').
+  const transferRegistration = registrations.find(
+    (r) => r.id === transferRegistrationId && TRANSFERABLE_STATUSES.includes(r.status),
+  )
   // Closes itself if the registration moves past the step being extended.
   const extendRegistration = registrations.find(
     (r) => r.id === extendRegistrationId && (EXTENDABLE_STATUSES as string[]).includes(r.status),
@@ -149,6 +155,22 @@ export function useBookingActions(
             Extend Due Date
           </Button>
         )}
+        {TRANSFERABLE_STATUSES.includes(registration.status) && (
+          <Button variant="outline" onClick={() => setTransferRegistrationId(registration.id)}>
+            Transfer Slot
+          </Button>
+        )}
+        {/* Blocked server-side too (transferRegistration) so it can't race confirmPayment. */}
+        {registration.status === 'payment_submitted' && (
+          <div className="flex flex-col gap-1">
+            <Button variant="outline" disabled aria-describedby={`transfer-note-${registration.id}`}>
+              Transfer Slot
+            </Button>
+            <p id={`transfer-note-${registration.id}`} className="text-muted-foreground text-xs">
+              A payment is pending review — approve or reject it before transferring this slot.
+            </p>
+          </div>
+        )}
         <Button variant="outline" onClick={() => setChatRegistrationId(registration.id)}>
           Chat
         </Button>
@@ -213,6 +235,13 @@ export function useBookingActions(
           registration={extendRegistration}
           marathon={getMarathon(extendRegistration)}
           onClose={() => setExtendRegistrationId(null)}
+        />
+      )}
+      {transferRegistration && (
+        <TransferSlotDialog
+          registration={transferRegistration}
+          registrantName={formatUserName(getProfile(transferRegistration))}
+          onClose={() => setTransferRegistrationId(null)}
         />
       )}
       {invoiceRegistration && (

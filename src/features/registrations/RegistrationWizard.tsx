@@ -18,11 +18,12 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getFriendlyErrorMessage } from '@/lib/friendly-error'
 import { cn, formatPackagePrice } from '@/lib/utils'
-import type { Marathon, QuestionAnswer, Registration } from '@/types'
+import { formatTransferParty, type Marathon, type QuestionAnswer, type Registration } from '@/types'
 
 import { useAuthStore } from '@/features/auth/auth-store'
 
 import {
+  acceptTransferTerms,
   submitFinalPayment,
   submitPassportPhoto,
   submitProofOfPayment,
@@ -156,6 +157,19 @@ export function RegistrationWizard({
     }
   }
 
+  async function handleAcceptTransferTerms() {
+    setIsSubmitting(true)
+    try {
+      await acceptTransferTerms(registration.id)
+      toast.success('Thanks! The slot is now yours.')
+      onClose()
+    } catch (error) {
+      toast.error(getFriendlyErrorMessage(error, 'terms'))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   async function handleSubmitAnswers() {
     const missingRequired = activeItems.some(
       (item) => item.required && !isQuestionAnswered(item, answerValues[item.id]),
@@ -235,7 +249,9 @@ export function RegistrationWizard({
         <DialogHeader>
           <DialogTitle className="px-6 sm:px-0 sm:pr-6">{marathon?.title ?? 'Complete Your Registration'}</DialogTitle>
           <DialogDescription>
-            {step === 'terms'
+            {step === 'transfer_terms'
+              ? `${registration.transferredFrom ? formatTransferParty(registration.transferredFrom) : 'Another registrant'}'s slot has been transferred to you, together with the payments made so far.`
+              : step === 'terms'
               ? "You've received an offer! Choose your package, then review and accept the terms & conditions."
               : step === 'payment'
                 ? 'Your invoice is below. Send payment using the instructions, then upload your proof of payment.'
@@ -248,6 +264,38 @@ export function RegistrationWizard({
                       : ''}
           </DialogDescription>
         </DialogHeader>
+
+        {step === 'transfer_terms' && (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm">
+              {registration.packageName} package
+              {registration.selectedAddOns?.length ? ` + ${registration.selectedAddOns.map((a) => a.name).join(', ')}` : ''}. Your
+              invoices and receipts are on your booking timeline.
+            </p>
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="transfer-terms"
+                checked={finalTermsAccepted}
+                onCheckedChange={(v) => setFinalTermsAccepted(v === true)}
+              />
+              <Label htmlFor="transfer-terms" className="block leading-snug font-normal">
+                I agree to the{' '}
+                <Link to="/terms" target="_blank" className="text-primary underline underline-offset-2">
+                  Terms & Conditions
+                </Link>{' '}
+                for this booking.
+              </Label>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button disabled={!finalTermsAccepted} loading={isSubmitting} onClick={handleAcceptTransferTerms}>
+                Accept & Take Over Slot
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
 
         {step === 'terms' && (
           <div className="flex flex-col gap-4">

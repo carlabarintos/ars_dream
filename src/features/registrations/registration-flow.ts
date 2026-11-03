@@ -1,3 +1,4 @@
+import { formatTransferParty } from '@/types'
 import type { InvoiceLineItem, Marathon, MarathonQuestion, Registration, RegistrationStatus } from '@/types'
 
 /** Whether a package has been picked yet — waitlist entries have none until the offer is accepted. */
@@ -86,6 +87,9 @@ export function isOverdue(registration: Registration) {
 }
 
 export function getRegistrationStatusMessage(registration: Registration, marathon: Marathon | undefined) {
+  if (getPendingActionStep(registration, marathon) === 'transfer_terms') {
+    return 'A slot has been transferred to you. Accept the terms & conditions to take it over.'
+  }
   if (isOverdue(registration)) {
     return registration.status === 'final_invoiced'
       ? 'Overdue: your final invoice due date has passed. Pay your balance and upload your proof now — your slot may be cancelled otherwise.'
@@ -123,6 +127,7 @@ export function getRegistrationStatusMessage(registration: Registration, maratho
         ? `Your registration wasn't accepted: ${registration.adminNote} You can join the waitlist again.`
         : "Unfortunately, your registration wasn't accepted this time. You can join the waitlist again."
     case 'cancelled':
+      if (registration.transferredTo) return `Your slot was transferred to ${formatTransferParty(registration.transferredTo)}.`
       return "This registration was cancelled. You can join the waitlist again if you've changed your mind."
   }
 }
@@ -212,9 +217,10 @@ export function canReRegister(registration: Registration) {
   return REREGISTERABLE_STATUSES.includes(registration.status)
 }
 
-export type PendingActionStep = 'terms' | 'payment' | 'final_payment' | 'passport' | 'questionnaire'
+export type PendingActionStep = 'transfer_terms' | 'terms' | 'payment' | 'final_payment' | 'passport' | 'questionnaire'
 
 export const PENDING_ACTION_LABEL: Record<PendingActionStep, string> = {
+  transfer_terms: 'Accept Terms & Conditions',
   terms: 'Choose Package & Accept Offer',
   payment: 'View Invoice & Pay',
   final_payment: 'View Final Invoice & Pay',
@@ -224,6 +230,7 @@ export const PENDING_ACTION_LABEL: Record<PendingActionStep, string> = {
 
 /** What an admin's "Send Reminder" tells the registrant, per pending step. */
 export const PENDING_ACTION_REMINDER: Record<PendingActionStep, string> = {
+  transfer_terms: 'A slot has been transferred to you — please accept the terms & conditions to take it over.',
   terms: "You have an offer waiting — choose your package and accept it before it expires.",
   payment: 'Your deposit is still due — please pay using your invoice and upload your proof of payment.',
   final_payment: 'Your final balance is still due — please pay using your final invoice and upload your proof of payment.',
@@ -236,6 +243,10 @@ export function getPendingActionStep(
   registration: Registration,
   marathon: Marathon | undefined,
 ): PendingActionStep | null {
+  // A slot transferred in: the new holder accepts the T&C before anything else.
+  if (registration.transferTermsAcceptedAt === null && !['rejected', 'cancelled'].includes(registration.status)) {
+    return 'transfer_terms'
+  }
   if (registration.status === 'accepted') return 'terms'
   if (registration.status === 'terms_accepted') return 'payment'
   // Passport bio page, then the questionnaire, come first once the deposit is approved — before the balance.

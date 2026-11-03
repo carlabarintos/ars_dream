@@ -124,6 +124,8 @@ export async function joinQueue(userId: string, marathonId: string, cycle: numbe
     batch.update(registrationRef, {
       ...NO_PACKAGE,
       offeredPackageIds: deleteField(),
+      offeredAt: deleteField(),
+      cancelledBy: deleteField(),
       status: 'queued' satisfies Registration['status'],
       queuePosition: null,
       queueSortAt: deleteField(),
@@ -141,6 +143,9 @@ export async function joinQueue(userId: string, marathonId: string, cycle: numbe
       finalInvoice: deleteField(),
       previousFinalInvoices: deleteField(),
       finalTermsAcceptedAt: deleteField(),
+      transferredFrom: deleteField(),
+      transferredTo: deleteField(),
+      transferTermsAcceptedAt: deleteField(),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })
@@ -183,6 +188,14 @@ export async function submitTermsAndConditions(
     selectedAddOns: toSelectedAddOns(selectedAddOns),
     status: 'terms_accepted' satisfies Registration['status'],
     termsAcceptedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/** The new holder of a transferred slot accepting the T&C (see transferRegistration). */
+export async function acceptTransferTerms(registrationId: string) {
+  await updateDoc(doc(db, 'registrations', registrationId), {
+    transferTermsAcceptedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
 }
@@ -435,5 +448,16 @@ const createUserCallable = httpsCallable<{ email: string }, { uid: string }>(fun
 /** Admin creates an account from an email and sends a set-your-password invite (functions/src/create-user.ts). */
 export async function createUser(email: string) {
   const result = await createUserCallable({ email })
+  return result.data
+}
+
+const transferRegistrationCallable = httpsCallable<
+  { registrationId: string; toEmail: string },
+  { registrationId: string; invited: boolean }
+>(functions, 'transferRegistration')
+
+/** Admin moves a booking's slot, with its payments and invoices, to another person (functions/src/transfer-registration.ts). */
+export async function transferRegistration(registrationId: string, toEmail: string) {
+  const result = await transferRegistrationCallable({ registrationId, toEmail })
   return result.data
 }

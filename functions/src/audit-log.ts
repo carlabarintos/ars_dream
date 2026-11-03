@@ -6,6 +6,7 @@ export type AuditAction =
   | 'registration_accepted'
   | 'registration_rejected'
   | 'registration_cancelled'
+  | 'registration_transferred'
   | 'payment_confirmed'
   | 'payment_rejected'
   | 'marathon_reopened'

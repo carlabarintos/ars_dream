@@ -55,6 +55,22 @@ export function describeStatusEvent(registration: FirebaseFirestore.DocumentData
   }
 }
 
+/** A rejected/cancelled round, kept in `previousRounds` when the doc is reset for a new one (see PreviousRound in src/types). */
+export function endedRound(before: FirebaseFirestore.DocumentData) {
+  return {
+    status: before.status,
+    cancelledBy: before.status === 'cancelled' ? (before.cancelledBy ?? null) : null,
+    transferredToName: before.transferredTo?.name ?? null,
+    transferredToEmail: before.transferredTo?.email ?? null,
+    waitlistedAt: before.createdAt ?? null,
+    offeredAt: before.offeredAt ?? null,
+    termsAcceptedAt: before.termsAcceptedAt ?? null,
+    depositPaidAt: before.depositPaidAt ?? null,
+    packageName: before.packageName ?? '',
+    endedAt: (before.status === 'cancelled' ? before.cancelledAt : null) ?? before.updatedAt ?? null,
+  }
+}
+
 /**
  * Appends a system entry to the registrant's support thread, tagged to the booking, so its chat
  * reads as a full history (and audit trail) alongside the messages. Written via the Admin SDK —
@@ -82,7 +98,8 @@ export const onRegistrationCreated = onDocumentCreated(
   { document: 'registrations/{registrationId}' },
   withSentry(async (event) => {
     const registration = event.data?.data()
-    if (!registration) return
+    // A slot transferred in is logged by transferRegistration itself.
+    if (!registration || registration.transferredFrom) return
     const marathon = await db.collection('marathons').doc(registration.marathonId).get()
     await logBookingEvent(event.params.registrationId, registration, describeStatusEvent(registration), marathon.data()?.title)
   }),

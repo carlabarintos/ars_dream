@@ -1,7 +1,8 @@
+import { FieldValue } from 'firebase-admin/firestore'
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore'
 
 import { db } from './admin.js'
-import { describePackage, describeStatusEvent, logBookingEvent } from './booking-event.js'
+import { describePackage, describeStatusEvent, endedRound, logBookingEvent } from './booking-event.js'
 import {
   ACCEPTED_COPY,
   BALANCE_RECEIPT_COPY,
@@ -42,6 +43,9 @@ export const onRegistrationStatusChange = onDocumentUpdated(
     const before = event.data?.before.data()
     const after = event.data?.after.data()
     if (!before || !after) return
+    // transferRegistration logs and notifies both sides itself; its writes must not re-send invoices/receipts here.
+    const transferAt = (r: FirebaseFirestore.DocumentData) => (r.transferredTo ?? r.transferredFrom)?.at?.toMillis()
+    if (transferAt(after) && transferAt(after) !== transferAt(before)) return
     // An edited final invoice is re-issued without a status change — resend it too.
     const finalInvoiceReissued =
       after.status === 'final_invoiced' &&
@@ -74,6 +78,11 @@ export const onRegistrationStatusChange = onDocumentUpdated(
         emailBody: marathonTitle ? `Your registration for the ${marathonTitle} tour: ${body}` : body,
       })
       return
+    }
+
+    // Rejoining the waitlist resets this same doc — keep the round that just ended for the booking timeline.
+    if (['rejected', 'cancelled'].includes(before.status) && after.status === 'queued') {
+      await event.data!.after.ref.update({ previousRounds: FieldValue.arrayUnion(endedRound(before)) })
     }
 
     if (before.status === after.status && !finalInvoiceReissued && !packageChanged) return

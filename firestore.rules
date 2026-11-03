@@ -115,10 +115,10 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly([
             'packageId', 'packageName', 'packagePriceAmount', 'packagePriceCurrency',
-            'selectedAddOns', 'offeredPackageIds', 'status', 'queuePosition', 'queueSortAt', 'termsAcceptedAt', 'answers',
+            'selectedAddOns', 'offeredPackageIds', 'offeredAt', 'cancelledBy', 'status', 'queuePosition', 'queueSortAt', 'termsAcceptedAt', 'answers',
             'proofOfPaymentUrls', 'proofSubmittedAt', 'paymentReference', 'adminNote', 'cancelledAt',
             'depositPaidAt', 'depositProofUrls', 'depositProofSubmittedAt', 'approvedPaymentReferences', 'finalInvoice', 'previousFinalInvoices',
-            'finalTermsAcceptedAt', 'createdAt', 'updatedAt',
+            'finalTermsAcceptedAt', 'transferredFrom', 'transferredTo', 'transferTermsAcceptedAt', 'createdAt', 'updatedAt',
           ]);
 
       // User may only progress their own registration through the
@@ -163,7 +163,12 @@ service cloud.firestore {
             resource.data.status in ['deposit_paid', 'final_invoiced', 'payment_submitted', 'payment_rejected', 'confirmed'] &&
             request.resource.data.status == resource.data.status &&
             request.resource.data.get('answers', []).hasAll(resource.data.get('answers', [])) &&
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'passportPhotoUrl', 'updatedAt']))
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'passportPhotoUrl', 'updatedAt'])) ||
+          // A slot transferred in (transferRegistration sets this to null): the new holder accepts the T&C themselves.
+          (resource.data.get('transferTermsAcceptedAt', 'absent') == null &&
+            request.resource.data.status == resource.data.status &&
+            request.resource.data.transferTermsAcceptedAt == request.time &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['transferTermsAcceptedAt', 'updatedAt']))
         );
 
       allow update: if isAdmin();

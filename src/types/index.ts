@@ -188,8 +188,46 @@ export interface SupersededFinalInvoice extends FinalInvoice {
   paidProofUrls?: string[]
 }
 
+/** A rejected/cancelled round of a registration, snapshotted by onRegistrationStatusChange when the registrant rejoins the waitlist (which resets the doc). */
+export interface PreviousRound {
+  status: 'rejected' | 'cancelled'
+  cancelledBy: 'user' | 'admin' | null
+  /** Set when the round ended in a slot transfer (transferRegistration). Absent on rounds archived before transfers existed. */
+  transferredToName?: string | null
+  transferredToEmail?: string | null
+  waitlistedAt: Timestamp | null
+  offeredAt: Timestamp | null
+  termsAcceptedAt: Timestamp | null
+  depositPaidAt: Timestamp | null
+  packageName: string
+  endedAt: Timestamp | null
+}
+
+/** One side of a slot transfer (functions/src/transfer-registration.ts): the other booking and its holder's name at the time. */
+export interface RegistrationTransfer {
+  registrationId: string
+  userId: string
+  name: string
+  /** The holder's account email at the time ('' if their profile had none). */
+  email: string
+  at: Timestamp
+}
+
+/** "Juan Dela Cruz (juan@example.com)" — the email alone when it's also the name. */
+export function formatTransferParty(party: Pick<RegistrationTransfer, 'name' | 'email'>) {
+  return party.email && party.email !== party.name ? `${party.name} (${party.email})` : party.name
+}
+
 export interface Registration {
   id: string
+  /** This slot (with its payments and invoices) was transferred in from another registrant's booking. */
+  transferredFrom?: RegistrationTransfer
+  /** This booking's slot was transferred to someone else; the booking itself is then 'cancelled'. */
+  transferredTo?: RegistrationTransfer
+  /** On a slot transferred in past the offer step: null until the new holder accepts the T&C themselves. Absent means not needed. */
+  transferTermsAcceptedAt?: Timestamp | null
+  /** Earlier rejected/cancelled rounds, oldest first — see PreviousRound. */
+  previousRounds?: PreviousRound[]
   userId: string
   marathonId: string
   /** Empty ('' / 0) while on the waitlist — the registrant picks one of `offeredPackageIds` when accepting their offer. */
@@ -316,6 +354,7 @@ export type AuditAction =
   | 'registration_accepted'
   | 'registration_rejected'
   | 'registration_cancelled'
+  | 'registration_transferred'
   | 'payment_confirmed'
   | 'payment_rejected'
   | 'marathon_published'

@@ -18,7 +18,7 @@ export const onRegistrationQueueChange = onDocumentWritten(
 
     // Flags the marathon on the admin dashboard. Only statuses the registrant
     // moves to themselves, so an admin's own actions don't flag it.
-    if (after && before?.status !== after.status && REGISTRANT_STATUSES.includes(after.status)) {
+    if (after && before?.status !== after.status && REGISTRANT_STATUSES.includes(after.status) && !after.transferredTo) {
       // Best-effort: a missing marathon (deleted) must not block the queue resync below.
       await db
         .doc(`marathons/${after.marathonId}`)

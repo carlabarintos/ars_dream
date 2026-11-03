@@ -9,7 +9,7 @@ import {
 } from '@/features/registrations/booking-documents'
 import { getQuestionnaires, isQuestionAnswered } from '@/features/registrations/registration-flow'
 import { cn, formatPackagePrice } from '@/lib/utils'
-import type { Marathon, Registration, UserProfile } from '@/types'
+import { formatTransferParty, type Marathon, type Registration, type UserProfile } from '@/types'
 
 import { BookingDocumentDialog, UploadedFileThumb } from './BookingDocumentDialog'
 
@@ -73,7 +73,16 @@ function getSteps(registration: Registration, marathon?: Marathon, profile: User
   const answerValues = Object.fromEntries((registration.answers ?? []).map((a) => [a.questionId, a.value]))
   const addOns = registration.selectedAddOns?.map((addOn) => addOn.name).join(', ')
   const steps: Step[] = [
-    { label: 'Waitlisted', at: registration.createdAt?.toDate(), done: true },
+    // A slot transferred in was waitlisted by its original holder — its transfer step is spliced in below instead.
+    ...(registration.transferredFrom
+      ? []
+      : [
+          {
+            label: registration.previousRounds?.length ? 'Waitlisted again' : 'Waitlisted',
+            at: registration.createdAt?.toDate(),
+            done: true,
+          },
+        ]),
     {
       label: 'Offered',
       at: offeredAt?.toDate(),
@@ -124,20 +133,50 @@ function getSteps(registration: Registration, marathon?: Marathon, profile: User
         ]),
   ]
 
+  const { transferredFrom } = registration
+  if (transferredFrom) {
+    // After the steps the slot had already reached when it changed hands.
+    const at = steps.findIndex((step) => !step.done)
+    steps.splice(at === -1 ? steps.length : at, 0, {
+      label: `Slot transferred from ${formatTransferParty(transferredFrom)}`,
+      at: transferredFrom.at?.toDate(),
+      done: true,
+    }, ...(registration.transferTermsAcceptedAt !== undefined
+      ? [{ label: 'Terms & conditions accepted', at: registration.transferTermsAcceptedAt?.toDate(), done: !!registration.transferTermsAcceptedAt }]
+      : []))
+  }
+
   const ending =
-    status === 'rejected'
-      ? { label: 'Not offered', at: registration.updatedAt?.toDate() }
-      : status === 'cancelled'
-        ? {
-            label: `Cancelled${registration.cancelledBy ? ` by ${registration.cancelledBy === 'admin' ? 'ARS Dream' : 'registrant'}` : ''}`,
-            at: (registration.cancelledAt ?? registration.updatedAt)?.toDate(),
-          }
-        : status === 'payment_rejected'
-          ? { label: 'Payment rejected — awaiting resubmission', at: registration.updatedAt?.toDate() }
-          : null
+    status === 'rejected' || status === 'cancelled'
+      ? { label: endingLabel(status, registration.cancelledBy, registration.transferredTo && formatTransferParty(registration.transferredTo)), at: (registration.cancelledAt ?? registration.updatedAt)?.toDate() }
+      : status === 'payment_rejected'
+        ? { label: 'Payment rejected — awaiting resubmission', at: registration.updatedAt?.toDate() }
+        : null
   if (!ending) return steps
   // Off the happy path: show what was reached, then where it stopped.
   return [...steps.filter((step) => step.done), { ...ending, done: true, failed: true }]
+}
+
+function endingLabel(status: 'rejected' | 'cancelled', cancelledBy?: 'user' | 'admin' | null, transferredToName?: string | null) {
+  if (status === 'rejected') return 'Not offered'
+  if (transferredToName) return `Slot transferred to ${transferredToName}`
+  return `Cancelled${cancelledBy ? ` by ${cancelledBy === 'admin' ? 'ARS Dream' : 'registrant'}` : ''}`
+}
+
+/** Earlier rounds that ended in a rejection/cancellation before the registrant rejoined, oldest first. */
+function getPreviousRoundSteps(registration: Registration): Step[] {
+  return (registration.previousRounds ?? []).flatMap((round, index) => {
+    const steps: Step[] = [
+      { label: index === 0 ? 'Waitlisted' : 'Waitlisted again', at: round.waitlistedAt?.toDate(), done: true },
+    ]
+    if (round.offeredAt) steps.push({ label: 'Offered', at: round.offeredAt.toDate(), done: true })
+    if (round.termsAcceptedAt) {
+      steps.push({ label: 'Accepted package', detail: round.packageName || undefined, at: round.termsAcceptedAt.toDate(), done: true })
+    }
+    if (round.depositPaidAt) steps.push({ label: 'Deposit paid', at: round.depositPaidAt.toDate(), done: true })
+    steps.push({ label: endingLabel(round.status, round.cancelledBy, round.transferredToName && formatTransferParty({ name: round.transferredToName, email: round.transferredToEmail ?? '' })), at: round.endedAt?.toDate(), done: true, failed: true })
+    return steps
+  })
 }
 
 export function BookingTimeline({
@@ -153,7 +192,7 @@ export function BookingTimeline({
   return (
     <>
       <ol className="flex flex-col">
-        {getSteps(registration, marathon, profile).map((step, index, steps) => {
+        {[...getPreviousRoundSteps(registration), ...getSteps(registration, marathon, profile)].map((step, index, steps) => {
           const document = step.done && step.document
           const isNext = index === steps.findIndex((s) => !s.done)
           return (
