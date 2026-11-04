@@ -18,6 +18,7 @@ import {
   packageLineItems,
 } from './email-template.js'
 import { notifyUser } from './notify-user.js'
+import { companionContacts, describeCompanionChanges, packageSeats } from './runners.js'
 import { resendApiKey } from './send-email.js'
 import { withSentry } from './sentry.js'
 
@@ -46,6 +47,14 @@ export const onRegistrationStatusChange = onDocumentUpdated(
     // transferRegistration logs and notifies both sides itself; its writes must not re-send invoices/receipts here.
     const transferAt = (r: FirebaseFirestore.DocumentData) => (r.transferredTo ?? r.transferredFrom)?.at?.toMillis()
     if (transferAt(after) && transferAt(after) !== transferAt(before)) return
+    // Runners 2+'s name/email changed (EditRunnersDialog) — noted in the booking's history, naming who changed it.
+    const runnerChanges = describeCompanionChanges(before, after)
+    if (runnerChanges) {
+      const marathonTitle: string | undefined = (await db.collection('marathons').doc(after.marathonId).get()).data()?.title
+      const by = after.companionsEditedBy === 'admin' ? 'ARS Dream' : 'registrant'
+      await logBookingEvent(event.params.registrationId, after, `Runner details changed by ${by} — ${runnerChanges}`, marathonTitle)
+    }
+
     // An edited final invoice is re-issued without a status change — resend it too.
     const finalInvoiceReissued =
       after.status === 'final_invoiced' &&
@@ -80,6 +89,26 @@ export const onRegistrationStatusChange = onDocumentUpdated(
       return
     }
 
+    // An admin changing which packages an open offer includes (ChangePackageDialog).
+    const offeredIds = (r: FirebaseFirestore.DocumentData) => JSON.stringify(r.offeredPackageIds ?? [])
+    if (before.status === 'accepted' && after.status === 'accepted' && offeredIds(before) !== offeredIds(after)) {
+      const marathon = (await db.collection('marathons').doc(after.marathonId).get()).data()
+      const names = ((marathon?.packages ?? []) as { id: string; name: string }[])
+        .filter((p) => (after.offeredPackageIds as string[]).includes(p.id))
+        .map((p) => p.name)
+        .join(', ')
+      await logBookingEvent(event.params.registrationId, after, `Offered packages changed by ARS Dream: ${names}`, marathon?.title)
+      const body = `The packages in your offer have been updated: ${names}.`
+      await notifyUser({
+        userId: after.userId,
+        pushTitle: 'Offer updated',
+        pushBody: body,
+        emailSubject: marathon?.title ? `Offer updated — ${marathon.title}` : 'Offer updated',
+        emailBody: marathon?.title ? `Your offer for the ${marathon.title} tour: ${body}` : body,
+      })
+      return
+    }
+
     // Rejoining the waitlist resets this same doc — keep the round that just ended for the booking timeline.
     if (['rejected', 'cancelled'].includes(before.status) && after.status === 'queued') {
       await event.data!.after.ref.update({ previousRounds: FieldValue.arrayUnion(endedRound(before)) })
@@ -92,6 +121,18 @@ export const onRegistrationStatusChange = onDocumentUpdated(
       packageChanged && ['terms_accepted', 'payment_rejected'].includes(after.status) && after.finalInvoice == null
 
     const marathonDoc = await db.collection('marathons').doc(after.marathonId).get()
+    // A held seat (deposit approved) moving to a package with a different runner count, e.g. Solo → Runner + Runner.
+    // Admin's call, so it may go over capacity. Re-read in a transaction so a retried trigger can't apply it twice.
+    if (packageChanged && after.depositPaidAt) {
+      const seats = packageSeats(marathonDoc.data(), after.packageId)
+      await db.runTransaction(async (transaction) => {
+        const current = (await transaction.get(event.data!.after.ref)).data()
+        const held = (current?.seatCount as number | undefined) ?? 1
+        if (!current || current.packageId !== after.packageId || held === seats) return
+        transaction.update(event.data!.after.ref, { seatCount: seats })
+        transaction.update(marathonDoc.ref, { confirmedCount: FieldValue.increment(seats - held) })
+      })
+    }
     if (packageChanged) {
       await logBookingEvent(
         event.params.registrationId,
@@ -125,6 +166,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
     const marathon = marathonDoc.data()
     const marathonTitle: string | undefined = marathon?.title
     const ccEmails: string[] = settingsDoc.data()?.ccEmails ?? []
+    const runners = companionContacts(after, marathon)
     const chosenPackage = marathon?.packages?.find((p: { id: string }) => p.id === after.packageId)
     // Everything the invoice/receipt emails share (the office's SPORTS SITE INVOICING template).
     const documentContext = {
@@ -165,6 +207,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
         emailBody: body,
         emailHtml: html,
         cc: ccEmails,
+        runners,
       })
       return
     }
@@ -197,6 +240,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
         emailBody: body,
         emailHtml: html,
         cc: ccEmails,
+        runners,
       })
       return
     }
@@ -217,6 +261,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
         emailBody: body,
         emailHtml: html,
         cc: ccEmails,
+        runners,
       })
       return
     }
@@ -250,6 +295,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
         emailBody: body,
         emailHtml: html,
         cc: ccEmails,
+        runners,
       })
       return
     }
@@ -261,6 +307,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
       emailSubject: marathonTitle ? `${copy.title} — ${marathonTitle}` : copy.title,
       emailBody: marathonTitle ? `Your registration for the ${marathonTitle} tour: ${copy.body}` : copy.body,
       cc: ccEmails,
+      runners,
     })
   }),
 )

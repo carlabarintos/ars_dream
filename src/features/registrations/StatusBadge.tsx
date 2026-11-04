@@ -3,7 +3,7 @@ import { ClockAlertIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import type { Marathon, Registration, RegistrationStatus } from '@/types'
 
-import { hasSubmittedBookingDetails, isBookingComplete, isOverdue } from './registration-flow'
+import { hasAllPassports, hasSubmittedBookingDetails, isBookingComplete, isOverdue } from './registration-flow'
 
 const STATUS_CONFIG: Record<RegistrationStatus, { label: string; variant: 'default' | 'secondary' | 'success' | 'warning' | 'destructive' }> = {
   queued: { label: 'In Queue', variant: 'secondary' },
@@ -37,7 +37,7 @@ export function StatusBadge({
     )
   }
   const config =
-    status === 'deposit_paid' && !registration.passportPhotoUrl
+    status === 'deposit_paid' && !hasAllPassports(registration, marathon)
       ? { label: 'Deposit Paid — Passport Needed', variant: 'warning' as const }
       : status === 'deposit_paid' && !hasSubmittedBookingDetails(registration, marathon ?? undefined)
         ? { label: 'Deposit Paid — Questionnaire Needed', variant: 'warning' as const }

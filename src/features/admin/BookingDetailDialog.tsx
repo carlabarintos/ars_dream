@@ -8,6 +8,8 @@ import { UploadedFileThumb } from '@/features/registrations/BookingDocumentDialo
 import {
   getLabelledPaymentProofs,
   getPaymentProofs,
+  getRunners,
+  runnerPrefix,
 } from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { formatPackagePrice } from '@/lib/utils'
@@ -65,13 +67,22 @@ export function BookingDetailDialog({
             {registration.status === 'confirmed' && (
               <section className="flex flex-col gap-3">
                 <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Passport bio page</h3>
-                {registration.passportPhotoUrl ? (
-                  <div className="w-fit">
-                    <UploadedFileThumb url={registration.passportPhotoUrl} label="Passport bio page" className="h-48" />
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-sm">Not uploaded yet.</p>
-                )}
+                <div className="flex flex-wrap gap-3">
+                  {getRunners(registration, marathon).map((runner, i, all) =>
+                    runner.passportPhotoUrl ? (
+                      <UploadedFileThumb
+                        key={i}
+                        url={runner.passportPhotoUrl}
+                        label={`${runnerPrefix(i, all.length, runner.name)}Passport bio page`}
+                        className="h-48"
+                      />
+                    ) : (
+                      <p key={i} className="text-muted-foreground text-sm">
+                        {runnerPrefix(i, all.length, runner.name)}Not uploaded yet.
+                      </p>
+                    ),
+                  )}
+                </div>
               </section>
             )}
 
@@ -109,6 +120,16 @@ export function BookingDetailDialog({
                 <span className="text-muted-foreground">No package chosen yet</span>
               )}
             </p>
+            {getRunners(registration, marathon).length > 1 && (
+              <ul className="flex flex-col gap-1 text-sm">
+                {getRunners(registration, marathon).slice(1).map((runner, i) => (
+                  <li key={i}>
+                    <span className="font-medium">Runner {i + 2}:</span> {runner.name || 'Name not given yet'}
+                    {runner.email && <span className="text-muted-foreground block break-all">{runner.email}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
             <h3 className="text-muted-foreground mt-2 text-xs font-semibold tracking-wide uppercase">Actions</h3>
             <div className="flex flex-col gap-2 [&>button]:w-full">{actions}</div>
           </aside>

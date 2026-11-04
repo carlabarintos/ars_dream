@@ -689,6 +689,24 @@ export function buildReceiptEmail(input: ReceiptEmailInput): { subject: string; 
   return { subject: title ? `${copy.title} — ${title}` : copy.title, body, html }
 }
 
+/**
+ * Banner above a multi-runner booking's emails, for the runners CC'd on them (notifyUser's `runners`): they have no
+ * account, so it tells them the account holder completes the booking and needs their passport photo and details.
+ * Read by the account holder too, so it names everyone.
+ */
+export function runnerCcNoteHtml(leadName: string, runners: { runner: number; name: string }[]): string {
+  const lead = escapeHtml(leadName)
+  const copied = runners.map((r) => `${escapeHtml(r.name || 'Runner')} (Runner ${r.runner})`).join(', ')
+  const addressed = runners.map((r) => escapeHtml(r.name || `Runner ${r.runner}`)).join(', ')
+  return `
+    <div style="background: ${PAGE_BG}; font-family: ${SANS}; padding: 16px 12px 0;">
+      <div style="max-width: 640px; margin: 0 auto; background: ${SECONDARY}; border: 1px solid ${BORDER}; border-left: 4px solid ${PRIMARY}; border-radius: 10px; padding: 12px 16px; font-size: 13px; line-height: 1.5; color: ${FOREGROUND};">
+        <b>Copied to ${copied}.</b> ${lead}, the account holder, completes this booking for every runner in the ARS Dream app.
+        ${addressed}: please send your passport bio page photo and any details they ask for to ${lead} &mdash; you don't need to sign in or use the buttons below yourself.
+      </div>
+    </div>`
+}
+
 /** Simple branded layout, reused for every other status-change email. */
 export function renderEmailHtml({ title, body, ctaLabel, ctaUrl }: EmailContent): string {
   return `

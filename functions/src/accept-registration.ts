@@ -4,6 +4,7 @@ import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/
 import { db } from './admin.js'
 import { logAuditEntry } from './audit-log.js'
 import { requireAdmin } from './require-admin.js'
+import { packageSeats } from './runners.js'
 import { withSentry } from './sentry.js'
 
 const PIPELINE_STATUSES = ['accepted', 'terms_accepted', 'payment_submitted', 'deposit_paid', 'final_invoiced', 'confirmed']
@@ -88,9 +89,11 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
           .where('marathonId', '==', registration.marathonId)
           .where('status', 'in', PIPELINE_STATUSES),
       )
-      const pipelineCount = pipelineSnap.docs.filter(
-        (doc) => ((doc.data().cycle as number | undefined) ?? 1) === cycle,
-      ).length
+      // Seats, not bookings: a "Runner + Runner" booking holds 2. An open offer with no package yet counts as 1.
+      // ponytail: confirmPayment re-checks the exact seat count, so a 2-seat pick on the last seat is caught there.
+      const pipelineCount = pipelineSnap.docs
+        .filter((doc) => ((doc.data().cycle as number | undefined) ?? 1) === cycle)
+        .reduce((sum, doc) => sum + ((doc.data().seatCount as number | undefined) ?? packageSeats(marathonSnap.data(), doc.data().packageId)), 0)
 
       if (pipelineCount >= capacity) {
         throw new HttpsError('resource-exhausted', 'This marathon has no remaining capacity.')

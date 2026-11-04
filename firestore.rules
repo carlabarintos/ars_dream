@@ -116,7 +116,7 @@ service cloud.firestore {
           .hasOnly([
             'packageId', 'packageName', 'packagePriceAmount', 'packagePriceCurrency',
             'selectedAddOns', 'offeredPackageIds', 'offeredAt', 'cancelledBy', 'status', 'queuePosition', 'queueSortAt', 'termsAcceptedAt', 'answers',
-            'proofOfPaymentUrls', 'proofSubmittedAt', 'paymentReference', 'adminNote', 'cancelledAt',
+            'companions', 'companionsEditedBy', 'seatCount', 'proofOfPaymentUrls', 'proofSubmittedAt', 'paymentReference', 'adminNote', 'cancelledAt',
             'depositPaidAt', 'depositProofUrls', 'depositProofSubmittedAt', 'approvedPaymentReferences', 'finalInvoice', 'previousFinalInvoices',
             'finalTermsAcceptedAt', 'transferredFrom', 'transferredTo', 'transferTermsAcceptedAt', 'createdAt', 'updatedAt',
           ]);
@@ -144,7 +144,7 @@ service cloud.firestore {
             request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly([
                 'status', 'termsAcceptedAt', 'updatedAt', 'packageId', 'packageName',
-                'packagePriceAmount', 'packagePriceCurrency', 'selectedAddOns',
+                'packagePriceAmount', 'packagePriceCurrency', 'selectedAddOns', 'companions',
               ])) ||
           (resource.data.status in ['terms_accepted', 'payment_rejected'] &&
             request.resource.data.status == 'payment_submitted' &&
@@ -159,11 +159,19 @@ service cloud.firestore {
           // The passport bio page and questionnaire are due once the deposit is approved, in any later
           // active status (see BOOKING_DETAILS_STATUSES in registration-flow.ts). Submitted answers
           // are read-only: a later write may only add answers (e.g. to a question added afterwards).
+          // ponytail: `companions` (runners 2+, see RunnerDetails) isn't locked the same way — rules can't
+          // walk nested arrays; the lead owns the booking anyway. Lock it in a callable if that matters.
           (resource.data.get('depositPaidAt', null) != null &&
             resource.data.status in ['deposit_paid', 'final_invoiced', 'payment_submitted', 'payment_rejected', 'confirmed'] &&
             request.resource.data.status == resource.data.status &&
             request.resource.data.get('answers', []).hasAll(resource.data.get('answers', [])) &&
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'passportPhotoUrl', 'updatedAt'])) ||
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'passportPhotoUrl', 'companions', 'updatedAt'])) ||
+          // The lead changing runners 2+'s name/email (EditRunnersDialog) on an active booking that has a package.
+          // onRegistrationStatusChange logs the change to the booking's history as made by the registrant.
+          (resource.data.status in ['terms_accepted', 'payment_submitted', 'payment_rejected', 'deposit_paid', 'final_invoiced', 'confirmed'] &&
+            request.resource.data.status == resource.data.status &&
+            request.resource.data.companionsEditedBy == 'user' &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['companions', 'companionsEditedBy', 'updatedAt'])) ||
           // A slot transferred in (transferRegistration sets this to null): the new holder accepts the T&C themselves.
           (resource.data.get('transferTermsAcceptedAt', 'absent') == null &&
             request.resource.data.status == resource.data.status &&

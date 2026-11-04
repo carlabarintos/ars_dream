@@ -7,7 +7,7 @@ import {
   getBookingDocuments,
   getFinalInvoiceDocuments,
 } from '@/features/registrations/booking-documents'
-import { getQuestionnaires, isQuestionAnswered } from '@/features/registrations/registration-flow'
+import { getQuestionnaires, getRunners, isQuestionAnswered, runnerPrefix } from '@/features/registrations/registration-flow'
 import { cn, formatPackagePrice } from '@/lib/utils'
 import { formatTransferParty, type Marathon, type Registration, type UserProfile } from '@/types'
 
@@ -70,7 +70,7 @@ function getSteps(registration: Registration, marathon?: Marathon, profile: User
     paidBefore ||= !!paidAt
     return versionSteps
   })
-  const answerValues = Object.fromEntries((registration.answers ?? []).map((a) => [a.questionId, a.value]))
+  const runners = getRunners(registration, marathon)
   const addOns = registration.selectedAddOns?.map((addOn) => addOn.name).join(', ')
   const steps: Step[] = [
     // A slot transferred in was waitlisted by its original holder — its transfer step is spliced in below instead.
@@ -113,17 +113,23 @@ function getSteps(registration: Registration, marathon?: Marathon, profile: User
       done: !!depositPaidAt,
       document: documentFor('Deposit Receipt'),
     },
-    {
-      label: 'Passport bio page uploaded',
-      done: !!registration.passportPhotoUrl,
-      upload: registration.passportPhotoUrl ? { url: registration.passportPhotoUrl, label: 'Passport bio page' } : undefined,
-    },
-    ...getQuestionnaires(marathon).map((questionnaire) => ({
-      label: `${questionnaire.name} answered`,
-      done: questionnaire.questions
-        .filter((question) => question.required)
-        .every((question) => isQuestionAnswered(question, answerValues[question.id])),
-    })),
+    ...runners.flatMap((runner, i) => {
+      const prefix = runnerPrefix(i, runners.length, runner.name)
+      const answerValues = Object.fromEntries((runner.answers ?? []).map((a) => [a.questionId, a.value]))
+      return [
+        {
+          label: `${prefix}Passport bio page uploaded`,
+          done: !!runner.passportPhotoUrl,
+          upload: runner.passportPhotoUrl ? { url: runner.passportPhotoUrl, label: `${prefix}Passport bio page` } : undefined,
+        },
+        ...getQuestionnaires(marathon).map((questionnaire) => ({
+          label: `${prefix}${questionnaire.name} answered`,
+          done: questionnaire.questions
+            .filter((question) => question.required)
+            .every((question) => isQuestionAnswered(question, answerValues[question.id])),
+        })),
+      ]
+    }),
     ...(invoiceSteps.length > 0
       ? invoiceSteps
       : [

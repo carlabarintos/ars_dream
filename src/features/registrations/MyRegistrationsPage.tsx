@@ -33,13 +33,18 @@ import type { Registration, RegistrationStatus } from '@/types'
 import { UploadedFileThumb } from './BookingDocumentDialog'
 import { BookingTimeline } from './BookingTimeline'
 import { CancelRegistrationButton } from './CancelRegistrationButton'
+import { EditRunnersDialog } from './EditRunnersDialog'
 import { QuestionnaireLink } from './QuestionnaireLink'
 import {
   canReopenWizard,
   canReRegister,
   getLabelledPaymentProofs,
   getPendingActionStep,
+  getRunnerCount,
+  getRunners,
+  hasAllPassports,
   isPastDeposit,
+  runnerPrefix,
   getRegistrationStatusMessage,
   getRegistrationTotalAmount,
   getWizardButtonLabel,
@@ -199,6 +204,7 @@ export function MyRegistrationsPage() {
   const marathons = useMarathonsByIds(marathonIds)
   const [activeRegistrationId, setActiveRegistrationId] = useState<string | null>(null)
   const [activeQuestionnaire, setActiveQuestionnaire] = useState<string | undefined>()
+  const [runnersRegistrationId, setRunnersRegistrationId] = useState<string | null>(null)
   // Re-derived live from the subscription every render (not captured once into
   // state) so the wizard always acts on the current server-side status — a
   // frozen copy would let a status change while the dialog is open (e.g. an
@@ -206,6 +212,7 @@ export function MyRegistrationsPage() {
   const activeRegistration = activeRegistrationId
     ? (registrations.find((r) => r.id === activeRegistrationId) ?? null)
     : null
+  const runnersRegistration = registrations.find((r) => r.id === runnersRegistrationId)
 
   const sorted = registrations
     .slice()
@@ -404,7 +411,7 @@ export function MyRegistrationsPage() {
                         registration={registration}
                         marathon={marathon}
                         onAnswer={
-                          isPastDeposit(registration) && registration.passportPhotoUrl
+                          isPastDeposit(registration) && hasAllPassports(registration, marathon)
                             ? (name) => {
                                 setActiveQuestionnaire(name)
                                 setActiveRegistrationId(registration.id)
@@ -412,15 +419,23 @@ export function MyRegistrationsPage() {
                             : undefined
                         }
                       />
-                      {(registration.passportPhotoUrl || getLabelledPaymentProofs(registration).length > 0) && (
+                      {(getRunners(registration, marathon).some((r) => r.passportPhotoUrl) || getLabelledPaymentProofs(registration).length > 0) && (
                         <>
                           <div className="text-muted-foreground mt-2 flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase">
                             <PaperclipIcon className="size-3.5" />
                             Your uploads
                           </div>
                           <div className="flex flex-wrap gap-3">
-                            {registration.passportPhotoUrl && (
-                              <UploadedFileThumb url={registration.passportPhotoUrl} label="Passport bio page" className="h-24" />
+                            {getRunners(registration, marathon).map(
+                              (runner, i, all) =>
+                                runner.passportPhotoUrl && (
+                                  <UploadedFileThumb
+                                    key={runner.passportPhotoUrl}
+                                    url={runner.passportPhotoUrl}
+                                    label={`${runnerPrefix(i, all.length, runner.name)}Passport bio page`}
+                                    className="h-24"
+                                  />
+                                ),
                             )}
                             {getLabelledPaymentProofs(registration).map(({ url, label }) => (
                               <UploadedFileThumb key={url} url={url} label={`Payment proof · ${label}`} className="h-24" />
@@ -443,6 +458,13 @@ export function MyRegistrationsPage() {
                       <Link to={`/marathons/${registration.marathonId}/packages`}>Join Waitlist Again</Link>
                     </Button>
                   )}
+                  {hasChosenPackage(registration) &&
+                    getRunnerCount(registration, marathon) > 1 &&
+                    !['rejected', 'cancelled'].includes(registration.status) && (
+                      <Button variant="outline" className="w-full" onClick={() => setRunnersRegistrationId(registration.id)}>
+                        Edit Runner Details
+                      </Button>
+                    )}
                   <CancelRegistrationButton registration={registration} />
                 </CardFooter>
               </Card>
@@ -451,6 +473,14 @@ export function MyRegistrationsPage() {
         )}
       </div>
 
+      {runnersRegistration && (
+        <EditRunnersDialog
+          registration={runnersRegistration}
+          marathon={marathons[runnersRegistration.marathonId]}
+          editedBy="user"
+          onClose={() => setRunnersRegistrationId(null)}
+        />
+      )}
       {activeRegistration && (
         <RegistrationWizard
           registration={activeRegistration}

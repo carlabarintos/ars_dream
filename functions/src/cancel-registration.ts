@@ -79,7 +79,7 @@ export const cancelRegistration = onCall<CancelRegistrationInput>(
       // depositPaidAt marks a seat counted at deposit approval; plain 'confirmed' covers bookings confirmed before that step existed.
       if (registration.status === 'confirmed' || registration.depositPaidAt) {
         const marathonRef = db.collection('marathons').doc(registration.marathonId)
-        transaction.update(marathonRef, { confirmedCount: FieldValue.increment(-1) })
+        transaction.update(marathonRef, { confirmedCount: FieldValue.increment(-((registration.seatCount as number | undefined) ?? 1)) })
       }
     })
 

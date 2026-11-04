@@ -1,5 +1,5 @@
 import { formatTransferParty } from '@/types'
-import type { InvoiceLineItem, Marathon, MarathonQuestion, Registration, RegistrationStatus } from '@/types'
+import type { InvoiceLineItem, Marathon, MarathonQuestion, Registration, RegistrationStatus, RunnerDetails } from '@/types'
 
 /** Whether a package has been picked yet — waitlist entries have none until the offer is accepted. */
 export function hasChosenPackage(registration: Registration) {
@@ -11,6 +11,34 @@ export function getOfferedPackages(registration: Registration, marathon: Maratho
   const ids = registration.offeredPackageIds ?? [registration.packageId]
   return (marathon?.packages ?? []).filter((pkg) => ids.includes(pkg.id))
 }
+
+/** Runners on the chosen package (e.g. 2 for "Runner + Runner"); 1 until a package is chosen. */
+export function getRunnerCount(registration: Registration, marathon: Marathon | null | undefined) {
+  return marathon?.packages?.find((p) => p.id === registration.packageId)?.runnerCount ?? 1
+}
+
+/** Every runner's details: the lead's own fields first, then `companions`. */
+export function getRunners(registration: Registration, marathon: Marathon | null | undefined): RunnerDetails[] {
+  return Array.from({ length: getRunnerCount(registration, marathon) }, (_, i) =>
+    i === 0
+      ? { passportPhotoUrl: registration.passportPhotoUrl, answers: registration.answers }
+      : (registration.companions?.[i - 1] ?? {}),
+  )
+}
+
+export const isValidEmail = (email: string) => /^\S+@\S+\.\S+$/.test(email.trim())
+
+/** "Runner 2 (Maria Santos) · " on a multi-runner booking, '' otherwise. */
+export function runnerPrefix(index: number, runnerCount: number, name?: string) {
+  if (runnerCount <= 1) return ''
+  return name ? `Runner ${index + 1} (${name}) · ` : `Runner ${index + 1} · `
+}
+
+export function hasAllPassports(registration: Registration, marathon: Marathon | null | undefined) {
+  return getRunners(registration, marathon).every((runner) => runner.passportPhotoUrl)
+}
+
+const answerMap = (runner: RunnerDetails) => Object.fromEntries((runner.answers ?? []).map((a) => [a.questionId, a.value]))
 
 /** Whether this registration is paying its balance against the final invoice rather than its deposit. */
 export function isOnFinalInvoice(registration: Registration) {
@@ -116,7 +144,7 @@ export function getRegistrationStatusMessage(registration: Registration, maratho
         ? `Your payment proof was rejected: ${registration.adminNote} Please resubmit.`
         : 'Your payment proof was rejected. Please resubmit.'
     case 'confirmed':
-      if (!registration.passportPhotoUrl) {
+      if (!hasAllPassports(registration, marathon)) {
         return 'Payment received! Upload a photo of your passport bio page, then answer the event questionnaire (if any), to complete your booking.'
       }
       return isBookingComplete(registration, marathon)
@@ -161,19 +189,45 @@ export function areRequiredItemsAnswered(marathon: Marathon | undefined, answerV
   return items.filter((item) => item.required).every((item) => isQuestionAnswered(item, answerValues[item.id]))
 }
 
-/** The first questionnaire still missing a required answer — what the "Answer …" action names. */
-export function getNextQuestionnaire(registration: Registration, marathon: Marathon | undefined) {
-  const answerValues = Object.fromEntries((registration.answers ?? []).map((a) => [a.questionId, a.value]))
+function missingQuestionnaire(runner: RunnerDetails, marathon: Marathon | undefined) {
+  const answerValues = answerMap(runner)
   return getQuestionnaires(marathon).find((q) =>
     q.questions.some((item) => item.required && !isQuestionAnswered(item, answerValues[item.id])),
   )?.name
 }
 
-/** Passport bio page uploaded and, if the marathon defines a questionnaire, every required question answered. */
+/** The first runner still missing a passport (step 'passport') or a required answer (step 'questionnaire', optionally in one named questionnaire). 0 if none. */
+export function getNextRunner(
+  registration: Registration,
+  marathon: Marathon | undefined,
+  step: 'passport' | 'questionnaire',
+  questionnaireName?: string,
+) {
+  const index = getRunners(registration, marathon).findIndex((runner) =>
+    step === 'passport'
+      ? !runner.passportPhotoUrl
+      : questionnaireName
+        ? getQuestionnaires(marathon)
+            .find((q) => q.name === questionnaireName)
+            ?.questions.some((item) => item.required && !isQuestionAnswered(item, answerMap(runner)[item.id]))
+        : missingQuestionnaire(runner, marathon) != null,
+  )
+  return Math.max(index, 0)
+}
+
+/** The first questionnaire still missing a required answer (for any runner) — what the "Answer …" action names. */
+export function getNextQuestionnaire(registration: Registration, marathon: Marathon | undefined) {
+  for (const runner of getRunners(registration, marathon)) {
+    const name = missingQuestionnaire(runner, marathon)
+    if (name) return name
+  }
+}
+
+/** Every runner's passport bio page uploaded and, if the marathon defines a questionnaire, every required question answered. */
 export function hasSubmittedBookingDetails(registration: Registration, marathon: Marathon | undefined) {
-  if (!registration.passportPhotoUrl) return false
-  const answerValues = Object.fromEntries((registration.answers ?? []).map((a) => [a.questionId, a.value]))
-  return areRequiredItemsAnswered(marathon, answerValues)
+  return getRunners(registration, marathon).every(
+    (runner) => runner.passportPhotoUrl && areRequiredItemsAnswered(marathon, answerMap(runner)),
+  )
 }
 
 /** Whether this registration has payment confirmed and its passport/questionnaire submitted. */
@@ -250,7 +304,7 @@ export function getPendingActionStep(
   if (registration.status === 'accepted') return 'terms'
   if (registration.status === 'terms_accepted') return 'payment'
   // Passport bio page, then the questionnaire, come first once the deposit is approved — before the balance.
-  if (isPastDeposit(registration) && !registration.passportPhotoUrl) return 'passport'
+  if (isPastDeposit(registration) && !hasAllPassports(registration, marathon)) return 'passport'
   if (isPastDeposit(registration) && !hasSubmittedBookingDetails(registration, marathon)) return 'questionnaire'
   if (registration.status === 'final_invoiced') return 'final_payment'
   if (registration.status === 'payment_rejected') return isOnFinalInvoice(registration) ? 'final_payment' : 'payment'

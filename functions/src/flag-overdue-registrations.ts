@@ -5,6 +5,7 @@ import { db } from './admin.js'
 import { logBookingEvent } from './booking-event.js'
 import { OFFER_EXPIRED_COPY, getStepDueDate } from './email-template.js'
 import { APP_URL, notifyUser } from './notify-user.js'
+import { companionContacts } from './runners.js'
 import { resendApiKey } from './send-email.js'
 import { withSentry } from './sentry.js'
 
@@ -83,6 +84,7 @@ export const flagOverdueRegistrations = onSchedule(
           pushBody: copy.body,
           emailSubject: marathonTitle ? `${copy.title} — ${marathonTitle}` : copy.title,
           emailBody: marathonTitle ? `Your registration for the ${marathonTitle} tour: ${copy.body}` : copy.body,
+          runners: companionContacts(registration, marathons.get(registration.marathonId)),
         })
       }),
     )

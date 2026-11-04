@@ -69,6 +69,7 @@ interface PackageRow {
   priceAmount: string
   priceCurrency: string
   depositAmount: string
+  runnerCount: string
   description: string
   photos: PackagePhotoRow[]
   offer: PackageOfferRow | null
@@ -107,6 +108,7 @@ function toPackageRows(packages: MarathonPackage[] | undefined): PackageRow[] {
     priceAmount: pkg.priceAmount.toString(),
     priceCurrency: pkg.priceCurrency,
     depositAmount: pkg.depositAmount?.toString() ?? '',
+    runnerCount: pkg.runnerCount?.toString() ?? '',
     description: getPackageDescription(pkg),
     photos: (pkg.photoUrls ?? []).map((url) => ({ id: nextRowId++, url, file: null })),
     offer: pkg.offerImageUrl ? { url: pkg.offerImageUrl, file: null } : null,
@@ -263,6 +265,7 @@ export function MarathonFormDialog({
         priceAmount: '',
         priceCurrency: 'PHP',
         depositAmount: '',
+        runnerCount: '',
         description: '',
         photos: [],
         offer: null,
@@ -275,7 +278,7 @@ export function MarathonFormDialog({
     setPackageRows((rows) => rows.filter((row) => row.id !== packageId))
   }
 
-  function updatePackageField(packageId: number, field: 'name' | 'priceAmount' | 'priceCurrency' | 'depositAmount' | 'description', text: string) {
+  function updatePackageField(packageId: number, field: 'name' | 'priceAmount' | 'priceCurrency' | 'depositAmount' | 'runnerCount' | 'description', text: string) {
     setPackageRows((rows) =>
       rows.map((row) => (row.id === packageId ? { ...row, [field]: text } : row)),
     )
@@ -443,6 +446,7 @@ export function MarathonFormDialog({
         priceAmount: Number(row.priceAmount) || 0,
         priceCurrency: row.priceCurrency.trim() || 'PHP',
         ...(Number(row.depositAmount) > 0 ? { depositAmount: Number(row.depositAmount) } : {}),
+        ...(Number(row.runnerCount) > 1 ? { runnerCount: Math.floor(Number(row.runnerCount)) } : {}),
         description: row.description.trim(),
         photoUrls: photoUrlsByPackage[index],
         ...(offerUrlByPackage[index] ? { offerImageUrl: offerUrlByPackage[index]! } : {}),
@@ -755,7 +759,7 @@ export function MarathonFormDialog({
                     <XIcon className="size-4" />
                   </Button>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <div className="flex flex-col gap-1">
                     <Label htmlFor={`pkg-price-${pkg.id}`} className="text-muted-foreground text-xs">
                       Price
@@ -788,6 +792,19 @@ export function MarathonFormDialog({
                       placeholder="No deposit"
                       value={pkg.depositAmount}
                       onChange={(e) => updatePackageField(pkg.id, 'depositAmount', e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor={`pkg-runners-${pkg.id}`} className="text-muted-foreground text-xs">
+                      Runners
+                    </Label>
+                    <Input
+                      id={`pkg-runners-${pkg.id}`}
+                      type="number"
+                      min={1}
+                      placeholder="1"
+                      value={pkg.runnerCount}
+                      onChange={(e) => updatePackageField(pkg.id, 'runnerCount', e.target.value)}
                     />
                   </div>
                 </div>

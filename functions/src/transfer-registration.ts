@@ -19,7 +19,7 @@ const TRANSFERABLE_STATUSES = ['accepted', 'terms_accepted', 'payment_rejected',
 const REPLACEABLE_STATUSES = ['queued', 'rejected', 'cancelled']
 
 // What follows the slot: the package, offer, payments and invoices. The passport, questionnaire
-// answers and T&C acceptance stay with the original registrant — the new holder gives their own.
+// answers (and any companions' details) and T&C acceptance stay with the original registrant — the new holder gives their own.
 const SLOT_FIELDS = [
   'marathonId',
   'cycle',
@@ -28,6 +28,7 @@ const SLOT_FIELDS = [
   'packagePriceAmount',
   'packagePriceCurrency',
   'selectedAddOns',
+  'seatCount',
   'status',
   'offeredPackageIds',
   'offeredAt',

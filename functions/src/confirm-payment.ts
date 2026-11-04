@@ -4,6 +4,7 @@ import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/
 import { db } from './admin.js'
 import { logAuditEntry } from './audit-log.js'
 import { requireAdmin } from './require-admin.js'
+import { packageSeats } from './runners.js'
 import { withSentry } from './sentry.js'
 
 // The Functions emulator has no real App Check backend to attest against
@@ -63,8 +64,14 @@ export const confirmPayment = onCall<ConfirmPaymentInput>(
       if (!marathon.capacity) {
         throw new HttpsError('failed-precondition', "Set this marathon's capacity before approving deposits.")
       }
-      if (marathon.confirmedCount >= marathon.capacity) {
-        throw new HttpsError('resource-exhausted', 'This marathon has no remaining capacity.')
+      const seatCount = packageSeats(marathon, registration.packageId)
+      if (marathon.confirmedCount + seatCount > marathon.capacity) {
+        throw new HttpsError(
+          'resource-exhausted',
+          seatCount > 1
+            ? `This marathon doesn't have ${seatCount} seats left for this package.`
+            : 'This marathon has no remaining capacity.',
+        )
       }
 
       transaction.update(registrationRef, {
@@ -75,9 +82,10 @@ export const confirmPayment = onCall<ConfirmPaymentInput>(
         depositProofSubmittedAt: registration.proofSubmittedAt ?? null,
         approvedPaymentReferences: [registration.paymentReference ?? ''],
         adminNote: null,
+        seatCount,
         updatedAt: new Date(),
       })
-      transaction.update(marathonRef, { confirmedCount: FieldValue.increment(1) })
+      transaction.update(marathonRef, { confirmedCount: FieldValue.increment(seatCount) })
     })
 
     if (loggedTarget) {

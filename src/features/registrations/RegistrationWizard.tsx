@@ -36,10 +36,14 @@ import {
   getFinalInvoiceBalance,
   getOfferedPackages,
   getNextQuestionnaire,
+  getNextRunner,
   getPendingActionStep,
   getQuestionnaires,
+  getRunners,
+  runnerPrefix,
   isOnFinalInvoice,
   isQuestionAnswered,
+  isValidEmail,
 } from './registration-flow'
 import { getStepDueDate } from '../../../functions/src/email-template'
 
@@ -58,13 +62,19 @@ export function RegistrationWizard({
   const profile = useAuthStore((state) => state.profile)
   const [files, setFiles] = useState<File[]>([])
   const [passportFile, setPassportFile] = useState<File | null>(null)
-  const [answerValues, setAnswerValues] = useState<Record<string, string>>(() => {
-    const initial: Record<string, string> = {}
-    for (const answer of registration.answers ?? []) initial[answer.questionId] = answer.value
-    return initial
-  })
-  // Submitted answers are read-only (the rules only allow adding new ones).
-  const lockedAnswers = registration.answers ?? []
+  const runners = getRunners(registration, marathon)
+  // Which runner the passport/questionnaire step is for — the lead fills in every runner on a multi-runner package.
+  const [runner, setRunner] = useState(() =>
+    getPendingActionStep(registration, marathon) === 'passport'
+      ? getNextRunner(registration, marathon, 'passport')
+      : getNextRunner(registration, marathon, 'questionnaire', initialQuestionnaire),
+  )
+  const prefix = runnerPrefix(runner, runners.length, runners[runner]?.name)
+  const answersToValues = (answers: QuestionAnswer[] | undefined) =>
+    Object.fromEntries((answers ?? []).map((answer) => [answer.questionId, answer.value]))
+  const [answerValues, setAnswerValues] = useState<Record<string, string>>(() => answersToValues(runners[runner]?.answers))
+  // Submitted answers are read-only.
+  const lockedAnswers = runners[runner]?.answers ?? []
   const isLocked = (questionId: string) => lockedAnswers.some((answer) => answer.questionId === questionId)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [finalTermsAccepted, setFinalTermsAccepted] = useState(false)
@@ -76,6 +86,21 @@ export function RegistrationWizard({
     (registration.selectedAddOns ?? []).map((addOn) => addOn.addOnId),
   )
   const chosenPackage = offeredPackages.find((pkg) => pkg.id === chosenPackageId)
+  // Runners 2+ on a multi-runner package: the lead enters their name and email, which gets CC'd on the booking's emails.
+  const [companionInfo, setCompanionInfo] = useState<{ name: string; email: string }[]>(() =>
+    (registration.companions ?? []).map((c) => ({ name: c.name ?? '', email: c.email ?? '' })),
+  )
+  const companionsNeeded = Math.max((chosenPackage?.runnerCount ?? 1) - 1, 0)
+  const companionsValid = Array.from({ length: companionsNeeded }, (_, i) => companionInfo[i]).every(
+    (c) => c && c.name.trim() !== '' && isValidEmail(c.email),
+  )
+  const setCompanionField = (index: number, field: 'name' | 'email', value: string) =>
+    setCompanionInfo((rows) => {
+      const next = [...rows]
+      for (let i = 0; i <= index; i++) next[i] ??= { name: '', email: '' }
+      next[index] = { ...next[index], [field]: value }
+      return next
+    })
   // Mandatory add-ons are always included, whatever was toggled.
   const chosenAddOns = (chosenPackage?.addOns ?? []).filter(
     (addOn) => addOn.mandatory || chosenAddOnIds.includes(addOn.id),
@@ -147,7 +172,12 @@ export function RegistrationWizard({
     }
     setIsSubmitting(true)
     try {
-      await submitTermsAndConditions(registration.id, chosenPackage, chosenAddOns)
+      await submitTermsAndConditions(
+        registration.id,
+        chosenPackage,
+        chosenAddOns,
+        companionInfo.slice(0, companionsNeeded).map((c) => ({ name: c.name.trim(), email: c.email.trim() })),
+      )
       toast.success('Thanks! Next: submit your proof of payment.')
       onClose()
     } catch (error) {
@@ -190,12 +220,20 @@ export function RegistrationWizard({
     ]
     setIsSubmitting(true)
     try {
-      await submitQuestionnaireAnswers(registration.id, answers)
+      await submitQuestionnaireAnswers(registration, runner, answers)
       const answered = new Set(answers.map((answer) => answer.questionId))
       const remaining = questionnaires.filter((q) => !q.questions.some((item) => answered.has(item.id)))
+      const nextRunner = runners.findIndex(
+        (r, i) => i > runner && questionnaires.some((q) => !q.questions.some((item) => (r.answers ?? []).some((a) => a.questionId === item.id))),
+      )
       if (remaining.length > 0) {
-        toast.success(`Thanks! Next: ${remaining[0].name}.`)
+        toast.success(`Thanks! Next: ${prefix}${remaining[0].name}.`)
         setOpenQuestionnaire(null)
+      } else if (nextRunner !== -1) {
+        toast.success(`Thanks! Next: Runner ${nextRunner + 1}.`)
+        setRunner(nextRunner)
+        setAnswerValues(answersToValues(runners[nextRunner].answers))
+        setOpenQuestionnaire(questionnaires.length === 1 ? questionnaires[0].name : null)
       } else {
         toast.success(registration.status === 'confirmed' ? 'Thanks! Your booking is complete.' : 'Thanks! Your answers are in.')
         onClose()
@@ -207,11 +245,28 @@ export function RegistrationWizard({
     }
   }
 
+  // Missing if the booking moved to a multi-runner package after the offer was accepted.
+  const needsRunnerContact = runner > 0 && !(runners[runner]?.name && runners[runner]?.email)
+  const runnerContact = companionInfo[runner - 1]
+  const runnerContactValid = !needsRunnerContact || (!!runnerContact?.name.trim() && isValidEmail(runnerContact.email))
+
   async function handleSubmitPassport() {
-    if (!passportFile) return
+    if (!passportFile || !runnerContactValid) return
     setIsSubmitting(true)
     try {
-      await submitPassportPhoto(registration.id, passportFile)
+      await submitPassportPhoto(
+        registration,
+        runner,
+        passportFile,
+        needsRunnerContact ? { name: runnerContact!.name.trim(), email: runnerContact!.email.trim() } : {},
+      )
+      const nextRunner = runners.findIndex((r, i) => i > runner && !r.passportPhotoUrl)
+      if (nextRunner !== -1) {
+        toast.success(`Passport uploaded. Next: Runner ${nextRunner + 1}.`)
+        setRunner(nextRunner)
+        setPassportFile(null)
+        return
+      }
       toast.success(
         items.length
           ? 'Passport uploaded. Next: the questionnaire.'
@@ -258,9 +313,13 @@ export function RegistrationWizard({
                 : isFinal
                   ? 'Your final invoice is below. Pay the balance using the instructions, then upload your proof of payment.'
                   : step === 'passport'
-                    ? 'Your slot is locked in. Upload a clear photo of your passport bio page (the page with your photo and details).'
+                    ? runners.length > 1
+                      ? `Your slots are locked in. Upload a clear photo of Runner ${runner + 1}'s passport bio page (the page with their photo and details).`
+                      : 'Your slot is locked in. Upload a clear photo of your passport bio page (the page with your photo and details).'
                     : step === 'questionnaire'
-                      ? openQuestionnaire ?? 'Your slot is locked in. Please answer each questionnaire below.'
+                      ? openQuestionnaire
+                        ? `${prefix}${openQuestionnaire}`
+                        : `${prefix}Your slot is locked in. Please answer each questionnaire below.`
                       : ''}
           </DialogDescription>
         </DialogHeader>
@@ -283,7 +342,7 @@ export function RegistrationWizard({
                 <Link to="/terms" target="_blank" className="text-primary underline underline-offset-2">
                   Terms & Conditions
                 </Link>{' '}
-                for this booking.
+                for this booking{runners.length > 1 ? `, on behalf of all ${runners.length} runners in it` : ''}.
               </Label>
             </div>
             <DialogFooter>
@@ -350,7 +409,14 @@ export function RegistrationWizard({
                       onClick={() => setChosenPackageId(pkg.id)}
                       className="flex w-full items-start justify-between gap-3 text-left"
                     >
-                      <span className="font-semibold">{pkg.name}</span>
+                      <span className="font-semibold">
+                        {pkg.name}
+                        {(pkg.runnerCount ?? 1) > 1 && (
+                          <span className="text-muted-foreground block text-xs font-normal">
+                            For {pkg.runnerCount} runners — you'll add each runner's passport and details after the deposit
+                          </span>
+                        )}
+                      </span>
                       <span className="text-right tabular-nums">
                         <span className="font-semibold">{formatPackagePrice(pkg.priceCurrency, pkg.priceAmount)}</span>
                         {pkg.depositAmount ? (
@@ -406,12 +472,20 @@ export function RegistrationWizard({
                   )}
                 </div>
               )}
+              {Array.from({ length: companionsNeeded }, (_, i) => (
+                <CompanionFields
+                  key={i}
+                  runner={i + 1}
+                  value={companionInfo[i]}
+                  onChange={(field, value) => setCompanionField(i, field, value)}
+                />
+              ))}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button loading={isSubmitting} disabled={!chosenPackage} onClick={handleSubmitTerms}>
+              <Button loading={isSubmitting} disabled={!chosenPackage || !companionsValid} onClick={handleSubmitTerms}>
                 Accept Offer
               </Button>
             </DialogFooter>
@@ -420,9 +494,17 @@ export function RegistrationWizard({
 
         {step === 'passport' && (
           <div className="flex flex-col gap-4">
+            {needsRunnerContact && (
+              <CompanionFields
+                runner={runner}
+                value={runnerContact}
+                onChange={(field, value) => setCompanionField(runner - 1, field, value)}
+              />
+            )}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="passport">Passport bio page photo</Label>
+              <Label htmlFor="passport">{prefix}Passport bio page photo</Label>
               <Input
+                key={runner}
                 id="passport"
                 type="file"
                 accept="image/*"
@@ -437,7 +519,7 @@ export function RegistrationWizard({
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button disabled={!passportFile} loading={isSubmitting} onClick={handleSubmitPassport}>
+              <Button disabled={!passportFile || !runnerContactValid} loading={isSubmitting} onClick={handleSubmitPassport}>
                 Upload Passport
               </Button>
             </DialogFooter>
@@ -721,7 +803,7 @@ export function RegistrationWizard({
                   <Link to="/terms" target="_blank" className="text-primary underline underline-offset-2">
                     Terms & Conditions
                   </Link>
-                  .
+                  {runners.length > 1 ? ` on behalf of all ${runners.length} runners in this booking` : ''}.
                 </Label>
               </div>
             )}
@@ -746,5 +828,42 @@ export function RegistrationWizard({
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Name + email for runner 2+ (0-based `runner`) — entered by the lead, or corrected by an admin (EditRunnersDialog). */
+export function CompanionFields({
+  runner,
+  value,
+  onChange,
+  hint = "They'll be copied on this booking's emails (invoices, T&C and passport reminders). You'll upload their passport after the deposit.",
+}: {
+  runner: number
+  value: { name: string; email: string } | undefined
+  onChange: (field: 'name' | 'email', value: string) => void
+  hint?: string | null
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-border p-3">
+      <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Runner {runner + 1}</p>
+      {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Input
+          aria-label={`Runner ${runner + 1} full name`}
+          placeholder="Full name (as on passport)"
+          value={value?.name ?? ''}
+          onChange={(e) => onChange('name', e.target.value)}
+          maxLength={120}
+        />
+        <Input
+          aria-label={`Runner ${runner + 1} email`}
+          type="email"
+          placeholder="Email"
+          value={value?.email ?? ''}
+          onChange={(e) => onChange('email', e.target.value)}
+          maxLength={200}
+        />
+      </div>
+    </div>
   )
 }

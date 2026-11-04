@@ -5,6 +5,7 @@ import { logBookingEvent } from './booking-event.js'
 import { APP_URL } from './email-template.js'
 import { notifyUser } from './notify-user.js'
 import { requireAdmin } from './require-admin.js'
+import { companionContacts } from './runners.js'
 import { resendApiKey } from './send-email.js'
 import { withSentry } from './sentry.js'
 
@@ -32,7 +33,8 @@ export const sendReminder = onCall<SendReminderInput>(
       throw new HttpsError('not-found', 'Registration not found.')
     }
     const registration = registrationSnap.data()!
-    const marathonTitle: string | undefined = (await db.collection('marathons').doc(registration.marathonId).get()).data()?.title
+    const marathon = (await db.collection('marathons').doc(registration.marathonId).get()).data()
+    const marathonTitle: string | undefined = marathon?.title
 
     const title = 'Reminder: action needed on your booking'
     await notifyUser({
@@ -43,6 +45,7 @@ export const sendReminder = onCall<SendReminderInput>(
       emailBody: marathonTitle ? `Your ${marathonTitle} tour booking: ${text}` : text,
       ctaLabel: 'Complete my booking',
       ctaUrl: `${APP_URL}/my-registrations`,
+      runners: companionContacts(registration, marathon),
     })
     await logBookingEvent(registrationId, registration, `Reminder sent: ${text}`, marathonTitle)
     return { sent: true }

@@ -1,7 +1,8 @@
 import { FieldValue } from 'firebase-admin/firestore'
 
 import { db, messaging } from './admin.js'
-import { APP_URL, renderEmailHtml } from './email-template.js'
+import { APP_URL, renderEmailHtml, runnerCcNoteHtml } from './email-template.js'
+import type { RunnerContact } from './runners.js'
 import { sendEmail } from './send-email.js'
 
 export { APP_URL }
@@ -20,7 +21,8 @@ export async function notifyUser({
   ctaLabel = 'Open ARS Dream',
   ctaUrl = APP_URL,
   emailHtml,
-  cc,
+  cc = [],
+  runners = [],
 }: {
   userId: string
   pushTitle: string
@@ -32,6 +34,8 @@ export async function notifyUser({
   /** Fully rendered email, overriding the default title/body/CTA layout (e.g. the acceptance email). */
   emailHtml?: string
   cc?: string[]
+  /** Runners 2+ on a multi-runner booking: CC'd, with a note on top saying the account holder completes it for them. */
+  runners?: RunnerContact[]
 }): Promise<void> {
   const userDoc = await db.collection('users').doc(userId).get()
 
@@ -54,11 +58,15 @@ export async function notifyUser({
 
   const email: string | undefined = userDoc.data()?.email
   if (email) {
+    const data = userDoc.data()
+    const leadName =
+      [data?.firstName, data?.lastName].filter(Boolean).join(' ').trim() || data?.displayName?.trim() || 'The account holder'
+    const html = emailHtml ?? renderEmailHtml({ title: pushTitle, body: emailBody, ctaLabel, ctaUrl })
     await sendEmail({
       to: email,
-      cc,
+      cc: [...cc, ...runners.map((r) => r.email)],
       subject: emailSubject,
-      html: emailHtml ?? renderEmailHtml({ title: pushTitle, body: emailBody, ctaLabel, ctaUrl }),
+      html: runners.length ? runnerCcNoteHtml(leadName, runners) + html : html,
     })
   }
 }

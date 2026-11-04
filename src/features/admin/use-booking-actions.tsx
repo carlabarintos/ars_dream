@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName } from '@/features/auth/use-user-profiles'
 import { BookingChatDialog } from '@/features/messages/BookingChatDialog'
+import { EditRunnersDialog } from '@/features/registrations/EditRunnersDialog'
 import { cancelRegistration, decideQueueRegistration, sendReminder } from '@/features/registrations/api'
 import {
   getPendingActionReminder,
   getPendingActionStep,
+  getRunnerCount,
   hasChosenPackage,
   isOverdue,
 } from '@/features/registrations/registration-flow'
@@ -42,6 +44,7 @@ export function useBookingActions(
   const [detailRegistrationId, setDetailRegistrationId] = useState<string | null>(null)
   const [extendRegistrationId, setExtendRegistrationId] = useState<string | null>(null)
   const [transferRegistrationId, setTransferRegistrationId] = useState<string | null>(null)
+  const [runnersRegistrationId, setRunnersRegistrationId] = useState<string | null>(null)
   const find = (id: string | null) => registrations.find((r) => r.id === id)
   const offerRegistration = registrations.find((r) => r.id === offerRegistrationId && r.status === 'queued') ?? null
   const chatRegistration = find(chatRegistrationId)
@@ -49,6 +52,7 @@ export function useBookingActions(
   const packageRegistration = find(packageRegistrationId)
   const paymentsRegistration = find(paymentsRegistrationId)
   const detailRegistration = find(detailRegistrationId)
+  const runnersRegistration = find(runnersRegistrationId)
   // Closes itself once transferred (the booking turns 'cancelled').
   const transferRegistration = registrations.find(
     (r) => r.id === transferRegistrationId && TRANSFERABLE_STATUSES.includes(r.status),
@@ -127,7 +131,8 @@ export function useBookingActions(
                 : 'Final Invoice'}
           </Button>
         )}
-        {hasChosenPackage(registration) && !['rejected', 'cancelled'].includes(registration.status) && (
+        {(registration.status === 'accepted' ||
+          (hasChosenPackage(registration) && !['rejected', 'cancelled'].includes(registration.status))) && (
           <Button
             variant="outline"
             title={registration.packageName}
@@ -136,6 +141,12 @@ export function useBookingActions(
             Change Package
           </Button>
         )}
+        {getRunnerCount(registration, getMarathon(registration)) > 1 &&
+          !['rejected', 'cancelled'].includes(registration.status) && (
+            <Button variant="outline" onClick={() => setRunnersRegistrationId(registration.id)}>
+              Edit Runner Details
+            </Button>
+          )}
         {registration.status === 'payment_submitted' && (
           <Button variant="outline" onClick={() => setPaymentsRegistrationId(registration.id)}>
             Review Payment
@@ -219,6 +230,14 @@ export function useBookingActions(
           registration={packageRegistration}
           marathon={getMarathon(packageRegistration) ?? null}
           onClose={() => setPackageRegistrationId(null)}
+        />
+      )}
+      {runnersRegistration && (
+        <EditRunnersDialog
+          registration={runnersRegistration}
+          marathon={getMarathon(runnersRegistration)}
+          editedBy="admin"
+          onClose={() => setRunnersRegistrationId(null)}
         />
       )}
       {paymentsRegistration && (

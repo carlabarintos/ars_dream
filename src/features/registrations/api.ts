@@ -22,6 +22,7 @@ import type {
   MarathonPackage,
   MarathonPackageAddOn,
   QuestionAnswer,
+  RunnerDetails,
   Registration,
   SelectedAddOn,
 } from '@/types'
@@ -131,6 +132,9 @@ export async function joinQueue(userId: string, marathonId: string, cycle: numbe
       queueSortAt: deleteField(),
       termsAcceptedAt: null,
       answers: deleteField(),
+      companions: deleteField(),
+      companionsEditedBy: deleteField(),
+      seatCount: deleteField(),
       proofOfPaymentUrls: [],
       proofSubmittedAt: null,
       adminNote: null,
@@ -179,8 +183,11 @@ export async function submitTermsAndConditions(
   registrationId: string,
   selectedPackage: MarathonPackage,
   selectedAddOns: MarathonPackageAddOn[],
+  /** Runners 2+ on a multi-runner package (name + email). */
+  companions: RunnerDetails[] = [],
 ) {
   await updateDoc(doc(db, 'registrations', registrationId), {
+    ...(companions.length ? { companions } : {}),
     packageId: selectedPackage.id,
     packageName: selectedPackage.name,
     packagePriceAmount: selectedPackage.priceAmount,
@@ -200,17 +207,50 @@ export async function acceptTransferTerms(registrationId: string) {
   })
 }
 
-/** The questionnaire, answered right after the passport once the deposit is approved. */
-export async function submitQuestionnaireAnswers(registrationId: string, answers: QuestionAnswer[]) {
-  await updateDoc(doc(db, 'registrations', registrationId), { answers, updatedAt: serverTimestamp() })
+/** Runner 0 is the lead (the registration's own fields); runners 1+ are written into `companions`. */
+function runnerUpdate(registration: Registration, runner: number, details: RunnerDetails) {
+  if (runner === 0) return details
+  const companions = [...(registration.companions ?? [])]
+  for (let i = 0; i < runner - 1; i++) companions[i] ??= {}
+  companions[runner - 1] = { ...companions[runner - 1], ...details }
+  return { companions }
 }
 
-/** Passport bio page photo, required once the deposit is approved. Re-uploading replaces it. */
-export async function submitPassportPhoto(registrationId: string, file: File) {
-  const storageRef = ref(storage, `passports/${registrationId}/${Date.now()}-${file.name}`)
+/** Runners 2+'s name/email changed by an admin or the lead (EditRunnersDialog); their passports and answers are kept. */
+export async function updateCompanionContacts(
+  registration: Registration,
+  contacts: Pick<RunnerDetails, 'name' | 'email'>[],
+  editedBy: 'user' | 'admin',
+) {
+  const companions = contacts.map((contact, i) => ({ ...registration.companions?.[i], ...contact }))
+  await updateDoc(doc(db, 'registrations', registration.id), {
+    companions,
+    // Read by onRegistrationStatusChange to say who changed them in the booking's history.
+    companionsEditedBy: editedBy,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/** The questionnaire, answered right after the passport once the deposit is approved — once per runner. */
+export async function submitQuestionnaireAnswers(registration: Registration, runner: number, answers: QuestionAnswer[]) {
+  await updateDoc(doc(db, 'registrations', registration.id), {
+    ...runnerUpdate(registration, runner, { answers }),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/** A runner's passport bio page photo, required once the deposit is approved. Re-uploading replaces it. */
+export async function submitPassportPhoto(
+  registration: Registration,
+  runner: number,
+  file: File,
+  /** Runner 2+'s name/email, when missing (see RunnerDetails). */
+  contact: Pick<RunnerDetails, 'name' | 'email'> = {},
+) {
+  const storageRef = ref(storage, `passports/${registration.id}/${Date.now()}-${file.name}`)
   await uploadBytes(storageRef, file)
-  await updateDoc(doc(db, 'registrations', registrationId), {
-    passportPhotoUrl: await getDownloadURL(storageRef),
+  await updateDoc(doc(db, 'registrations', registration.id), {
+    ...runnerUpdate(registration, runner, { ...contact, passportPhotoUrl: await getDownloadURL(storageRef) }),
     updatedAt: serverTimestamp(),
   })
 }
@@ -283,6 +323,11 @@ export async function changeRegistrationPackage(
       : {}),
     updatedAt: serverTimestamp(),
   })
+}
+
+/** Admin-only: change which packages an open offer (`accepted`) lets the registrant pick from. */
+export async function changeOfferedPackages(registrationId: string, offeredPackageIds: string[]) {
+  await updateDoc(doc(db, 'registrations', registrationId), { offeredPackageIds, updatedAt: serverTimestamp() })
 }
 
 /** Admin-only (plain update, allowed by the admin rule): issue or re-issue the final invoice. No capacity check needed — the seat was already counted at deposit. */

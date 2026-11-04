@@ -59,6 +59,8 @@ export interface MarathonPackage {
   offerImageUrl?: string
   /** Optional toggleable extras a registrant can add on top of this package, e.g. "Add Companion". Absent/empty means no add-ons are offered. */
   addOns?: MarathonPackageAddOn[]
+  /** Runners booked under this package, e.g. 2 for "Runner + Runner" — each needs a passport and questionnaire, and each takes a seat. Absent means 1. */
+  runnerCount?: number
 }
 
 export type QuestionType = 'text' | 'bool' | 'int' | 'dropdown'
@@ -218,6 +220,15 @@ export function formatTransferParty(party: Pick<RegistrationTransfer, 'name' | '
   return party.email && party.email !== party.name ? `${party.name} (${party.email})` : party.name
 }
 
+/** One runner's booking details. */
+export interface RunnerDetails {
+  /** Runners 2+ only (the lead's come from their profile): entered by the lead; the email is CC'd on the booking's emails. */
+  name?: string
+  email?: string
+  passportPhotoUrl?: string
+  answers?: QuestionAnswer[]
+}
+
 export interface Registration {
   id: string
   /** This slot (with its payments and invoices) was transferred in from another registrant's booking. */
@@ -248,6 +259,12 @@ export interface Registration {
   answers?: QuestionAnswer[]
   /** Photo of the passport bio page, uploaded by the registrant once the deposit is approved — required before the booking counts as complete. */
   passportPhotoUrl?: string
+  /** Runners 2+ on a multi-runner package (`MarathonPackage.runnerCount`), filled in by the lead registrant, who owns the booking and accepts the T&C for everyone. Index 0 is runner 2. */
+  companions?: RunnerDetails[]
+  /** Who last changed a companion's name/email (EditRunnersDialog), for the booking-history entry. */
+  companionsEditedBy?: 'user' | 'admin'
+  /** Seats this booking holds in `Marathon.confirmedCount` — server-set at deposit approval (and on a package change after it). Absent means 1. */
+  seatCount?: number
   proofOfPaymentUrls: string[]
   proofSubmittedAt: Timestamp | null
   /** Branch visited (over-the-counter) or online transaction reference number, entered with the latest proof. */

@@ -53,11 +53,22 @@ async function getTargetUserDocs(
     const userIds = [
       ...new Set(
         registrationsSnapshot.docs
-          .filter(
-            (doc) =>
-              !!doc.data().passportPhotoUrl &&
-              hasCompletedQuestionnaire(questions, doc.data().answers as QuestionAnswer[] | undefined),
-          )
+          .filter((doc) => {
+            const r = doc.data()
+            // Every runner on a multi-runner package (lead's own fields + companions) must be complete.
+            const runnerCount =
+              ((marathonDoc.data()?.packages ?? []) as { id: string; runnerCount?: number }[]).find((p) => p.id === r.packageId)
+                ?.runnerCount ?? 1
+            const runners = [r, ...((r.companions ?? []) as FirebaseFirestore.DocumentData[])].slice(0, runnerCount)
+            return (
+              runners.length === runnerCount &&
+              runners.every(
+                (runner) =>
+                  !!runner.passportPhotoUrl &&
+                  hasCompletedQuestionnaire(questions, runner.answers as QuestionAnswer[] | undefined),
+              )
+            )
+          })
           .map((doc) => doc.data().userId as string),
       ),
     ]
