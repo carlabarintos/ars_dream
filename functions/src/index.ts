@@ -20,4 +20,3 @@ export { submitReview } from './submit-review.js'
 // Kept exported (unlike a plain removal) so the code stays intact, but
 // deploy.yml deliberately excludes this one from its --only functions:... list
 // for now — see the comment there for why, and how to bring it back.
-export { scheduledFirestoreBackup } from './scheduled-backup.js'

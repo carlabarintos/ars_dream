@@ -14,7 +14,7 @@ dist-ssr
 .env
 .env.*
 !.env.example
-# Not secret — just the backup bucket name (see functions/scheduled-backup.ts)
+# Not secret — plain function env vars (e.g. SENTRY_DSN, see functions/src/sentry.ts)
 # — committed so firebase-tools loads it into the deployed function's env.
 !functions/.env.arsdream-1f00f
 

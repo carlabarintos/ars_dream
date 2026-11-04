@@ -6,8 +6,7 @@ let sentryPromise: Promise<typeof import('@sentry/node')> | null = null
 /**
  * Sentry DSNs are meant to be public (the frontend already ships one in its
  * bundle), so this is a plain runtime env var rather than a Secret Manager
- * binding — set via a committed functions/.env.<project-id> file, same
- * pattern as FIRESTORE_BACKUP_BUCKET (see scheduled-backup.ts). A Secret
+ * binding — set via a committed functions/.env.<project-id> file. A Secret
  * Manager binding would also require the secret to already exist with a
  * non-empty value before every deploy, which defeats staying optional.
  *
