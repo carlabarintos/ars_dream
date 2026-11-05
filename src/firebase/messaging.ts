@@ -46,13 +46,29 @@ export async function registerPushNotifications(uid: string) {
       duration: 15_000,
       action: {
         label: 'Turn on',
-        onClick: () => {
-          void Notification.requestPermission().then((permission) => {
-            if (permission === 'granted') return subscribe(uid)
-          })
-        },
+        onClick: () => void enablePushNotifications(uid),
       },
     })
+  }
+}
+
+export type PushStatus = 'on' | 'off' | 'blocked' | 'unsupported'
+
+export async function getPushStatus(): Promise<PushStatus> {
+  if (!(await isSupported()) || !import.meta.env.VITE_FIREBASE_VAPID_KEY) return 'unsupported'
+  if (Notification.permission === 'denied') return 'blocked'
+  return currentToken ? 'on' : 'off'
+}
+
+/** Must run straight from a click: Safari ignores the permission request otherwise. */
+export async function enablePushNotifications(uid: string) {
+  if ((await Notification.requestPermission()) !== 'granted') return
+  try {
+    await subscribe(uid)
+    toast.success('Notifications are on for this device.')
+  } catch (error) {
+    console.error('Push subscribe failed', error)
+    toast.error("Couldn't turn on notifications on this device. Please try again.")
   }
 }
 

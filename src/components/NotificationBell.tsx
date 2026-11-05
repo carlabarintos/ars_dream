@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAuthStore } from '@/features/auth/auth-store'
+import { enablePushNotifications, getPushStatus, type PushStatus } from '@/firebase/messaging'
 import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
 import { useMarathonsByIds } from '@/features/marathons/use-marathons'
 import { useAllPersonalThreads, usePersonalThread } from '@/features/messages/use-messages'
@@ -19,11 +20,19 @@ import { RegistrationWizard } from '@/features/registrations/RegistrationWizard'
 import { getPendingActionLabel, getPendingActionStep } from '@/features/registrations/registration-flow'
 import { useUserRegistrations } from '@/features/registrations/use-registrations'
 
+const PUSH_STATUS_TEXT: Record<PushStatus, string> = {
+  on: 'Notifications are on for this device.',
+  off: 'Notifications are off for this device.',
+  blocked: 'Notifications are blocked. Allow them for this site in your browser or device settings.',
+  unsupported: "This browser can't show notifications. On iPhone or iPad, add the app to your Home Screen first.",
+}
+
 export function NotificationBell() {
   const uid = useAuthStore((state) => state.firebaseUser?.uid)
   const isAdmin = useAuthStore((state) => state.profile?.role === 'admin')
   const { registrations } = useUserRegistrations(uid)
   const [activeRegistrationId, setActiveRegistrationId] = useState<string | null>(null)
+  const [pushStatus, setPushStatus] = useState<PushStatus | null>(null)
   // Re-derived live from the subscription every render (not captured once
   // into state) so the wizard always acts on the current server-side status —
   // a frozen copy would let a status change while the dialog is open (e.g.
@@ -48,7 +57,7 @@ export function NotificationBell() {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={(open) => open && void getPushStatus().then(setPushStatus)}>
         <DropdownMenuTrigger asChild>
           <button className="hover:bg-secondary relative rounded-full p-2" aria-label="Notifications">
             <BellIcon className="size-5" />
@@ -127,6 +136,12 @@ export function NotificationBell() {
               {isAdmin ? 'View all messages' : 'View all registrations'}
             </Link>
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {pushStatus === 'off' && uid ? (
+            <DropdownMenuItem onSelect={() => void enablePushNotifications(uid)}>Turn on notifications</DropdownMenuItem>
+          ) : (
+            pushStatus && <p className="text-muted-foreground px-2 py-1.5 text-xs">{PUSH_STATUS_TEXT[pushStatus]}</p>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
