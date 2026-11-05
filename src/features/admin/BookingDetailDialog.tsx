@@ -1,7 +1,9 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatUserName } from '@/features/auth/use-user-profiles'
+import { subscribeToInternalNotes } from '@/features/registrations/api'
 import { BookingTimeline } from '@/features/registrations/BookingTimeline'
 import { QuestionnaireLink } from '@/features/registrations/QuestionnaireLink'
 import { UploadedFileThumb } from '@/features/registrations/BookingDocumentDialog'
@@ -13,7 +15,7 @@ import {
 } from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { formatPackagePrice } from '@/lib/utils'
-import type { Marathon, Registration, UserProfile } from '@/types'
+import type { InternalNote, Marathon, Registration, UserProfile } from '@/types'
 
 import { InternalNotes } from './InternalNotes'
 import { ApprovedReferences } from './PaymentProofsDialog'
@@ -34,6 +36,9 @@ export function BookingDetailDialog({
 }) {
   const { latest } = getPaymentProofs(registration)
   const proofs = getLabelledPaymentProofs(registration)
+  const [notes, setNotes] = useState<InternalNote[]>([])
+
+  useEffect(() => subscribeToInternalNotes(registration.id, setNotes), [registration.id])
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -58,53 +63,62 @@ export function BookingDetailDialog({
         </DialogHeader>
 
         <div className="grid gap-6 md:grid-cols-[1fr_16rem]">
-          <div className="flex flex-col gap-6">
-            <section className="flex flex-col gap-3">
-              <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">History</h3>
-              {profile && <BookingTimeline registration={registration} marathon={marathon} profile={profile} />}
-              <QuestionnaireLink registration={registration} marathon={marathon} />
-            </section>
-
-            {registration.status === 'confirmed' && (
+          <Tabs defaultValue="details" className="min-w-0">
+            <TabsList>
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="notes">Internal notes{notes.length > 0 && ` (${notes.length})`}</TabsTrigger>
+            </TabsList>
+            {/* data-[state=inactive]:hidden: the flex class would otherwise beat the hidden attribute and leave a gap. */}
+            <TabsContent value="details" className="flex flex-col gap-6 data-[state=inactive]:hidden">
               <section className="flex flex-col gap-3">
-                <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Passport bio page</h3>
-                <div className="flex flex-wrap gap-3">
-                  {getRunners(registration, marathon).map((runner, i, all) =>
-                    runner.passportPhotoUrl ? (
-                      <UploadedFileThumb
-                        key={i}
-                        url={runner.passportPhotoUrl}
-                        label={`${runnerPrefix(i, all.length, runner.name)}Passport bio page`}
-                        className="h-48"
-                      />
-                    ) : (
-                      <p key={i} className="text-muted-foreground text-sm">
-                        {runnerPrefix(i, all.length, runner.name)}Not uploaded yet.
-                      </p>
-                    ),
+                <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">History</h3>
+                {profile && <BookingTimeline registration={registration} marathon={marathon} profile={profile} />}
+                <QuestionnaireLink registration={registration} marathon={marathon} />
+              </section>
+
+              {registration.status === 'confirmed' && (
+                <section className="flex flex-col gap-3">
+                  <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Passport bio page</h3>
+                  <div className="flex flex-wrap gap-3">
+                    {getRunners(registration, marathon).map((runner, i, all) =>
+                      runner.passportPhotoUrl ? (
+                        <UploadedFileThumb
+                          key={i}
+                          url={runner.passportPhotoUrl}
+                          label={`${runnerPrefix(i, all.length, runner.name)}Passport bio page`}
+                          className="h-48"
+                        />
+                      ) : (
+                        <p key={i} className="text-muted-foreground text-sm">
+                          {runnerPrefix(i, all.length, runner.name)}Not uploaded yet.
+                        </p>
+                      ),
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {proofs.length > 0 && (
+                <section className="flex flex-col gap-3">
+                  <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Payment proofs</h3>
+                  <ApprovedReferences registration={registration} />
+                  {registration.paymentReference && latest.length > 0 && (
+                    <p className="text-sm">
+                      <span className="font-semibold">Branch / Ref. no.</span> · {registration.paymentReference}
+                    </p>
                   )}
-                </div>
-              </section>
-            )}
-
-            {proofs.length > 0 && (
-              <section className="flex flex-col gap-3">
-                <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Payment proofs</h3>
-                <ApprovedReferences registration={registration} />
-                {registration.paymentReference && latest.length > 0 && (
-                  <p className="text-sm">
-                    <span className="font-semibold">Branch / Ref. no.</span> · {registration.paymentReference}
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-3">
-                  {proofs.map(({ url, label }) => (
-                    <UploadedFileThumb key={url} url={url} label={label} className="h-36" />
-                  ))}
-                </div>
-              </section>
-            )}
-
-          </div>
+                  <div className="flex flex-wrap gap-3">
+                    {proofs.map(({ url, label }) => (
+                      <UploadedFileThumb key={url} url={url} label={label} className="h-36" />
+                    ))}
+                  </div>
+                </section>
+              )}
+            </TabsContent>
+            <TabsContent value="notes">
+              <InternalNotes registrationId={registration.id} notes={notes} />
+            </TabsContent>
+          </Tabs>
 
           <aside className="flex flex-col gap-3 md:border-l md:pl-6">
             <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Booking</h3>
@@ -133,7 +147,6 @@ export function BookingDetailDialog({
             )}
             <h3 className="text-muted-foreground mt-2 text-xs font-semibold tracking-wide uppercase">Actions</h3>
             <div className="flex flex-col gap-2 [&>button]:w-full">{actions}</div>
-            <InternalNotes registrationId={registration.id} />
           </aside>
         </div>
       </DialogContent>

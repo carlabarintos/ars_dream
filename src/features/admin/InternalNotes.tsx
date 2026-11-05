@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -7,17 +7,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName } from '@/features/auth/use-user-profiles'
 import { formatMessageTime } from '@/features/messages/ThreadView'
-import { addInternalNote, deleteInternalNote, subscribeToInternalNotes } from '@/features/registrations/api'
+import { addInternalNote, deleteInternalNote } from '@/features/registrations/api'
 import type { InternalNote } from '@/types'
 
 /** Staff-only notes on a booking. They live in a subcollection because the registrant can read the registration doc itself. */
-export function InternalNotes({ registrationId }: { registrationId: string }) {
+export function InternalNotes({ registrationId, notes }: { registrationId: string; notes: InternalNote[] }) {
   const profile = useAuthStore((state) => state.profile)
-  const [notes, setNotes] = useState<InternalNote[]>([])
   const [text, setText] = useState('')
   const [isSaving, setIsSaving] = useState(false)
-
-  useEffect(() => subscribeToInternalNotes(registrationId, setNotes), [registrationId])
 
   async function handleAdd(event: FormEvent) {
     event.preventDefault()
@@ -44,7 +41,6 @@ export function InternalNotes({ registrationId }: { registrationId: string }) {
 
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-muted-foreground mt-2 text-xs font-semibold tracking-wide uppercase">Internal notes</h3>
       <p className="text-muted-foreground text-xs">Only admins can see these.</p>
       <form onSubmit={handleAdd} className="flex flex-col gap-2">
         <Textarea
