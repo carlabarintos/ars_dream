@@ -5,6 +5,8 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
+export const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent)
+
 function getIsStandalone() {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||

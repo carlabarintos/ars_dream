@@ -6,6 +6,7 @@ import { BottomNav } from '@/components/BottomNav'
 import { InstallAppButton } from '@/components/InstallAppButton'
 import { LogoBadge } from '@/components/LogoBadge'
 import { NotificationBell } from '@/components/NotificationBell'
+import { NotificationPrompt } from '@/components/NotificationPrompt'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -86,6 +87,7 @@ export function Layout({ children }: { children: ReactNode }) {
           )}
         </div>
       </header>
+      <NotificationPrompt />
       <main className={cn('flex-1', firebaseUser && 'pb-16')}>{children}</main>
       <footer
         className={cn(

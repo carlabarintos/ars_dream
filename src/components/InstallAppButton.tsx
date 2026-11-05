@@ -3,13 +3,13 @@ import { DownloadIcon, Share2Icon, SquarePlusIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { useInstallPromptStore } from '@/lib/install-prompt-store'
+import { isIOS, useInstallPromptStore } from '@/lib/install-prompt-store'
 
 const userAgent = window.navigator.userAgent
-const isIOS = /iphone|ipad|ipod/i.test(userAgent)
 const isIOSSafari = isIOS && /safari/i.test(userAgent) && !/crios|fxios|edgios/i.test(userAgent)
 
-export function InstallAppButton() {
+/** Icon-only unless given a label. */
+export function InstallAppButton({ label }: { label?: string }) {
   const deferredEvent = useInstallPromptStore((state) => state.deferredEvent)
   const isInstalled = useInstallPromptStore((state) => state.isInstalled)
   const setDeferredEvent = useInstallPromptStore((state) => state.setDeferredEvent)
@@ -29,9 +29,15 @@ export function InstallAppButton() {
 
   return (
     <>
-      <Button variant="ghost" size="icon" onClick={handleClick} aria-label="Install app">
-        <DownloadIcon />
-      </Button>
+      {label ? (
+        <Button size="sm" onClick={handleClick}>
+          {label}
+        </Button>
+      ) : (
+        <Button variant="ghost" size="icon" onClick={handleClick} aria-label="Install app">
+          <DownloadIcon />
+        </Button>
+      )}
 
       <Dialog open={showIOSHelp} onOpenChange={setShowIOSHelp}>
         <DialogContent>

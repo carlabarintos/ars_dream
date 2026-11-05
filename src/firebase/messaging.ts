@@ -1,8 +1,15 @@
 import { getMessaging, getToken, isSupported, onMessage } from 'firebase/messaging'
 import { arrayRemove, arrayUnion, doc, updateDoc } from 'firebase/firestore'
 import { toast } from 'sonner'
+import { create } from 'zustand'
 
 import { app, db } from './config'
+
+export type PushStatus = 'on' | 'off' | 'blocked' | 'unsupported'
+
+/** This device's state; null until checked and after sign-out. */
+export const usePushStatus = create<{ status: PushStatus | null }>(() => ({ status: null }))
+const setStatus = (status: PushStatus | null) => usePushStatus.setState({ status })
 
 let setUpFor: string | null = null
 let currentToken: string | null = null
@@ -30,44 +37,36 @@ async function subscribe(uid: string) {
 }
 
 /**
- * Runs on every profile snapshot, so it only acts once per account. Safari (Mac, iPhone) ignores
- * Notification.requestPermission() outside a click, hence asking through the toast's button.
+ * Runs on every profile snapshot, so it only acts once per account. Never asks for permission
+ * itself: Safari (Mac, iPhone) ignores that outside a click, hence NotificationPrompt's button.
  */
 export async function registerPushNotifications(uid: string) {
   if (setUpFor === uid) return
   setUpFor = uid
-  if (!(await isSupported())) return
-  if (!import.meta.env.VITE_FIREBASE_VAPID_KEY) return
-
-  if (Notification.permission === 'granted') {
+  if (!(await isSupported()) || !import.meta.env.VITE_FIREBASE_VAPID_KEY) return setStatus('unsupported')
+  if (Notification.permission === 'denied') return setStatus('blocked')
+  if (Notification.permission === 'default') return setStatus('off')
+  try {
     await subscribe(uid)
-  } else if (Notification.permission === 'default') {
-    toast('Get notified about your bookings and messages on this device?', {
-      duration: 15_000,
-      action: {
-        label: 'Turn on',
-        onClick: () => void enablePushNotifications(uid),
-      },
-    })
+    setStatus('on')
+  } catch (error) {
+    console.error('Push subscribe failed', error)
+    setStatus('off')
   }
-}
-
-export type PushStatus = 'on' | 'off' | 'blocked' | 'unsupported'
-
-export async function getPushStatus(): Promise<PushStatus> {
-  if (!(await isSupported()) || !import.meta.env.VITE_FIREBASE_VAPID_KEY) return 'unsupported'
-  if (Notification.permission === 'denied') return 'blocked'
-  return currentToken ? 'on' : 'off'
 }
 
 /** Must run straight from a click: Safari ignores the permission request otherwise. */
 export async function enablePushNotifications(uid: string) {
-  if ((await Notification.requestPermission()) !== 'granted') return
+  const permission = await Notification.requestPermission()
+  if (permission === 'denied') setStatus('blocked')
+  if (permission !== 'granted') return
   try {
     await subscribe(uid)
+    setStatus('on')
     toast.success('Notifications are on for this device.')
   } catch (error) {
     console.error('Push subscribe failed', error)
+    setStatus('off')
     toast.error("Couldn't turn on notifications on this device. Please try again.")
   }
 }
@@ -76,6 +75,7 @@ export async function enablePushNotifications(uid: string) {
 export async function unregisterPushNotifications(uid: string) {
   stopForegroundToasts?.()
   setUpFor = null
+  setStatus(null)
   if (currentToken) {
     await updateDoc(doc(db, 'users', uid), { fcmTokens: arrayRemove(currentToken) }).catch(() => {})
     currentToken = null

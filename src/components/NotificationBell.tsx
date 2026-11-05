@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAuthStore } from '@/features/auth/auth-store'
-import { enablePushNotifications, getPushStatus, type PushStatus } from '@/firebase/messaging'
+import { enablePushNotifications, usePushStatus, type PushStatus } from '@/firebase/messaging'
 import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
 import { useMarathonsByIds } from '@/features/marathons/use-marathons'
 import { useAllPersonalThreads, usePersonalThread } from '@/features/messages/use-messages'
@@ -32,7 +32,7 @@ export function NotificationBell() {
   const isAdmin = useAuthStore((state) => state.profile?.role === 'admin')
   const { registrations } = useUserRegistrations(uid)
   const [activeRegistrationId, setActiveRegistrationId] = useState<string | null>(null)
-  const [pushStatus, setPushStatus] = useState<PushStatus | null>(null)
+  const pushStatus = usePushStatus((state) => state.status)
   // Re-derived live from the subscription every render (not captured once
   // into state) so the wizard always acts on the current server-side status —
   // a frozen copy would let a status change while the dialog is open (e.g.
@@ -57,7 +57,7 @@ export function NotificationBell() {
 
   return (
     <>
-      <DropdownMenu onOpenChange={(open) => open && void getPushStatus().then(setPushStatus)}>
+      <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="hover:bg-secondary relative rounded-full p-2" aria-label="Notifications">
             <BellIcon className="size-5" />
