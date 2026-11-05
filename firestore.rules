@@ -182,6 +182,13 @@ service cloud.firestore {
       allow update: if isAdmin();
     }
 
+    // Staff-only notes. A subcollection because the registrant can read the
+    // registration doc itself. No update rule: notes are deleted, not edited.
+    match /registrations/{registrationId}/internalNotes/{noteId} {
+      allow read, delete: if isAdmin();
+      allow create: if isAdmin() && request.resource.data.authorId == request.auth.uid;
+    }
+
     match /rateLimits/{uid} {
       // Sole purpose: a per-user "last queue action" timestamp read by
       // rateLimitOk() above. lastActionAt must equal the server's own

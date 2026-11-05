@@ -101,9 +101,10 @@ export const transferRegistration = onCall<TransferRegistrationInput>(
     let fromEmail = ''
 
     await db.runTransaction(async (transaction) => {
-      const [sourceSnap, targetSnap, fromProfile, toProfile] = await Promise.all([
+      const [sourceSnap, targetSnap, notesSnap, fromProfile, toProfile] = await Promise.all([
         transaction.get(sourceRef),
         transaction.get(targetRef),
+        transaction.get(sourceRef.collection('internalNotes')),
         transaction.get(db.collection('users').doc(preview.userId)),
         transaction.get(db.collection('users').doc(toUid)),
       ])
@@ -144,6 +145,8 @@ export const transferRegistration = onCall<TransferRegistrationInput>(
         createdAt: now,
         updatedAt: now,
       })
+      // Staff notes follow the slot. Copied, not moved, so the cancelled original keeps its context too.
+      notesSnap.docs.forEach((note) => transaction.set(targetRef.collection('internalNotes').doc(note.id), note.data()))
       transaction.update(sourceRef, {
         status: 'cancelled',
         cancelledAt: now,

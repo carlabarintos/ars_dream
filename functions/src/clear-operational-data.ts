@@ -76,6 +76,12 @@ export const clearOperationalData = onCall(
   await deleteDocsInBatches(marathonsSnap.docs.map((d) => d.ref))
   await deleteDocsInBatches(announcementsSnap.docs.map((d) => d.ref))
   await deleteDocsInBatches(templatesSnap.docs.map((d) => d.ref))
+  // Deleting a doc leaves its subcollections behind, so internal notes go explicitly.
+  const registrationIdsToDelete = new Set(registrationsToDelete.map((d) => d.id))
+  const notesSnap = await db.collectionGroup('internalNotes').get()
+  await deleteDocsInBatches(
+    notesSnap.docs.filter((d) => registrationIdsToDelete.has(d.ref.parent.parent!.id)).map((d) => d.ref),
+  )
   await deleteDocsInBatches(registrationsToDelete.map((d) => d.ref))
   await deleteDocsInBatches(deleteUserIds.map((uid) => db.collection('users').doc(uid)))
 

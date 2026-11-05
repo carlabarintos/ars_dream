@@ -318,6 +318,16 @@ export interface PersonalThread {
   createdAt: Timestamp
 }
 
+/** Staff-only note at registrations/{id}/internalNotes/{noteId}. Never put these on the registration doc: its owner can read it. */
+export interface InternalNote {
+  id: string
+  authorId: string
+  /** Snapshot of the admin's name when they wrote it. */
+  authorName: string
+  text: string
+  createdAt: Timestamp
+}
+
 export interface PersonalMessage {
   id: string
   senderId: string

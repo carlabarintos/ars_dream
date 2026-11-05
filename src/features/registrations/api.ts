@@ -1,11 +1,14 @@
 import {
+  addDoc,
   arrayUnion,
   collection,
+  deleteDoc,
   deleteField,
   doc,
   getDoc,
   getDocs,
   onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
   Timestamp,
@@ -18,6 +21,7 @@ import { httpsCallable } from 'firebase/functions'
 
 import { db, functions, storage } from '@/firebase/config'
 import type {
+  InternalNote,
   InvoiceLineItem,
   MarathonPackage,
   MarathonPackageAddOn,
@@ -505,4 +509,24 @@ const transferRegistrationCallable = httpsCallable<
 export async function transferRegistration(registrationId: string, toEmail: string) {
   const result = await transferRegistrationCallable({ registrationId, toEmail })
   return result.data
+}
+
+function internalNotesRef(registrationId: string) {
+  return collection(db, 'registrations', registrationId, 'internalNotes')
+}
+
+/** Newest first. Admin-only (see firestore.rules). */
+export function subscribeToInternalNotes(registrationId: string, onData: (notes: InternalNote[]) => void) {
+  const q = query(internalNotesRef(registrationId), orderBy('createdAt', 'desc'))
+  return onSnapshot(q, (snapshot) => {
+    onData(snapshot.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }) as InternalNote))
+  })
+}
+
+export async function addInternalNote(registrationId: string, authorId: string, authorName: string, text: string) {
+  await addDoc(internalNotesRef(registrationId), { authorId, authorName, text, createdAt: serverTimestamp() })
+}
+
+export async function deleteInternalNote(registrationId: string, noteId: string) {
+  await deleteDoc(doc(internalNotesRef(registrationId), noteId))
 }

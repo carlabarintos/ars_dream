@@ -15,6 +15,7 @@ import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { formatPackagePrice } from '@/lib/utils'
 import type { Marathon, Registration, UserProfile } from '@/types'
 
+import { InternalNotes } from './InternalNotes'
 import { ApprovedReferences } from './PaymentProofsDialog'
 
 /** Everything about one booking: its history, documents, questionnaire answers and the actions its status allows. */
@@ -132,6 +133,7 @@ export function BookingDetailDialog({
             )}
             <h3 className="text-muted-foreground mt-2 text-xs font-semibold tracking-wide uppercase">Actions</h3>
             <div className="flex flex-col gap-2 [&>button]:w-full">{actions}</div>
+            <InternalNotes registrationId={registration.id} />
           </aside>
         </div>
       </DialogContent>

@@ -23,7 +23,7 @@ interface ThreadMessage {
   createdAt: Timestamp | null
 }
 
-function formatMessageTime(timestamp: Timestamp | null) {
+export function formatMessageTime(timestamp: Timestamp | null) {
   if (!timestamp) return 'sending…'
   return timestamp.toDate().toLocaleString('en-US', {
     month: 'short',
