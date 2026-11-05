@@ -41,7 +41,10 @@ function formatThreadTime(timestamp: PersonalThread['lastMessageAt']) {
 function PersonalThreadDialog({ thread, adminUid }: { thread: PersonalThread; adminUid: string }) {
   const [open, setOpen] = useState(false)
   const { messages, isLoading } = usePersonalThreadMessages(thread.userId)
-  const profiles = useUserProfilesByIds([thread.userId])
+  const profiles = useUserProfilesByIds([
+    thread.userId,
+    ...messages.filter((m) => m.senderRole === 'admin').map((m) => m.senderId),
+  ])
   const userName = formatUserName(profiles[thread.userId])
 
   useEffect(() => {
@@ -64,8 +67,9 @@ function PersonalThreadDialog({ thread, adminUid }: { thread: PersonalThread; ad
           messages={messages}
           isLoading={isLoading}
           currentUserId={adminUid}
+          ownRole="admin"
           getSenderLabel={(message) =>
-            (message.senderRole === 'admin' ? 'You' : userName) +
+            (message.senderRole === 'admin' ? `Admin (${formatUserName(profiles[message.senderId])})` : userName) +
             (message.registrationLabel ? ` · re: ${message.registrationLabel}` : '')
           }
           showEventLabels

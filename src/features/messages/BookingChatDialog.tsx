@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
 import type { MessageSenderRole, Registration } from '@/types'
 
 import { markPersonalThreadRead, sendPersonalMessage } from './api'
@@ -48,6 +49,10 @@ export function BookingChat({
 }: BookingChatProps) {
   const { messages, isLoading } = usePersonalThreadMessages(registration.userId)
   const bookingMessages = messages.filter((message) => message.registrationId === registration.id)
+  // Only admins may read other users' profiles, so registrants keep seeing otherPartyLabel.
+  const adminProfiles = useUserProfilesByIds(
+    viewerRole === 'admin' ? bookingMessages.filter((m) => m.senderRole === 'admin').map((m) => m.senderId) : [],
+  )
 
   useEffect(() => {
     void markPersonalThreadRead(registration.userId, viewerRole)
@@ -59,7 +64,14 @@ export function BookingChat({
       messages={bookingMessages}
       isLoading={isLoading}
       currentUserId={viewerId}
-      getSenderLabel={(message) => (message.senderRole === viewerRole ? 'You' : otherPartyLabel)}
+      ownRole={viewerRole}
+      getSenderLabel={(message) =>
+        message.senderRole !== viewerRole
+          ? otherPartyLabel
+          : viewerRole === 'admin'
+            ? `Admin (${formatUserName(adminProfiles[message.senderId])})`
+            : 'You'
+      }
       emptyMessage="No messages or status updates for this booking yet."
       onSend={(text) =>
         sendPersonalMessage(registration.userId, viewerId, viewerRole, text, undefined, {

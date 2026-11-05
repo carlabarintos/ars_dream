@@ -37,6 +37,8 @@ interface ThreadViewProps<TMessage extends ThreadMessage> {
   messages: TMessage[]
   isLoading: boolean
   currentUserId: string
+  /** Right-aligns everyone with this role as "our side", e.g. all admins sharing a support thread. */
+  ownRole?: MessageSenderRole
   getSenderLabel: (message: TMessage) => string
   onSend: (text: string) => Promise<void>
   placeholder?: string
@@ -51,6 +53,7 @@ export function ThreadView<TMessage extends ThreadMessage>({
   messages,
   isLoading,
   currentUserId,
+  ownRole,
   getSenderLabel,
   onSend,
   placeholder = 'Write a message…',
@@ -121,7 +124,7 @@ export function ThreadView<TMessage extends ThreadMessage>({
                 </div>
               )
             }
-            const isOwn = message.senderId === currentUserId
+            const isOwn = message.senderId === currentUserId || message.senderRole === ownRole
             return (
               <div key={message.id} className={cn('flex flex-col gap-1', isOwn ? 'items-end' : 'items-start')}>
                 <div
