@@ -1,10 +1,35 @@
-import { FieldValue, type Timestamp } from 'firebase-admin/firestore'
+import { FieldValue, type DocumentData, type Timestamp } from 'firebase-admin/firestore'
 import { onDocumentWritten } from 'firebase-functions/v2/firestore'
 
 import { db } from './admin.js'
+import { notifyAdmins } from './notify.js'
 import { withSentry } from './sentry.js'
 
 const REGISTRANT_STATUSES = ['queued', 'terms_accepted', 'payment_submitted', 'cancelled']
+
+const ADMIN_PUSH_TITLES: Record<string, string> = {
+  terms_accepted: 'Offer accepted',
+  payment_submitted: 'Payment proof to review',
+}
+
+/** A slot transfer lands on these statuses too, but that's an admin's own action. */
+async function pushAdmins(before: DocumentData | undefined, after: DocumentData) {
+  const justTransferred = after.transferredFrom && !before?.transferredFrom
+  const title = ADMIN_PUSH_TITLES[after.status]
+  if (!title || justTransferred) return
+
+  const [marathon, user] = await Promise.all([
+    db.doc(`marathons/${after.marathonId}`).get(),
+    db.doc(`users/${after.userId}`).get(),
+  ])
+  const profile = user.data()
+  const name = [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || profile?.displayName || profile?.email
+  const page = after.status === 'payment_submitted' ? 'payments' : 'queue'
+  await notifyAdmins(
+    { title, body: [name, marathon.data()?.title].filter(Boolean).join(' · ') },
+    `/admin/marathons/${after.marathonId}/${page}`,
+  )
+}
 
 // Keeps `queuePosition` on every queued registration in sync with its place
 // in line (1 = next up), recomputed whenever a registration joins or leaves
@@ -24,6 +49,7 @@ export const onRegistrationQueueChange = onDocumentWritten(
         .doc(`marathons/${after.marathonId}`)
         .update({ lastActivityAt: FieldValue.serverTimestamp() })
         .catch(() => {})
+      await pushAdmins(before, after).catch((error) => console.error('Admin push failed', error))
     }
 
     const wasQueued = before?.status === 'queued'

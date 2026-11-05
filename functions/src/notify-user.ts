@@ -1,7 +1,6 @@
-import { FieldValue } from 'firebase-admin/firestore'
-
-import { db, messaging } from './admin.js'
+import { db } from './admin.js'
 import { APP_URL, renderEmailHtml, runnerCcNoteHtml } from './email-template.js'
+import { sendAndPruneTokens } from './notify.js'
 import type { RunnerContact } from './runners.js'
 import { sendEmail } from './send-email.js'
 
@@ -39,22 +38,11 @@ export async function notifyUser({
 }): Promise<void> {
   const userDoc = await db.collection('users').doc(userId).get()
 
-  const tokens: string[] = userDoc.data()?.fcmTokens ?? []
-  if (tokens.length > 0) {
-    const response = await messaging.sendEachForMulticast({
-      tokens,
-      notification: { title: pushTitle, body: pushBody },
-      webpush: { fcmOptions: { link: '/' } },
-    })
-
-    const staleTokens = response.responses
-      .map((result, index) => (result.success ? null : tokens[index]))
-      .filter((token): token is string => token !== null)
-
-    if (staleTokens.length > 0) {
-      await userDoc.ref.update({ fcmTokens: FieldValue.arrayRemove(...staleTokens) })
-    }
-  }
+  await sendAndPruneTokens(
+    [{ ref: userDoc.ref, tokens: userDoc.data()?.fcmTokens ?? [] }],
+    { title: pushTitle, body: pushBody },
+    '/my-registrations',
+  )
 
   const email: string | undefined = userDoc.data()?.email
   if (email) {

@@ -2,7 +2,7 @@
 import { clientsClaim } from 'workbox-core'
 import { precacheAndRoute } from 'workbox-precaching'
 import { initializeApp } from 'firebase/app'
-import { getMessaging, onBackgroundMessage } from 'firebase/messaging/sw'
+import { getMessaging } from 'firebase/messaging/sw'
 
 declare const self: ServiceWorkerGlobalScope
 
@@ -21,21 +21,5 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-const app = initializeApp(firebaseConfig)
-const messaging = getMessaging(app)
-
-onBackgroundMessage(messaging, (payload) => {
-  const title = payload.notification?.title ?? 'ARS Dream'
-  const body = payload.notification?.body
-  self.registration.showNotification(title, {
-    body,
-    icon: '/pwa-192.png',
-    data: { url: payload.fcmOptions?.link ?? '/' },
-  })
-})
-
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close()
-  const url = (event.notification.data?.url as string) ?? '/'
-  event.waitUntil(self.clients.openWindow(url))
-})
+// The SDK shows and handles clicks on every push that has a `notification` payload. Showing it here too would double it.
+getMessaging(initializeApp(firebaseConfig))

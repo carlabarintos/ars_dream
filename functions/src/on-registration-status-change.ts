@@ -17,7 +17,7 @@ import {
   getOfferAcceptanceDeadline,
   packageLineItems,
 } from './email-template.js'
-import { notifyUser } from './notify-user.js'
+import { APP_URL, notifyUser } from './notify-user.js'
 import { companionContacts, describeCompanionChanges, packageSeats } from './runners.js'
 import { resendApiKey } from './send-email.js'
 import { withSentry } from './sentry.js'
@@ -53,6 +53,18 @@ export const onRegistrationStatusChange = onDocumentUpdated(
       const marathonTitle: string | undefined = (await db.collection('marathons').doc(after.marathonId).get()).data()?.title
       const by = after.companionsEditedBy === 'admin' ? 'ARS Dream' : 'registrant'
       await logBookingEvent(event.params.registrationId, after, `Runner details changed by ${by} — ${runnerChanges}`, marathonTitle)
+      if (after.companionsEditedBy === 'admin') {
+        const body = 'ARS Dream updated the runner details on your booking. Please check they are correct.'
+        await notifyUser({
+          userId: after.userId,
+          pushTitle: 'Runner details updated',
+          pushBody: body,
+          emailSubject: marathonTitle ? `Runner details updated — ${marathonTitle}` : 'Runner details updated',
+          emailBody: marathonTitle ? `Your ${marathonTitle} tour booking: ${body}` : body,
+          ctaLabel: 'View my booking',
+          ctaUrl: `${APP_URL}/my-registrations`,
+        })
+      }
     }
 
     // An edited final invoice is re-issued without a status change — resend it too.
@@ -141,7 +153,21 @@ export const onRegistrationStatusChange = onDocumentUpdated(
           (depositInvoiceAmended ? ' — amended invoice sent' : ''),
         marathonDoc.data()?.title,
       )
-      if (!finalInvoiceReissued && !depositInvoiceAmended) return
+      if (!finalInvoiceReissued && !depositInvoiceAmended) {
+        const marathonTitle: string | undefined = marathonDoc.data()?.title
+        const body = `ARS Dream updated your booking to: ${describePackage(after)}.`
+        await notifyUser({
+          userId: after.userId,
+          pushTitle: 'Your package was updated',
+          pushBody: body,
+          emailSubject: marathonTitle ? `Your package was updated — ${marathonTitle}` : 'Your package was updated',
+          emailBody: marathonTitle ? `Your ${marathonTitle} tour booking: ${body}` : body,
+          ctaLabel: 'View my booking',
+          ctaUrl: `${APP_URL}/my-registrations`,
+          runners: companionContacts(after, marathonDoc.data()),
+        })
+        return
+      }
     }
     if (!packageChanged || finalInvoiceReissued) {
       await logBookingEvent(

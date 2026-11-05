@@ -8,6 +8,7 @@ import {
 import { doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 
 import { auth, db } from '@/firebase/config'
+import { unregisterPushNotifications } from '@/firebase/messaging'
 import type { Gender, UserRole } from '@/types'
 
 export interface SignUpProfileInput {
@@ -107,5 +108,6 @@ export async function signInWithEmail(email: string, password: string) {
 }
 
 export async function signOutUser() {
+  if (auth.currentUser) await unregisterPushNotifications(auth.currentUser.uid)
   await signOut(auth)
 }
