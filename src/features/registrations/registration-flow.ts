@@ -51,7 +51,7 @@ export const filledRunnerRows = (rows: { name: string; email: string }[]) =>
   rows.map((row) => ({ name: row.name.trim(), email: row.email.trim() })).filter((row) => row.name || row.email)
 
 export const areRunnerRowsValid = (rows: { name: string; email: string }[], leadEmail: string | null | undefined) =>
-  filledRunnerRows(rows).every((row) => row.name && isValidEmail(row.email) && !isLeadEmail(row.email, leadEmail)) && !hasRepeatedEmail(rows)
+  filledRunnerRows(rows).every((row) => isValidEmail(row.email) && !isLeadEmail(row.email, leadEmail)) && !hasRepeatedEmail(rows)
 
 /** "Runner 2 (Maria Santos) · " on a multi-runner booking, '' otherwise. */
 export function runnerPrefix(index: number, runnerCount: number, name?: string) {

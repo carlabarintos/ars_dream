@@ -62,6 +62,14 @@ export function useBookingActions(
   const packageRegistration = find(packageRegistrationId)
   const paymentsRegistration = find(paymentsRegistrationId)
   const detailRegistration = find(detailRegistrationId)
+  // Only the bookings this page has loaded: Queue Review has everyone on the tour, Manage user just that person.
+  const detailLeadId = detailRegistration?.partOf?.registrationId ?? detailRegistration?.id
+  // By the lead's list, not just partOf: a runner swapped out once paying keeps partOf until staff sort them out.
+  const isNamedByLead = (r: Registration) =>
+    find(detailLeadId ?? null)?.companions?.some((c) => c.email?.trim().toLowerCase() === getProfile(r)?.email?.toLowerCase())
+  const packageBookings = registrations
+    .filter((r) => r.id === detailLeadId || (r.partOf?.registrationId === detailLeadId && isNamedByLead(r)))
+    .sort((a, b) => (a.partOf?.runner ?? 1) - (b.partOf?.runner ?? 1))
   const runnersRegistration = find(runnersRegistrationId)
   const removeRunnerRegistration = find(removeRunnerRegistrationId)
   // Closes itself once transferred (the booking turns 'cancelled').
@@ -247,6 +255,11 @@ export function useBookingActions(
           registration={detailRegistration}
           marathon={getMarathon(detailRegistration)}
           profile={getProfile(detailRegistration)}
+          runnerTabs={packageBookings.map((r) => ({
+            id: r.id,
+            label: `Runner ${r.partOf?.runner ?? 1} · ${formatUserName(getProfile(r))}`,
+          }))}
+          onOpenRunner={setDetailRegistrationId}
           onClose={() => setDetailRegistrationId(null)}
           actions={renderActions(detailRegistration)}
         />

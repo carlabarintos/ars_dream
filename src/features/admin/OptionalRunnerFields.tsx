@@ -3,7 +3,7 @@ import { CompanionFields } from '@/features/registrations/RegistrationWizard'
 
 type Row = { name: string; email: string }
 
-/** Name + email for runners 2+ in an admin dialog. Rows may be left blank, for the lead or a later Link Runner to fill in. */
+/** Email for runners 2+ in an admin dialog. Rows may be left blank, for the lead or a later Link Runner to fill in. */
 export function OptionalRunnerFields({
   count,
   rows,
@@ -26,9 +26,9 @@ export function OptionalRunnerFields({
           value={rows[i]}
           leadEmail={leadEmail}
           hint={null}
-          onChange={(field, value) => {
+          onChange={(email) => {
             const next = Array.from({ length: Math.max(rows.length, i + 1) }, (_, j) => rows[j] ?? { name: '', email: '' })
-            next[i] = { ...next[i], [field]: value }
+            next[i] = { name: '', email }
             onChange(next)
           }}
         />

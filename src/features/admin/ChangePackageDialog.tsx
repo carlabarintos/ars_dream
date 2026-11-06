@@ -69,7 +69,7 @@ function ChangeOfferedPackagesDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && !isSubmitting && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Change Offered Packages</DialogTitle>
           <DialogDescription>
@@ -148,7 +148,7 @@ function ChangeChosenPackageDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && !isSubmitting && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Change Package</DialogTitle>
           <DialogDescription>

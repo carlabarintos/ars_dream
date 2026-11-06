@@ -56,9 +56,9 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
 
     if (
       !Array.isArray(suggestedCompanions) ||
-      !suggestedCompanions.every((c) => typeof c?.name === 'string' && c.name.trim() && EMAIL_PATTERN.test(String(c?.email)))
+      !suggestedCompanions.every((c) => typeof c?.name === 'string' && EMAIL_PATTERN.test(String(c?.email)))
     ) {
-      throw new HttpsError('invalid-argument', 'Each runner needs a name and a valid email.')
+      throw new HttpsError('invalid-argument', 'Each runner needs a valid email.')
     }
 
     const marathonRef = db.collection('marathons').doc(registration.marathonId)

@@ -34,7 +34,7 @@ export function EditRunnersDialog({
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const isValid =
-    rows.every((row) => row.name.trim() !== '' && isValidEmail(row.email) && !isLeadEmail(row.email, leadEmail)) && !hasRepeatedEmail(rows)
+    rows.every((row) => isValidEmail(row.email) && !isLeadEmail(row.email, leadEmail)) && !hasRepeatedEmail(rows)
 
   async function handleSave() {
     setIsSubmitting(true)
@@ -71,9 +71,7 @@ export function EditRunnersDialog({
             value={row}
             leadEmail={leadEmail}
             hint={null}
-            onChange={(field, value) =>
-              setRows((current) => current.map((r, j) => (j === i ? { ...r, [field]: value } : r)))
-            }
+            onChange={(email) => setRows((current) => current.map((r, j) => (j === i ? { name: '', email } : r)))}
           />
         ))}
         {hasRepeatedEmail(rows) && (

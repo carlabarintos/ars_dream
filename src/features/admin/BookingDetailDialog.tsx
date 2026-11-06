@@ -62,12 +62,17 @@ export function BookingDetailDialog({
   registration,
   marathon,
   profile,
+  runnerTabs,
+  onOpenRunner,
   actions,
   onClose,
 }: {
   registration: Registration
   marathon: Marathon | undefined
   profile: UserProfile | undefined
+  /** Every booking on this one's package, for moving between runners. */
+  runnerTabs: { id: string; label: string }[]
+  onOpenRunner: (registrationId: string) => void
   actions: ReactNode
   onClose: () => void
 }) {
@@ -101,6 +106,18 @@ export function BookingDetailDialog({
               .join(' · ')}
           </DialogDescription>
         </DialogHeader>
+
+        {runnerTabs.length > 1 && runnerTabs.some((tab) => tab.id === registration.id) && (
+          <Tabs value={registration.id} onValueChange={onOpenRunner}>
+            <TabsList className="h-auto max-w-full flex-wrap justify-start">
+              {runnerTabs.map(({ id, label }) => (
+                <TabsTrigger key={id} value={id} className="flex-none">
+                  {label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        )}
 
         <div className="grid gap-6 md:grid-cols-[1fr_16rem]">
           <Tabs defaultValue="details" className="min-w-0">
@@ -184,7 +201,7 @@ export function BookingDetailDialog({
               <ul className="flex flex-col gap-1 text-sm">
                 {getCompanions(registration, marathon).map((runner, i) => (
                   <li key={i}>
-                    <span className="font-medium">Runner {i + 2}:</span> {runner.name || 'Name not given yet'}
+                    <span className="font-medium">Runner {i + 2}:</span> {runner.name || (!runner.email && 'Not given yet')}
                     {runner.email && (
                       <span className="text-muted-foreground block break-all">
                         {runner.email} · <RunnerLinkStatus runner={runner} booking={runnerBookings.find((b) => b.runner === i + 2)} />

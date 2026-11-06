@@ -88,20 +88,21 @@ export function RegistrationWizard({
     (registration.selectedAddOns ?? []).map((addOn) => addOn.addOnId),
   )
   const chosenPackage = offeredPackages.find((pkg) => pkg.id === chosenPackageId)
-  // Runners 2+ on a multi-runner package: the lead enters their name and email, which gets CC'd on the booking's emails.
+  // Runners 2+ on a multi-runner package: the lead enters their email, which gets CC'd on the booking's emails.
   const [companionInfo, setCompanionInfo] = useState<{ name: string; email: string }[]>(() =>
     (registration.companions ?? registration.suggestedCompanions ?? []).map((c) => ({ name: c.name ?? '', email: c.email ?? '' })),
   )
   const companionsNeeded = registration.partOf ? 0 : Math.max((chosenPackage?.runnerCount ?? 1) - 1, 0)
   const companionRows = Array.from({ length: companionsNeeded }, (_, i) => companionInfo[i])
   const companionsValid =
-    companionRows.every((c) => c && c.name.trim() !== '' && isValidEmail(c.email) && !isLeadEmail(c.email, profile?.email)) &&
+    companionRows.every((c) => c && isValidEmail(c.email) && !isLeadEmail(c.email, profile?.email)) &&
     !hasRepeatedEmail(companionRows.filter(Boolean))
-  const setCompanionField = (index: number, field: 'name' | 'email', value: string) =>
+  const setCompanionEmail = (index: number, email: string) =>
     setCompanionInfo((rows) => {
       const next = [...rows]
       for (let i = 0; i <= index; i++) next[i] ??= { name: '', email: '' }
-      next[index] = { ...next[index], [field]: value }
+      // A different email is a different person, so a name kept from an earlier entry no longer applies.
+      next[index] = { name: '', email }
       return next
     })
   // Mandatory add-ons are always included, whatever was toggled.
@@ -485,7 +486,7 @@ export function RegistrationWizard({
                   runner={i + 1}
                   value={companionInfo[i]}
                   leadEmail={profile?.email}
-                  onChange={(field, value) => setCompanionField(i, field, value)}
+                  onChange={(email) => setCompanionEmail(i, email)}
                 />
               ))}
               {hasRepeatedEmail(companionRows.filter(Boolean)) && (
@@ -512,7 +513,7 @@ export function RegistrationWizard({
                 runner={runner}
                 value={runnerContact}
                 leadEmail={profile?.email}
-                onChange={(field, value) => setCompanionField(runner - 1, field, value)}
+                onChange={(email) => setCompanionEmail(runner - 1, email)}
               />
             )}
             <div className="flex flex-col gap-1.5">
@@ -845,7 +846,7 @@ export function RegistrationWizard({
   )
 }
 
-/** Name + email for runner 2+ (0-based `runner`) — entered by the lead, or corrected by an admin (EditRunnersDialog). */
+/** Email for runner 2+ (0-based `runner`) — entered by the lead, or corrected by an admin (EditRunnersDialog). Their name comes from their own sign-up. */
 export function CompanionFields({
   runner,
   value,
@@ -854,33 +855,24 @@ export function CompanionFields({
   hint = "We'll email them about their place, with a sign-up invite if they're new. They'll have their own invoices, T&C and passport steps.",
 }: {
   runner: number
-  value: { name: string; email: string } | undefined
+  value: { email: string } | undefined
   /** The account holder's email, which can't also be another runner's. */
   leadEmail?: string | null
-  onChange: (field: 'name' | 'email', value: string) => void
+  onChange: (email: string) => void
   hint?: string | null
 }) {
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border p-3">
       <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Runner {runner + 1}</p>
       {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Input
-          aria-label={`Runner ${runner + 1} full name`}
-          placeholder="Full name (as on passport)"
-          value={value?.name ?? ''}
-          onChange={(e) => onChange('name', e.target.value)}
-          maxLength={120}
-        />
-        <Input
-          aria-label={`Runner ${runner + 1} email`}
-          type="email"
-          placeholder="Email"
-          value={value?.email ?? ''}
-          onChange={(e) => onChange('email', e.target.value)}
-          maxLength={200}
-        />
-      </div>
+      <Input
+        aria-label={`Runner ${runner + 1} email`}
+        type="email"
+        placeholder="Email"
+        value={value?.email ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+        maxLength={200}
+      />
       {isLeadEmail(value?.email, leadEmail) && (
         <p className="text-destructive text-xs" role="alert">
           That's the account holder's email. Enter Runner {runner + 1}'s own email.
