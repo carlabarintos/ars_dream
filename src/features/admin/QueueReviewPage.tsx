@@ -106,9 +106,11 @@ export function QueueReviewPage() {
     },
   )
 
-  // Confirmed bookings always show in full; only "Others" pages, reusing the hook's page size.
-  const confirmed = filtered.filter(hasLockedSlot)
-  const others = filtered.filter((r) => !hasLockedSlot(r))
+  // Payments under review and confirmed bookings always show in full; only "Others" pages, reusing the hook's page size.
+  const underReview = filtered.filter((r) => r.status === 'payment_submitted')
+  const reviewed = filtered.filter((r) => r.status !== 'payment_submitted')
+  const confirmed = reviewed.filter(hasLockedSlot)
+  const others = reviewed.filter((r) => !hasLockedSlot(r))
   const othersShown = others.slice(0, visible.length)
 
   // Neighbours come from the full queue, not the filtered/paginated view.
@@ -194,6 +196,7 @@ export function QueueReviewPage() {
       ) : (
         <div className="flex flex-col gap-4">
           {[
+            { title: 'Payment Under Review', group: underReview },
             { title: 'Confirmed (deposit paid)', group: confirmed },
             { title: 'Others', group: othersShown },
           ].map(({ title, group }) =>
@@ -286,7 +289,7 @@ export function QueueReviewPage() {
   )
 }
 
-/** Deposit approved and the seat still held — includes balance proofs under review. */
+/** Deposit approved and the seat still held. */
 function hasLockedSlot(registration: Registration) {
   return registration.depositPaidAt != null && registration.status !== 'cancelled'
 }
