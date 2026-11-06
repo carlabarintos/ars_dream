@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { issueFinalInvoice } from '@/features/registrations/api'
-import { getFinalInvoiceBalance, getPackageInvoiceLines, withCurrentPackageLines } from '@/features/registrations/registration-flow'
+import { getDepositDue, getFinalInvoiceBalance, getPackageInvoiceLines, withCurrentPackageLines } from '@/features/registrations/registration-flow'
 import type { InvoiceLineItem, Marathon, Registration } from '@/types'
 
 /** On a confirmed booking the current balance was already paid — credit it so an amended invoice only bills the difference. */
@@ -22,11 +22,7 @@ function paidBalanceCredit(registration: Registration): InvoiceLineItem[] {
  * Credits from an existing invoice are kept as-is, since the deposit actually paid may predate a package change.
  */
 function buildDefaultItems(registration: Registration, marathon: Marathon | null): InvoiceLineItem[] {
-  const addOns = registration.selectedAddOns ?? []
-  const total = registration.packagePriceAmount + addOns.reduce((sum, addOn) => sum + addOn.priceAmount, 0)
-  // No deposit split on the package means the first payment was the full amount.
-  const depositAmount = marathon?.packages?.find((p) => p.id === registration.packageId)?.depositAmount
-  const deposit = Math.min(depositAmount ?? total, total)
+  const deposit = getDepositDue(registration, marathon)
   const existingCredits = (registration.finalInvoice?.items ?? []).filter((item) => item.isDeposit)
   return [
     ...getPackageInvoiceLines(registration),

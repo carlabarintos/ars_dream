@@ -82,6 +82,12 @@ export const clearOperationalData = onCall(
   await deleteDocsInBatches(
     notesSnap.docs.filter((d) => registrationIdsToDelete.has(d.ref.parent.parent!.id)).map((d) => d.ref),
   )
+  const runnerBookingsSnap = await db.collection('runnerBookings').get()
+  await deleteDocsInBatches(
+    runnerBookingsSnap.docs
+      .filter((d) => registrationIdsToDelete.has(d.data().registrationId) || deleteUserIdSet.has(d.data().userId))
+      .map((d) => d.ref),
+  )
   await deleteDocsInBatches(registrationsToDelete.map((d) => d.ref))
   await deleteDocsInBatches(deleteUserIds.map((uid) => db.collection('users').doc(uid)))
 

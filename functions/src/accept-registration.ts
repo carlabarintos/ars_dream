@@ -89,11 +89,19 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
           .where('marathonId', '==', registration.marathonId)
           .where('status', 'in', PIPELINE_STATUSES),
       )
-      // Seats, not bookings: a "Runner + Runner" booking holds 2. An open offer with no package yet counts as 1.
-      // ponytail: confirmPayment re-checks the exact seat count, so a 2-seat pick on the last seat is caught there.
-      const pipelineCount = pipelineSnap.docs
-        .filter((doc) => ((doc.data().cycle as number | undefined) ?? 1) === cycle)
-        .reduce((sum, doc) => sum + ((doc.data().seatCount as number | undefined) ?? packageSeats(marathonSnap.data(), doc.data().packageId)), 0)
+      // Seats, not bookings. A package counts what its bookings hold once any has paid, else what the lead's package
+      // needs ("Runner + Runner" is 2), so offers can't take a runner's seat. An open offer with no package yet counts as 1.
+      const packages = new Map<string, { held: number; needed: number }>()
+      for (const doc of pipelineSnap.docs) {
+        const data = doc.data()
+        if (((data.cycle as number | undefined) ?? 1) !== cycle) continue
+        const key: string = data.partOf?.registrationId ?? doc.id
+        const entry = packages.get(key) ?? { held: 0, needed: 0 }
+        entry.held += (data.seatCount as number | undefined) ?? 0
+        if (!data.partOf) entry.needed = packageSeats(marathonSnap.data(), data.packageId)
+        packages.set(key, entry)
+      }
+      const pipelineCount = [...packages.values()].reduce((sum, { held, needed }) => sum + (held || needed), 0)
 
       if (pipelineCount >= capacity) {
         throw new HttpsError('resource-exhausted', 'This marathon has no remaining capacity.')

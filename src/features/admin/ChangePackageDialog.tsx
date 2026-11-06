@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { changeOfferedPackages, changeRegistrationPackage } from '@/features/registrations/api'
 import type { Marathon, Registration } from '@/types'
 
+import { runnerShare } from '../../../functions/src/email-template'
+
 /** Lets an admin swap a registrant's package/add-ons at any stage; the change is logged to the booking's history. */
 export function ChangePackageDialog({
   registration,
@@ -107,13 +109,13 @@ function ChangeChosenPackageDialog({
   const pkg = packages.find((p) => p.id === packageId)
   // Mandatory add-ons are always included, whatever was toggled.
   const addOns = (pkg?.addOns ?? []).filter((addOn) => addOn.mandatory || addOnIds.includes(addOn.id))
-  const total = (pkg?.priceAmount ?? 0) + addOns.reduce((sum, addOn) => sum + addOn.priceAmount, 0)
+  const total = (pkg ? runnerShare(pkg) : 0) + addOns.reduce((sum, addOn) => sum + addOn.priceAmount, 0)
 
   async function handleSave() {
     if (!pkg) return
     setIsSubmitting(true)
     try {
-      await changeRegistrationPackage(registration, pkg, addOns)
+      await changeRegistrationPackage(registration, pkg, addOns, marathon)
       toast.success('Package updated.')
       onClose()
     } catch (error) {

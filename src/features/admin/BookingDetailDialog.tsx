@@ -1,13 +1,20 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { toast } from 'sonner'
 
+import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatUserName } from '@/features/auth/use-user-profiles'
-import { subscribeToInternalNotes } from '@/features/registrations/api'
+import {
+  resendRunnerInvite,
+  subscribeToInternalNotes,
+  subscribeToRegistrationRunnerBookings,
+} from '@/features/registrations/api'
 import { BookingTimeline } from '@/features/registrations/BookingTimeline'
 import { QuestionnaireLink } from '@/features/registrations/QuestionnaireLink'
 import { UploadedFileThumb } from '@/features/registrations/BookingDocumentDialog'
 import {
+  getCompanions,
   getLabelledPaymentProofs,
   getPaymentProofs,
   getRunners,
@@ -15,10 +22,40 @@ import {
 } from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { formatPackagePrice } from '@/lib/utils'
-import type { InternalNote, Marathon, Registration, UserProfile } from '@/types'
+import type { InternalNote, Marathon, Registration, RunnerBooking, RunnerDetails, UserProfile } from '@/types'
 
 import { InternalNotes } from './InternalNotes'
 import { ApprovedReferences } from './PaymentProofsDialog'
+
+/** Whether a runner is linked to their account, and a way to chase them if they haven't taken up their invite. */
+function RunnerLinkStatus({ runner, booking }: { runner: RunnerDetails; booking: RunnerBooking | undefined }) {
+  const [isSending, setIsSending] = useState(false)
+  if (!booking || booking.email !== runner.email?.trim().toLowerCase()) return <>Not linked yet</>
+  if (booking.userId) return <>Linked</>
+
+  async function handleResend() {
+    setIsSending(true)
+    try {
+      await resendRunnerInvite(booking!.id)
+      toast.success('Invite sent again.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  return (
+    <>
+      Invited, hasn't accepted yet
+      {!['rejected', 'cancelled'].includes(booking.status) && (
+        <Button variant="outline" size="sm" className="mt-1 w-full" loading={isSending} onClick={handleResend}>
+          Resend Invite
+        </Button>
+      )}
+    </>
+  )
+}
 
 /** Everything about one booking: its history, documents, questionnaire answers and the actions its status allows. */
 export function BookingDetailDialog({
@@ -38,7 +75,10 @@ export function BookingDetailDialog({
   const proofs = getLabelledPaymentProofs(registration)
   const [notes, setNotes] = useState<InternalNote[]>([])
 
+  const [runnerBookings, setRunnerBookings] = useState<RunnerBooking[]>([])
+
   useEffect(() => subscribeToInternalNotes(registration.id, setNotes), [registration.id])
+  useEffect(() => subscribeToRegistrationRunnerBookings(registration.id, setRunnerBookings), [registration.id])
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -135,12 +175,21 @@ export function BookingDetailDialog({
                 <span className="text-muted-foreground">No package chosen yet</span>
               )}
             </p>
-            {getRunners(registration, marathon).length > 1 && (
+            {registration.partOf && (
+              <p className="text-sm">
+                Runner {registration.partOf.runner} on {registration.partOf.leadName}'s booking
+              </p>
+            )}
+            {getCompanions(registration, marathon).length > 0 && (
               <ul className="flex flex-col gap-1 text-sm">
-                {getRunners(registration, marathon).slice(1).map((runner, i) => (
+                {getCompanions(registration, marathon).map((runner, i) => (
                   <li key={i}>
                     <span className="font-medium">Runner {i + 2}:</span> {runner.name || 'Name not given yet'}
-                    {runner.email && <span className="text-muted-foreground block break-all">{runner.email}</span>}
+                    {runner.email && (
+                      <span className="text-muted-foreground block break-all">
+                        {runner.email} · <RunnerLinkStatus runner={runner} booking={runnerBookings.find((b) => b.runner === i + 2)} />
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

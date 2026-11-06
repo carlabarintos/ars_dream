@@ -95,6 +95,7 @@ export const cancelRegistration = onCall<CancelRegistrationInput>(
         const marathon = (await db.collection('marathons').doc(registration.marathonId).get()).data()
         const marathonTitle: string | undefined = marathon?.title
         const expired =
+          !registration.partOf &&
           registration.offeredAt &&
           getOfferAcceptanceDeadline(registration.offeredAt.toDate(), marathon?.offerAcceptanceDays).getTime() < Date.now()
         const copy = expired ? OFFER_EXPIRED_COPY : OFFER_WITHDRAWN_COPY

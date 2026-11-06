@@ -48,6 +48,8 @@ export function CancelRegistrationButton({ registration }: { registration: Regis
               {registration.status === 'confirmed'
                 ? 'This will give up your confirmed spot for this event. You can register again later if space is still available.'
                 : "This will withdraw your registration. You can register again later if you've changed your mind."}
+              {registration.companions?.some((runner) => runner.email) &&
+                " This also cancels the other runners on your package, even if they've already paid."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

@@ -6,11 +6,14 @@ import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName } from '@/features/auth/use-user-profiles'
 import { BookingChatDialog } from '@/features/messages/BookingChatDialog'
 import { EditRunnersDialog } from '@/features/registrations/EditRunnersDialog'
-import { cancelRegistration, decideQueueRegistration, sendReminder } from '@/features/registrations/api'
+import { applySharedDeposit, cancelRegistration, decideQueueRegistration, sendReminder } from '@/features/registrations/api'
 import {
   getPendingActionReminder,
   getPendingActionStep,
   getRunnerCount,
+  getCompanions,
+  isOnSharedPackage,
+  sharedDepositMessage,
   hasChosenPackage,
   isOverdue,
 } from '@/features/registrations/registration-flow'
@@ -22,7 +25,13 @@ import { EXTENDABLE_STATUSES, ExtendDueDateDialog } from './ExtendDueDateDialog'
 import { FinalInvoiceDialog } from './FinalInvoiceDialog'
 import { OfferChatDialog } from './OfferChatDialog'
 import { PaymentProofsDialog } from './PaymentProofsDialog'
+import { RemoveRunnerDialog } from './RemoveRunnerDialog'
 import { TRANSFERABLE_STATUSES, TransferSlotDialog } from './TransferSlotDialog'
+
+function runnersButtonLabel(registration: Registration, marathon: Marathon | undefined) {
+  const missing = getCompanions(registration, marathon).findIndex((runner) => !runner.email)
+  return missing === -1 ? 'Edit Runner Details' : `Link Runner ${missing + 2}`
+}
 
 /**
  * The admin actions a booking's status allows (offer, reject, invoice, chat…) and the dialogs they open,
@@ -45,6 +54,7 @@ export function useBookingActions(
   const [extendRegistrationId, setExtendRegistrationId] = useState<string | null>(null)
   const [transferRegistrationId, setTransferRegistrationId] = useState<string | null>(null)
   const [runnersRegistrationId, setRunnersRegistrationId] = useState<string | null>(null)
+  const [removeRunnerRegistrationId, setRemoveRunnerRegistrationId] = useState<string | null>(null)
   const find = (id: string | null) => registrations.find((r) => r.id === id)
   const offerRegistration = registrations.find((r) => r.id === offerRegistrationId && r.status === 'queued') ?? null
   const chatRegistration = find(chatRegistrationId)
@@ -53,6 +63,7 @@ export function useBookingActions(
   const paymentsRegistration = find(paymentsRegistrationId)
   const detailRegistration = find(detailRegistrationId)
   const runnersRegistration = find(runnersRegistrationId)
+  const removeRunnerRegistration = find(removeRunnerRegistrationId)
   // Closes itself once transferred (the booking turns 'cancelled').
   const transferRegistration = registrations.find(
     (r) => r.id === transferRegistrationId && TRANSFERABLE_STATUSES.includes(r.status),
@@ -76,11 +87,26 @@ export function useBookingActions(
 
   async function handleCancel(registration: Registration) {
     const name = formatUserName(getProfile(registration))
-    if (!confirm(`Cancel ${name}'s registration? They'll be notified and their slot freed up.`)) return
+    const runners = registration.companions?.some((runner) => runner.email)
+      ? " This also cancels the other runners on their package, even if they've already paid."
+      : ''
+    if (!confirm(`Cancel ${name}'s registration? They'll be notified and their slot freed up.${runners}`)) return
     setDecidingKey(`${registration.id}-cancelled`)
     try {
       await cancelRegistration(registration.id)
       toast.success('Registration cancelled.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setDecidingKey(null)
+    }
+  }
+
+  async function handleSharedDeposit(registration: Registration) {
+    if (!confirm('Mark every other runner on this package as deposit paid, using the payment already approved?')) return
+    setDecidingKey(`${registration.id}-shared-deposit`)
+    try {
+      toast.success(sharedDepositMessage(await applySharedDeposit(registration.id)))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
     } finally {
@@ -144,7 +170,23 @@ export function useBookingActions(
         {getRunnerCount(registration, getMarathon(registration)) > 1 &&
           !['rejected', 'cancelled'].includes(registration.status) && (
             <Button variant="outline" onClick={() => setRunnersRegistrationId(registration.id)}>
-              Edit Runner Details
+              {runnersButtonLabel(registration, getMarathon(registration))}
+            </Button>
+          )}
+        {isOnSharedPackage(registration) && !['rejected', 'cancelled'].includes(registration.status) && (
+          <Button variant="outline" onClick={() => setRemoveRunnerRegistrationId(registration.id)}>
+            Remove Runner
+          </Button>
+        )}
+        {isOnSharedPackage(registration) &&
+          !registration.finalInvoice &&
+          ['terms_accepted', 'payment_rejected', 'deposit_paid'].includes(registration.status) && (
+            <Button
+              variant="outline"
+              loading={decidingKey === `${registration.id}-shared-deposit`}
+              onClick={() => handleSharedDeposit(registration)}
+            >
+              Apply Shared Deposit
             </Button>
           )}
         {registration.status === 'payment_submitted' && (
@@ -161,7 +203,7 @@ export function useBookingActions(
             Send Reminder
           </Button>
         )}
-        {(EXTENDABLE_STATUSES as string[]).includes(registration.status) && (
+        {(EXTENDABLE_STATUSES as string[]).includes(registration.status) && !(registration.status === 'accepted' && registration.partOf) && (
           <Button variant="outline" onClick={() => setExtendRegistrationId(registration.id)}>
             Extend Due Date
           </Button>
@@ -232,10 +274,18 @@ export function useBookingActions(
           onClose={() => setPackageRegistrationId(null)}
         />
       )}
+      {removeRunnerRegistration && (
+        <RemoveRunnerDialog
+          registration={removeRunnerRegistration}
+          marathon={getMarathon(removeRunnerRegistration) ?? null}
+          onClose={() => setRemoveRunnerRegistrationId(null)}
+        />
+      )}
       {runnersRegistration && (
         <EditRunnersDialog
           registration={runnersRegistration}
           marathon={getMarathon(runnersRegistration)}
+          leadEmail={getProfile(runnersRegistration)?.email}
           editedBy="admin"
           onClose={() => setRunnersRegistrationId(null)}
         />

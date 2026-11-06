@@ -2,14 +2,18 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { confirmPayment, rejectPayment } from '@/features/registrations/api'
+import { applySharedDeposit, confirmPayment, rejectPayment } from '@/features/registrations/api'
 import {
   getDepositDue,
   getFinalInvoiceBalance,
   getPaymentProofs,
   isOnFinalInvoice,
+  isOnSharedPackage,
+  sharedDepositMessage,
 } from '@/features/registrations/registration-flow'
 import type { Marathon, Registration } from '@/types'
 
@@ -78,6 +82,7 @@ export function PaymentProofsDialog({
   const [rejecting, setRejecting] = useState(false)
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState<'confirm' | 'reject' | null>(null)
+  const [coversOthers, setCoversOthers] = useState(false)
 
   async function handleConfirm() {
     setBusy('confirm')
@@ -88,6 +93,11 @@ export function PaymentProofsDialog({
           ? 'Balance confirmed — registration complete.'
           : 'Deposit confirmed — slot locked. Next: agree add-ons and send the final invoice.',
       )
+      if (coversOthers) {
+        await applySharedDeposit(registration.id)
+          .then((result) => toast.success(sharedDepositMessage(result)))
+          .catch((error) => toast.error(`Deposit approved, but not applied to the other runner: ${error.message}`))
+      }
       onClose()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
@@ -144,6 +154,14 @@ export function PaymentProofsDialog({
             )}
             {!review && <ProofGrid title="Earlier approved payments" urls={approved} />}
             {!review && <ApprovedReferences registration={registration} />}
+          </div>
+        )}
+        {review && !rejecting && !isBalance && isOnSharedPackage(registration) && (
+          <div className="flex items-center gap-2">
+            <Checkbox id="covers-others" checked={coversOthers} onCheckedChange={(v) => setCoversOthers(v === true)} />
+            <Label htmlFor="covers-others" className="text-sm font-normal">
+              This payment also covers the deposit of every other runner on this package
+            </Label>
           </div>
         )}
         {rejecting && (

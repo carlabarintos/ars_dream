@@ -477,6 +477,7 @@ export function MyRegistrationsPage() {
         <EditRunnersDialog
           registration={runnersRegistration}
           marathon={marathons[runnersRegistration.marathonId]}
+          leadEmail={profile?.email}
           editedBy="user"
           onClose={() => setRunnersRegistrationId(null)}
         />

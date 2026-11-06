@@ -40,12 +40,14 @@ import {
   getPendingActionStep,
   getQuestionnaires,
   getRunners,
+  hasRepeatedEmail,
+  isLeadEmail,
   runnerPrefix,
   isOnFinalInvoice,
   isQuestionAnswered,
   isValidEmail,
 } from './registration-flow'
-import { getStepDueDate } from '../../../functions/src/email-template'
+import { getStepDueDate, packageDepositLabel, runnerShare } from '../../../functions/src/email-template'
 
 export function RegistrationWizard({
   registration,
@@ -90,10 +92,11 @@ export function RegistrationWizard({
   const [companionInfo, setCompanionInfo] = useState<{ name: string; email: string }[]>(() =>
     (registration.companions ?? []).map((c) => ({ name: c.name ?? '', email: c.email ?? '' })),
   )
-  const companionsNeeded = Math.max((chosenPackage?.runnerCount ?? 1) - 1, 0)
-  const companionsValid = Array.from({ length: companionsNeeded }, (_, i) => companionInfo[i]).every(
-    (c) => c && c.name.trim() !== '' && isValidEmail(c.email),
-  )
+  const companionsNeeded = registration.partOf ? 0 : Math.max((chosenPackage?.runnerCount ?? 1) - 1, 0)
+  const companionRows = Array.from({ length: companionsNeeded }, (_, i) => companionInfo[i])
+  const companionsValid =
+    companionRows.every((c) => c && c.name.trim() !== '' && isValidEmail(c.email) && !isLeadEmail(c.email, profile?.email)) &&
+    !hasRepeatedEmail(companionRows.filter(Boolean))
   const setCompanionField = (index: number, field: 'name' | 'email', value: string) =>
     setCompanionInfo((rows) => {
       const next = [...rows]
@@ -106,7 +109,7 @@ export function RegistrationWizard({
     (addOn) => addOn.mandatory || chosenAddOnIds.includes(addOn.id),
   )
   const chosenTotal =
-    (chosenPackage?.priceAmount ?? 0) + chosenAddOns.reduce((sum, addOn) => sum + addOn.priceAmount, 0)
+    (chosenPackage ? runnerShare(chosenPackage) : 0) + chosenAddOns.reduce((sum, addOn) => sum + addOn.priceAmount, 0)
   const chosenDeposit = Math.min(chosenPackage?.depositAmount ?? 0, chosenTotal)
 
   const items = marathon?.questions ?? []
@@ -248,7 +251,9 @@ export function RegistrationWizard({
   // Missing if the booking moved to a multi-runner package after the offer was accepted.
   const needsRunnerContact = runner > 0 && !(runners[runner]?.name && runners[runner]?.email)
   const runnerContact = companionInfo[runner - 1]
-  const runnerContactValid = !needsRunnerContact || (!!runnerContact?.name.trim() && isValidEmail(runnerContact.email))
+  const runnerContactValid =
+    !needsRunnerContact ||
+    (!!runnerContact?.name.trim() && isValidEmail(runnerContact.email) && !isLeadEmail(runnerContact.email, profile?.email))
 
   async function handleSubmitPassport() {
     if (!passportFile || !runnerContactValid) return
@@ -413,7 +418,7 @@ export function RegistrationWizard({
                         {pkg.name}
                         {(pkg.runnerCount ?? 1) > 1 && (
                           <span className="text-muted-foreground block text-xs font-normal">
-                            For {pkg.runnerCount} runners — you'll add each runner's passport and details after the deposit
+                            For {pkg.runnerCount} runners — each pays {pkg.priceCurrency} {runnerShare(pkg).toLocaleString()} and has their own invoices, T&amp;C and passport
                           </span>
                         )}
                       </span>
@@ -421,7 +426,7 @@ export function RegistrationWizard({
                         <span className="font-semibold">{formatPackagePrice(pkg.priceCurrency, pkg.priceAmount)}</span>
                         {pkg.depositAmount ? (
                           <span className="text-muted-foreground block text-xs">
-                            Deposit {pkg.priceCurrency} {pkg.depositAmount.toLocaleString()}
+                            {packageDepositLabel(pkg)}
                           </span>
                         ) : null}
                       </span>
@@ -477,9 +482,15 @@ export function RegistrationWizard({
                   key={i}
                   runner={i + 1}
                   value={companionInfo[i]}
+                  leadEmail={profile?.email}
                   onChange={(field, value) => setCompanionField(i, field, value)}
                 />
               ))}
+              {hasRepeatedEmail(companionRows.filter(Boolean)) && (
+                <p className="text-destructive text-xs" role="alert">
+                  Each runner needs their own email.
+                </p>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={onClose}>
@@ -498,6 +509,7 @@ export function RegistrationWizard({
               <CompanionFields
                 runner={runner}
                 value={runnerContact}
+                leadEmail={profile?.email}
                 onChange={(field, value) => setCompanionField(runner - 1, field, value)}
               />
             )}
@@ -835,11 +847,14 @@ export function RegistrationWizard({
 export function CompanionFields({
   runner,
   value,
+  leadEmail,
   onChange,
-  hint = "They'll be copied on this booking's emails (invoices, T&C and passport reminders). You'll upload their passport after the deposit.",
+  hint = "We'll email them about their place, with a sign-up invite if they're new. They'll have their own invoices, T&C and passport steps.",
 }: {
   runner: number
   value: { name: string; email: string } | undefined
+  /** The account holder's email, which can't also be another runner's. */
+  leadEmail?: string | null
   onChange: (field: 'name' | 'email', value: string) => void
   hint?: string | null
 }) {
@@ -864,6 +879,11 @@ export function CompanionFields({
           maxLength={200}
         />
       </div>
+      {isLeadEmail(value?.email, leadEmail) && (
+        <p className="text-destructive text-xs" role="alert">
+          That's the account holder's email. Enter Runner {runner + 1}'s own email.
+        </p>
+      )}
     </div>
   )
 }

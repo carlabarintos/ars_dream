@@ -22,6 +22,7 @@ import {
   getDepositDue,
   isOnFinalInvoice,
 } from '@/features/registrations/registration-flow'
+import { RunnerLinkNote } from '@/features/registrations/RunnerLinkNote'
 import { UploadedFileButton } from '@/features/registrations/BookingDocumentDialog'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
@@ -120,6 +121,7 @@ export function PaymentReviewPage() {
                   <CardHeader>
                     <CardTitle>{formatUserName(profile)}</CardTitle>
                     <p className="text-muted-foreground text-sm">{profile?.email ?? '—'}</p>
+                    <RunnerLinkNote registration={registration} />
                     <p className="text-sm">
                       {isOnFinalInvoice(registration) ? (
                         <>

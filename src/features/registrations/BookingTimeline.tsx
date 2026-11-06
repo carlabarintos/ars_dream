@@ -7,7 +7,7 @@ import {
   getBookingDocuments,
   getFinalInvoiceDocuments,
 } from '@/features/registrations/booking-documents'
-import { getQuestionnaires, getRunners, isQuestionAnswered, runnerPrefix } from '@/features/registrations/registration-flow'
+import { describePartOf, getQuestionnaires, getRunners, isQuestionAnswered, runnerPrefix } from '@/features/registrations/registration-flow'
 import { cn, formatPackagePrice } from '@/lib/utils'
 import { formatTransferParty, type Marathon, type Registration, type UserProfile } from '@/types'
 
@@ -74,7 +74,7 @@ function getSteps(registration: Registration, marathon?: Marathon, profile: User
   const addOns = registration.selectedAddOns?.map((addOn) => addOn.name).join(', ')
   const steps: Step[] = [
     // A slot transferred in was waitlisted by its original holder — its transfer step is spliced in below instead.
-    ...(registration.transferredFrom
+    ...(registration.transferredFrom || (registration.partOf && !registration.partOf.hadOwnPlace)
       ? []
       : [
           {
@@ -138,6 +138,18 @@ function getSteps(registration: Registration, marathon?: Marathon, profile: User
           { label: 'Balance paid — confirmed', done: false },
         ]),
   ]
+
+  const { partOf } = registration
+  if (partOf) {
+    // Ahead of "Offered": this is what the offer was. A booking already under way joined where it had got to.
+    const firstToDo = steps.findIndex((step) => !step.done)
+    const at = partOf.joinedAt ? (firstToDo === -1 ? steps.length : firstToDo) : steps.findIndex((step) => step.label === 'Offered')
+    steps.splice(at, 0, {
+      label: describePartOf(partOf),
+      at: (partOf.joinedAt ?? offeredAt)?.toDate(),
+      done: true,
+    })
+  }
 
   const { transferredFrom } = registration
   if (transferredFrom) {

@@ -16,15 +16,18 @@ import {
   getPendingActionStep,
   isOverdue,
 } from '@/features/registrations/registration-flow'
+import { RunnerLinkNote } from '@/features/registrations/RunnerLinkNote'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
+import { cn } from '@/lib/utils'
 import type { Marathon, Registration } from '@/types'
 
 import { BookingProgress } from '@/features/registrations/BookingTimeline'
 import { BulkWaitlistDialog } from './BulkWaitlistDialog'
 import { exportQueueCsv } from './export-import/full-export'
 import { ImportDialog } from './export-import/ImportDialog'
+import { groupByPackage, samePackage } from './package-rows'
 import { useAcknowledgeMarathon } from './use-acknowledge-marathon'
 import { useBookingActions } from './use-booking-actions'
 
@@ -107,10 +110,13 @@ export function QueueReviewPage() {
   )
 
   // Payments under review and confirmed bookings always show in full; only "Others" pages, reusing the hook's page size.
-  const underReview = filtered.filter((r) => r.status === 'payment_submitted')
-  const reviewed = filtered.filter((r) => r.status !== 'payment_submitted')
-  const confirmed = reviewed.filter(hasLockedSlot)
-  const others = reviewed.filter((r) => !hasLockedSlot(r))
+  // Runners on one package stay together, in the section the most urgent of them belongs to.
+  const packages = groupByPackage(filtered)
+  const isUnderReview = (group: Registration[]) => group.some((r) => r.status === 'payment_submitted')
+  const underReview = packages.filter(isUnderReview).flat()
+  const reviewed = packages.filter((group) => !isUnderReview(group))
+  const confirmed = reviewed.filter((group) => group.some(hasLockedSlot)).flat()
+  const others = reviewed.filter((group) => !group.some(hasLockedSlot)).flat()
   const othersShown = others.slice(0, visible.length)
 
   // Neighbours come from the full queue, not the filtered/paginated view.
@@ -217,13 +223,23 @@ export function QueueReviewPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {group.map((registration) => (
+                    {group.map((registration, index) => {
+                      const isPaired =
+                        samePackage(registration, group[index - 1]) || samePackage(registration, group[index + 1])
+                      return (
                       <TableRow
                         key={registration.id}
-                        className="cursor-pointer"
+                        className={cn(
+                          'cursor-pointer',
+                          isPaired && 'bg-primary/5',
+                          samePackage(registration, group[index + 1]) && 'border-b-0',
+                        )}
                         onClick={() => openDetail(registration.id)}
                       >
-                        <TableCell className="text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                        <TableCell
+                          className={cn('text-muted-foreground', isPaired && 'border-l-primary border-l-2')}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <div className="flex items-center gap-1">
                             {registration.queuePosition ?? '—'}
                             {registration.status === 'queued' && registration.queuePosition != null && (
@@ -255,6 +271,7 @@ export function QueueReviewPage() {
                         <TableCell>
                           <div className="font-medium">{formatUserName(profiles[registration.userId])}</div>
                           <div className="text-muted-foreground text-xs">{profiles[registration.userId]?.email ?? '—'}</div>
+                          <RunnerLinkNote registration={registration} />
                         </TableCell>
                         <TableCell className="text-muted-foreground">{registration.packageName || '—'}</TableCell>
                         <TableCell>
@@ -271,7 +288,8 @@ export function QueueReviewPage() {
                           {registration.createdAt?.toDate().toLocaleDateString()}
                         </TableCell>
                       </TableRow>
-                    ))}
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </details>

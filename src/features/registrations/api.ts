@@ -23,15 +23,19 @@ import { db, functions, storage } from '@/firebase/config'
 import type {
   InternalNote,
   InvoiceLineItem,
+  Marathon,
   MarathonPackage,
   MarathonPackageAddOn,
   QuestionAnswer,
   RunnerDetails,
   Registration,
+  RunnerBooking,
   SelectedAddOn,
 } from '@/types'
+import { addOnsOnPackage } from '@/features/admin/package-rows'
 import type { RegistrationRestorePatch } from '@/features/admin/export-import/serialize'
-import { canReRegister, withCurrentPackageLines } from '@/features/registrations/registration-flow'
+import { canReRegister, getDepositDue, withCurrentPackageLines } from '@/features/registrations/registration-flow'
+import { runnerShare } from '../../../functions/src/email-template'
 import { UserFacingError } from '@/lib/user-facing-error'
 
 const registrationsRef = collection(db, 'registrations')
@@ -40,6 +44,14 @@ export function subscribeToUserRegistrations(userId: string, onData: (regs: Regi
   const q = query(registrationsRef, where('userId', '==', userId))
   return onSnapshot(q, (snapshot) => {
     onData(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Registration))
+  })
+}
+
+/** Admin-only: how each runner on one booking is linked, for BookingDetailDialog. */
+export function subscribeToRegistrationRunnerBookings(registrationId: string, onData: (bookings: RunnerBooking[]) => void) {
+  const q = query(collection(db, 'runnerBookings'), where('registrationId', '==', registrationId))
+  return onSnapshot(q, (snapshot) => {
+    onData(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as RunnerBooking))
   })
 }
 
@@ -138,12 +150,16 @@ export async function joinQueue(userId: string, marathonId: string, cycle: numbe
       answers: deleteField(),
       companions: deleteField(),
       companionsEditedBy: deleteField(),
+      partOf: deleteField(),
       seatCount: deleteField(),
       proofOfPaymentUrls: [],
       proofSubmittedAt: null,
       adminNote: null,
       cancelledAt: null,
       depositPaidAt: deleteField(),
+      depositPaidAmount: deleteField(),
+      depositCoveredBy: deleteField(),
+      depositCoversPackage: deleteField(),
       depositProofUrls: deleteField(),
       depositProofSubmittedAt: deleteField(),
       paymentReference: deleteField(),
@@ -194,7 +210,7 @@ export async function submitTermsAndConditions(
     ...(companions.length ? { companions } : {}),
     packageId: selectedPackage.id,
     packageName: selectedPackage.name,
-    packagePriceAmount: selectedPackage.priceAmount,
+    packagePriceAmount: runnerShare(selectedPackage),
     packagePriceCurrency: selectedPackage.priceCurrency,
     selectedAddOns: toSelectedAddOns(selectedAddOns),
     status: 'terms_accepted' satisfies Registration['status'],
@@ -231,6 +247,7 @@ export async function updateCompanionContacts(
     companions,
     // Read by onRegistrationStatusChange to say who changed them in the booking's history.
     companionsEditedBy: editedBy,
+    ...(editedBy === 'admin' ? { companionsSavedByAdminAt: serverTimestamp() } : {}),
     updatedAt: serverTimestamp(),
   })
 }
@@ -297,25 +314,27 @@ export async function submitFinalPayment(registration: Registration, files: File
   })
 }
 
-/**
- * Admin-only (plain update, allowed by the admin rule): swap the package/add-ons at any stage. onRegistrationStatusChange logs it to the booking's history.
- * An unpaid final invoice is amended and re-issued to match; a confirmed booking's paid invoice is left alone (bill the difference via an Additional Invoice).
- */
-export async function changeRegistrationPackage(
+/** The write that moves a booking to another package. An unpaid final invoice is amended and re-issued to match; a confirmed booking's paid invoice is left alone (bill the difference via an Additional Invoice). */
+function packageChangeFields(
   registration: Registration,
   selectedPackage: MarathonPackage,
   selectedAddOns: MarathonPackageAddOn[],
+  marathon: Marathon | null,
 ) {
   const packageFields = {
     packageId: selectedPackage.id,
     packageName: selectedPackage.name,
-    packagePriceAmount: selectedPackage.priceAmount,
+    packagePriceAmount: runnerShare(selectedPackage),
     packagePriceCurrency: selectedPackage.priceCurrency,
     selectedAddOns: toSelectedAddOns(selectedAddOns),
   }
   const { finalInvoice } = registration
-  await updateDoc(doc(db, 'registrations', registration.id), {
+  return {
     ...packageFields,
+    // A deposit approved before depositPaidAmount existed is only known from the package it was paid on, which this replaces.
+    ...(registration.depositPaidAt && registration.depositPaidAmount == null
+      ? { depositPaidAmount: getDepositDue(registration, marathon) }
+      : {}),
     ...(finalInvoice && registration.status !== 'confirmed'
       ? {
           finalInvoice: {
@@ -326,7 +345,66 @@ export async function changeRegistrationPackage(
         }
       : {}),
     updatedAt: serverTimestamp(),
+  }
+}
+
+/** Admin-only (plain update, allowed by the admin rule): swap the package/add-ons at any stage. onRegistrationStatusChange logs it to the booking's history. */
+export async function changeRegistrationPackage(
+  registration: Registration,
+  selectedPackage: MarathonPackage,
+  selectedAddOns: MarathonPackageAddOn[],
+  marathon: Marathon | null,
+) {
+  await updateDoc(doc(db, 'registrations', registration.id), packageChangeFields(registration, selectedPackage, selectedAddOns, marathon))
+}
+
+/** Everyone on a booking's package, for an admin taking someone off it. `booking` is null for a runner with no booking yet (invited, or not linked). */
+export async function getPackageBookings(registration: Registration) {
+  const leadId = registration.partOf?.registrationId ?? registration.id
+  const [leadSnap, links] = await Promise.all([
+    getDoc(doc(db, 'registrations', leadId)),
+    getDocs(query(collection(db, 'runnerBookings'), where('registrationId', '==', leadId))),
+  ])
+  const lead = { id: leadSnap.id, ...leadSnap.data() } as Registration
+  const runners = await Promise.all(
+    (lead.companions ?? []).map(async (companion, i) => {
+      const link = links.docs.map((d) => d.data() as RunnerBooking).find((l) => l.runner === i + 2)
+      const snap = link?.userId ? await getDoc(doc(db, 'registrations', `${link.userId}_${link.marathonId}_${link.cycle}`)) : null
+      const booking = snap?.exists() ? ({ id: snap.id, ...snap.data() } as Registration) : null
+      return { runner: i + 2, name: companion.name || companion.email || `Runner ${i + 2}`, booking: booking?.partOf?.registrationId === leadId ? booking : null }
+    }),
+  )
+  return { lead, runners }
+}
+
+/**
+ * Admin-only: takes a runner off a package, moving the lead to `leadPackage` if it's a change. One batch, so the triggers
+ * never see them half apart. A runner who has started paying goes to `runnerPackage` and carries on alone; otherwise
+ * onRegistrationRunnersChange releases them once they're gone from `companions`.
+ */
+export async function removeRunner(
+  lead: Registration,
+  runner: number,
+  leadPackage: MarathonPackage,
+  marathon: Marathon | null,
+  runnerBooking?: Registration,
+  runnerPackage?: MarathonPackage,
+) {
+  const batch = writeBatch(db)
+  batch.update(doc(db, 'registrations', lead.id), {
+    ...(leadPackage.id !== lead.packageId
+      ? packageChangeFields(lead, leadPackage, addOnsOnPackage(lead, leadPackage), marathon)
+      : { updatedAt: serverTimestamp() }),
+    companions: (lead.companions ?? []).filter((_, i) => i !== runner - 2),
+    companionsEditedBy: 'admin',
   })
+  if (runnerBooking && runnerPackage) {
+    batch.update(doc(db, 'registrations', runnerBooking.id), {
+      ...packageChangeFields(runnerBooking, runnerPackage, addOnsOnPackage(runnerBooking, runnerPackage), marathon),
+      partOf: deleteField(),
+    })
+  }
+  await batch.commit()
 }
 
 /** Admin-only: change which packages an open offer (`accepted`) lets the registrant pick from. */
@@ -434,6 +512,17 @@ export async function rejectPayment(registrationId: string, adminNote: string) {
   await confirmPaymentCallable({ registrationId, decision: 'rejected', adminNote })
 }
 
+const applySharedDepositCallable = httpsCallable<{ registrationId: string }, { covered: number; waiting: number }>(
+  functions,
+  'applySharedDeposit',
+)
+
+/** Admin-only: one runner paid for everyone on the package, so settle the others' deposits from it. Works from any of their bookings. */
+export async function applySharedDeposit(registrationId: string) {
+  const result = await applySharedDepositCallable({ registrationId })
+  return result.data
+}
+
 export interface WaitlistImportRow {
   email: string
   marathonIds: string[]
@@ -509,6 +598,21 @@ const transferRegistrationCallable = httpsCallable<
 export async function transferRegistration(registrationId: string, toEmail: string) {
   const result = await transferRegistrationCallable({ registrationId, toEmail })
   return result.data
+}
+
+const claimRunnerInviteCallable = httpsCallable<{ token: string }, { runner: number }>(functions, 'claimRunnerInvite')
+
+/** The signed-in user accepts the invite link they opened (functions/src/on-registration-runners-change.ts). */
+export async function claimRunnerInvite(token: string) {
+  const result = await claimRunnerInviteCallable({ token })
+  return result.data
+}
+
+const resendRunnerInviteCallable = httpsCallable<{ bookingId: string }, { sent: boolean }>(functions, 'resendRunnerInvite')
+
+/** Admin-only: emails an unclaimed runner invite again. */
+export async function resendRunnerInvite(bookingId: string) {
+  await resendRunnerInviteCallable({ bookingId })
 }
 
 function internalNotesRef(registrationId: string) {

@@ -47,7 +47,7 @@ export interface MarathonPackage {
   name: string
   priceAmount: number
   priceCurrency: string
-  /** Up-front deposit due `Marathon.depositDueDays` after the offer is accepted, in `priceCurrency`; the rest is due by `Marathon.balanceDeadline`. Absent means no deposit split — the full amount is due. */
+  /** Up-front deposit, per runner on a multi-runner package, due `Marathon.depositDueDays` after the offer is accepted, in `priceCurrency`; the rest is due by `Marathon.balanceDeadline`. Absent means no deposit split — the full amount is due. */
   depositAmount?: number
   /** Free-text package details, e.g. inclusions. Line breaks are preserved when shown. */
   description?: string
@@ -222,11 +222,46 @@ export function formatTransferParty(party: Pick<RegistrationTransfer, 'name' | '
 
 /** One runner's booking details. */
 export interface RunnerDetails {
-  /** Runners 2+ only (the lead's come from their profile): entered by the lead; the email is CC'd on the booking's emails. */
+  /** Runners 2+ only, as `Registration.companions`: entered by the lead or an admin. Their booking is made from this (see RunnerBooking). */
   name?: string
   email?: string
   passportPhotoUrl?: string
   answers?: QuestionAnswer[]
+}
+
+/** Links a runner 2+'s own booking to the lead's on a multi-runner package. */
+export interface RunnerPartOf {
+  registrationId: string
+  /** 2-based runner number ("Runner 2"). */
+  runner: number
+  leadName: string
+  packageName: string
+  /** Their waitlist place or open offer became this booking, so they go back to their place if taken off the package. */
+  hadOwnPlace: boolean
+  /** Set when a booking already under way moved onto the package (see attachRunner), when that happened. */
+  joinedAt?: Timestamp
+  /** That booking's own package, restored if they're taken off this one. */
+  previousPackage?: Pick<Registration, 'packageId' | 'packageName' | 'packagePriceAmount' | 'packagePriceCurrency' | 'selectedAddOns'>
+}
+
+/** Who a runner 2+ is on a lead's booking and whether they've joined. Admin-read, written only by Cloud Functions. */
+export interface RunnerBooking {
+  id: string
+  /** null while invited: set when they open their invite link signed in as `email` (claimRunnerInvite). */
+  userId: string | null
+  email: string
+  /** Secret in the invite link. Absent if they already had an account. */
+  inviteToken?: string
+  registrationId: string
+  marathonId: string
+  cycle: number
+  /** 2-based runner number ("Runner 2"). */
+  runner: number
+  leadName: string
+  packageId: string
+  packageName: string
+  status: RegistrationStatus
+  updatedAt: Timestamp
 }
 
 export interface Registration {
@@ -237,6 +272,8 @@ export interface Registration {
   transferredTo?: RegistrationTransfer
   /** On a slot transferred in past the offer step: null until the new holder accepts the T&C themselves. Absent means not needed. */
   transferTermsAcceptedAt?: Timestamp | null
+  /** Set on runner 2+'s own booking on a multi-runner package (see RunnerPartOf). It runs the normal pipeline at their share of the price. */
+  partOf?: RunnerPartOf
   /** Earlier rejected/cancelled rounds, oldest first — see PreviousRound. */
   previousRounds?: PreviousRound[]
   userId: string
@@ -259,11 +296,13 @@ export interface Registration {
   answers?: QuestionAnswer[]
   /** Photo of the passport bio page, uploaded by the registrant once the deposit is approved — required before the booking counts as complete. */
   passportPhotoUrl?: string
-  /** Runners 2+ on a multi-runner package (`MarathonPackage.runnerCount`), filled in by the lead registrant, who owns the booking and accepts the T&C for everyone. Index 0 is runner 2. */
+  /** Runners 2+ on a multi-runner package (`MarathonPackage.runnerCount`), named by the lead or an admin. Each gets their own booking (`partOf`). Index 0 is runner 2. */
   companions?: RunnerDetails[]
   /** Who last changed a companion's name/email (EditRunnersDialog), for the booking-history entry. */
   companionsEditedBy?: 'user' | 'admin'
-  /** Seats this booking holds in `Marathon.confirmedCount` — server-set at deposit approval (and on a package change after it). Absent means 1. */
+  /** Bumped by an admin saving runner details, so onRegistrationRunnersChange links runners even if nothing else changed. */
+  companionsSavedByAdminAt?: Timestamp
+  /** Seats this booking holds in `Marathon.confirmedCount` — server-set at deposit approval (and on a package change after it). The first deposit on a multi-runner package holds every runner's seat; each later runner takes theirs over. Absent means 1. */
   seatCount?: number
   proofOfPaymentUrls: string[]
   proofSubmittedAt: Timestamp | null
@@ -289,6 +328,12 @@ export interface Registration {
   cycle?: number
   /** Set by confirmPayment when the deposit is approved (→ 'deposit_paid'). Its presence means this registration holds a counted seat. */
   depositPaidAt?: Timestamp
+  /** The deposit approved, set by confirmPayment and credited on later invoices. Absent on deposits approved before this field existed. */
+  depositPaidAmount?: number
+  /** The booking whose approved payment also covered this deposit, when one runner paid for both (applySharedDeposit). */
+  depositCoveredBy?: string
+  /** This approved deposit also pays for runners who haven't accepted their T&C yet, so accepting settles theirs automatically. */
+  depositCoversPackage?: boolean
   /** Already-approved proofs (the deposit's, copied by confirmPayment; plus a paid balance's, archived by issueFinalInvoice on an Additional Invoice) so new balance proof can reuse `proofOfPaymentUrls`. */
   depositProofUrls?: string[]
   /** The deposit proof's `proofSubmittedAt`, kept by confirmPayment for the deposit receipt's "date received". Absent on deposits approved before this field existed. */

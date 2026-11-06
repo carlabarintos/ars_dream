@@ -98,8 +98,8 @@ export const onRegistrationCreated = onDocumentCreated(
   { document: 'registrations/{registrationId}' },
   withSentry(async (event) => {
     const registration = event.data?.data()
-    // A slot transferred in is logged by transferRegistration itself.
-    if (!registration || registration.transferredFrom) return
+    // A slot transferred in, or a runner's place on a package, is logged by whatever created it.
+    if (!registration || registration.transferredFrom || registration.partOf) return
     const marathon = await db.collection('marathons').doc(registration.marathonId).get()
     await logBookingEvent(event.params.registrationId, registration, describeStatusEvent(registration), marathon.data()?.title)
   }),

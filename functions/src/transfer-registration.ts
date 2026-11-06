@@ -39,6 +39,9 @@ const SLOT_FIELDS = [
   'paymentReference',
   'adminNote',
   'depositPaidAt',
+  'depositPaidAmount',
+  'depositCoveredBy',
+  'depositCoversPackage',
   'depositProofUrls',
   'depositProofSubmittedAt',
   'approvedPaymentReferences',
@@ -49,7 +52,7 @@ const SLOT_FIELDS = [
   'overdueAt',
 ]
 
-function profileName(profile: FirebaseFirestore.DocumentData | undefined, fallback: string) {
+export function profileName(profile: FirebaseFirestore.DocumentData | undefined, fallback: string) {
   const parts = [profile?.firstName, profile?.middleName, profile?.lastName].filter(Boolean)
   return parts.length > 0 ? parts.join(' ') : (profile?.displayName ?? profile?.email ?? fallback)
 }

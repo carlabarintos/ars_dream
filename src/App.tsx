@@ -28,6 +28,7 @@ import { MessagesPage } from '@/features/messages/MessagesPage'
 import { PackageSelectionPage } from '@/features/marathons/PackageSelectionPage'
 import { TimelinePage } from '@/features/marathons/TimelinePage'
 import { MyRegistrationsPage } from '@/features/registrations/MyRegistrationsPage'
+import { useRunnerInviteClaim } from '@/features/registrations/use-runner-invite-claim'
 
 const queryClient = new QueryClient()
 
@@ -42,6 +43,7 @@ function HomeRoute() {
 
 function AppRoutes() {
   useAuthListener()
+  useRunnerInviteClaim()
 
   return (
     <Layout>

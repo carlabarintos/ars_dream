@@ -6,21 +6,23 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import type { Marathon, Registration } from '@/types'
 
 import { updateCompanionContacts } from './api'
-import { getRunnerCount, isValidEmail } from './registration-flow'
+import { getRunnerCount, hasRepeatedEmail, isLeadEmail, isValidEmail } from './registration-flow'
 import { CompanionFields } from './RegistrationWizard'
 
 /**
- * Lets an admin or the lead registrant change the name/email of runners 2+ on a multi-runner booking (the email is
- * CC'd on its emails). onRegistrationStatusChange logs every change to the booking's chat, naming who made it.
+ * Lets an admin or the lead registrant name runners 2+ on a multi-runner booking, which gives each their own booking
+ * (onRegistrationRunnersChange). onRegistrationStatusChange logs every change to the booking's chat, naming who made it.
  */
 export function EditRunnersDialog({
   registration,
   marathon,
+  leadEmail,
   editedBy,
   onClose,
 }: {
   registration: Registration
   marathon: Marathon | undefined
+  leadEmail: string | null | undefined
   editedBy: 'user' | 'admin'
   onClose: () => void
 }) {
@@ -31,7 +33,8 @@ export function EditRunnersDialog({
     })),
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const isValid = rows.every((row) => row.name.trim() !== '' && isValidEmail(row.email))
+  const isValid =
+    rows.every((row) => row.name.trim() !== '' && isValidEmail(row.email) && !isLeadEmail(row.email, leadEmail)) && !hasRepeatedEmail(rows)
 
   async function handleSave() {
     setIsSubmitting(true)
@@ -57,8 +60,8 @@ export function EditRunnersDialog({
           <DialogTitle>Edit Runner Details</DialogTitle>
           <DialogDescription>
             {editedBy === 'admin'
-              ? 'Runner 1 is the account holder. These runners are copied on this booking\'s emails from now on.'
-              : "They're copied on this booking's emails (invoices, T&C and passport reminders). Changes are noted in the booking's messages."}
+              ? "Saving links these runners: a registered email gets their own booking on this package straight away, anyone else is emailed an invite to sign up and gets it once they do. A runner already booked as a single runner moves onto this package with their deposit and seat, unless they have a final invoice."
+              : "Each runner gets their own booking with their own invoices, T&C and passport (we invite them to sign up if needed). Changes are noted in the booking's messages."}
           </DialogDescription>
         </DialogHeader>
         {rows.map((row, i) => (
@@ -66,12 +69,18 @@ export function EditRunnersDialog({
             key={i}
             runner={i + 1}
             value={row}
+            leadEmail={leadEmail}
             hint={null}
             onChange={(field, value) =>
               setRows((current) => current.map((r, j) => (j === i ? { ...r, [field]: value } : r)))
             }
           />
         ))}
+        {hasRepeatedEmail(rows) && (
+          <p className="text-destructive text-xs" role="alert">
+            Each runner needs their own email.
+          </p>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancel

@@ -1,6 +1,7 @@
 import type { FinalInvoice, Marathon, Registration, UserProfile } from '@/types'
 
 import {
+  bookingDeposit,
   buildFinalInvoiceEmail,
   buildInvoiceEmail,
   buildReceiptEmail,
@@ -28,7 +29,6 @@ export function getBookingDocuments(
   const context = documentContext(registration, marathon, profile)
   const currency = registration.packagePriceCurrency
   const items = packageLineItems(registration)
-  const total = items.reduce((sum, item) => sum + item.amount, 0)
   const { termsAcceptedAt, depositPaidAt, finalInvoice } = registration
   const documents: BookingDocument[] = []
 
@@ -60,7 +60,7 @@ export function getBookingDocuments(
           // When the registrant uploaded the proof; deposits approved before depositProofSubmittedAt existed fall back to approval time.
           receivedAt: (registration.depositProofSubmittedAt ?? depositPaidAt).toDate(),
           items,
-          amount: Math.min(chosenPackage?.depositAmount || total, total),
+          amount: bookingDeposit(registration, chosenPackage),
         }).html,
     })
   }

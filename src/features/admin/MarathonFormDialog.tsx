@@ -784,7 +784,7 @@ export function MarathonFormDialog({
                   </div>
                   <div className="flex flex-col gap-1">
                     <Label htmlFor={`pkg-deposit-${pkg.id}`} className="text-muted-foreground text-xs">
-                      Deposit (optional)
+                      Deposit per runner (optional)
                     </Label>
                     <Input
                       id={`pkg-deposit-${pkg.id}`}

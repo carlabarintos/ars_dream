@@ -2,6 +2,7 @@ import { FieldValue } from 'firebase-admin/firestore'
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore'
 
 import { db } from './admin.js'
+import { applyDepositToPackage } from './apply-shared-deposit.js'
 import { describePackage, describeStatusEvent, endedRound, logBookingEvent } from './booking-event.js'
 import {
   ACCEPTED_COPY,
@@ -12,13 +13,14 @@ import {
   buildAcceptanceEmail,
   buildFinalInvoiceEmail,
   buildInvoiceEmail,
+  bookingDeposit,
   buildReceiptEmail,
   formatDate,
   getOfferAcceptanceDeadline,
   packageLineItems,
 } from './email-template.js'
 import { APP_URL, notifyUser } from './notify-user.js'
-import { companionContacts, describeCompanionChanges, packageSeats } from './runners.js'
+import { describeCompanionChanges, otherRunners, packageSeats } from './runners.js'
 import { resendApiKey } from './send-email.js'
 import { withSentry } from './sentry.js'
 
@@ -47,6 +49,10 @@ export const onRegistrationStatusChange = onDocumentUpdated(
     // transferRegistration logs and notifies both sides itself; its writes must not re-send invoices/receipts here.
     const transferAt = (r: FirebaseFirestore.DocumentData) => (r.transferredTo ?? r.transferredFrom)?.at?.toMillis()
     if (transferAt(after) && transferAt(after) !== transferAt(before)) return
+    // Same for a runner joining or leaving a package (on-registration-runners-change.ts), unless their booking is under
+    // way and stays so: that's a package change like any other, with the amended invoice and seat change it brings.
+    const isUnderWay = before.status === after.status && after.status !== 'accepted'
+    if (before.partOf?.registrationId !== after.partOf?.registrationId && !isUnderWay) return
     // Runners 2+'s name/email changed (EditRunnersDialog) — noted in the booking's history, naming who changed it.
     const runnerChanges = describeCompanionChanges(before, after)
     if (runnerChanges) {
@@ -128,20 +134,31 @@ export const onRegistrationStatusChange = onDocumentUpdated(
 
     if (before.status === after.status && !finalInvoiceReissued && !packageChanged) return
 
+    // Another runner already paid this deposit: settle it now, so no invoice asks for it. deposit_paid brings its receipt.
+    if (before.status === 'accepted' && after.status === 'terms_accepted' && (after.partOf || after.companions?.length)) {
+      const { covered } = await applyDepositToPackage(event.params.registrationId, { automatic: true })
+      if (covered.includes(event.params.registrationId)) return
+    }
+
     // Before the deposit is approved the invoice is derived from the package, so a package change amends it — resend it.
     const depositInvoiceAmended =
       packageChanged && ['terms_accepted', 'payment_rejected'].includes(after.status) && after.finalInvoice == null
 
     const marathonDoc = await db.collection('marathons').doc(after.marathonId).get()
-    // A held seat (deposit approved) moving to a package with a different runner count, e.g. Solo → Runner + Runner.
-    // Admin's call, so it may go over capacity. Re-read in a transaction so a retried trigger can't apply it twice.
-    if (packageChanged && after.depositPaidAt) {
-      const seats = packageSeats(marathonDoc.data(), after.packageId)
+    // A held seat (deposit approved) moving to a package with a different runner count, e.g. Solo → Runner + Runner: the
+    // lead holds whatever the package needs beyond the seats its other runners hold. Admin's call, so it may go over
+    // capacity. Re-read in a transaction so a retried trigger can't apply it twice.
+    if (packageChanged && after.depositPaidAt && !after.partOf) {
       await db.runTransaction(async (transaction) => {
-        const current = (await transaction.get(event.data!.after.ref)).data()
-        const held = (current?.seatCount as number | undefined) ?? 1
-        if (!current || current.packageId !== after.packageId || held === seats) return
-        transaction.update(event.data!.after.ref, { seatCount: seats })
+        const ref = event.data!.after.ref
+        const current = (await transaction.get(ref)).data()
+        if (!current || current.packageId !== after.packageId) return
+        const others = (await otherRunners(transaction, ref, current)).filter(({ data }) => data.depositPaidAt)
+        const elsewhere = others.reduce((sum, { data }) => sum + ((data.seatCount as number | undefined) ?? 1), 0)
+        const seats = Math.max(packageSeats(marathonDoc.data(), after.packageId) - elsewhere, 1)
+        const held = (current.seatCount as number | undefined) ?? 1
+        if (held === seats) return
+        transaction.update(ref, { seatCount: seats })
         transaction.update(marathonDoc.ref, { confirmedCount: FieldValue.increment(seats - held) })
       })
     }
@@ -164,7 +181,6 @@ export const onRegistrationStatusChange = onDocumentUpdated(
           emailBody: marathonTitle ? `Your ${marathonTitle} tour booking: ${body}` : body,
           ctaLabel: 'View my booking',
           ctaUrl: `${APP_URL}/my-registrations`,
-          runners: companionContacts(after, marathonDoc.data()),
         })
         return
       }
@@ -192,7 +208,6 @@ export const onRegistrationStatusChange = onDocumentUpdated(
     const marathon = marathonDoc.data()
     const marathonTitle: string | undefined = marathon?.title
     const ccEmails: string[] = settingsDoc.data()?.ccEmails ?? []
-    const runners = companionContacts(after, marathon)
     const chosenPackage = marathon?.packages?.find((p: { id: string }) => p.id === after.packageId)
     // Everything the invoice/receipt emails share (the office's SPORTS SITE INVOICING template).
     const documentContext = {
@@ -233,7 +248,6 @@ export const onRegistrationStatusChange = onDocumentUpdated(
         emailBody: body,
         emailHtml: html,
         cc: ccEmails,
-        runners,
       })
       return
     }
@@ -266,7 +280,6 @@ export const onRegistrationStatusChange = onDocumentUpdated(
         emailBody: body,
         emailHtml: html,
         cc: ccEmails,
-        runners,
       })
       return
     }
@@ -287,14 +300,12 @@ export const onRegistrationStatusChange = onDocumentUpdated(
         emailBody: body,
         emailHtml: html,
         cc: ccEmails,
-        runners,
       })
       return
     }
 
     // Every approved payment gets an acknowledgement receipt.
     if (after.status === 'deposit_paid' || after.status === 'confirmed') {
-      const total = packageLineItems(after as Parameters<typeof packageLineItems>[0]).reduce((sum, item) => sum + item.amount, 0)
       const { subject, body, html } = buildReceiptEmail({
         ...documentContext,
         currency: after.packagePriceCurrency,
@@ -304,8 +315,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
               // When the registrant uploaded the proof, not when it was approved.
               receivedAt: (after.proofSubmittedAt ?? after.depositPaidAt)?.toDate() ?? new Date(),
               items: packageLineItems(after as Parameters<typeof packageLineItems>[0]),
-              // Same deposit the invoice billed; no deposit set means the full amount was paid up front.
-              amount: Math.min(chosenPackage?.depositAmount || total, total),
+              amount: bookingDeposit(after as Parameters<typeof bookingDeposit>[0], chosenPackage),
             }
           : {
               kind: 'balance' as const,
@@ -321,7 +331,6 @@ export const onRegistrationStatusChange = onDocumentUpdated(
         emailBody: body,
         emailHtml: html,
         cc: ccEmails,
-        runners,
       })
       return
     }
@@ -333,7 +342,6 @@ export const onRegistrationStatusChange = onDocumentUpdated(
       emailSubject: marathonTitle ? `${copy.title} — ${marathonTitle}` : copy.title,
       emailBody: marathonTitle ? `Your registration for the ${marathonTitle} tour: ${copy.body}` : copy.body,
       cc: ccEmails,
-      runners,
     })
   }),
 )

@@ -1,5 +1,6 @@
 import { formatTransferParty } from '@/types'
-import type { InvoiceLineItem, Marathon, MarathonQuestion, Registration, RegistrationStatus, RunnerDetails } from '@/types'
+import { bookingDeposit } from '../../../functions/src/email-template'
+import type { InvoiceLineItem, Marathon, MarathonQuestion, Registration, RegistrationStatus, RunnerDetails, RunnerPartOf } from '@/types'
 
 /** Whether a package has been picked yet — waitlist entries have none until the offer is accepted. */
 export function hasChosenPackage(registration: Registration) {
@@ -12,21 +13,36 @@ export function getOfferedPackages(registration: Registration, marathon: Maratho
   return (marathon?.packages ?? []).filter((pkg) => ids.includes(pkg.id))
 }
 
-/** Runners on the chosen package (e.g. 2 for "Runner + Runner"); 1 until a package is chosen. */
+/** Runners this booking names (e.g. 2 for a "Runner + Runner" lead); 1 until a package is chosen, and 1 on a runner's own booking. */
 export function getRunnerCount(registration: Registration, marathon: Marathon | null | undefined) {
+  if (registration.partOf) return 1
   return marathon?.packages?.find((p) => p.id === registration.packageId)?.runnerCount ?? 1
 }
 
-/** Every runner's details: the lead's own fields first, then `companions`. */
-export function getRunners(registration: Registration, marathon: Marathon | null | undefined): RunnerDetails[] {
-  return Array.from({ length: getRunnerCount(registration, marathon) }, (_, i) =>
-    i === 0
-      ? { passportPhotoUrl: registration.passportPhotoUrl, answers: registration.answers }
-      : (registration.companions?.[i - 1] ?? {}),
-  )
+/** The runners whose passport and answers this booking collects: only its own holder, since each runner has their own booking. */
+export function getRunners(registration: Registration, _marathon?: Marathon | null): RunnerDetails[] {
+  return [{ passportPhotoUrl: registration.passportPhotoUrl, answers: registration.answers }]
 }
 
+/** Runners 2+ a lead's booking names (name and email), filled in or not. */
+export function getCompanions(registration: Registration, marathon: Marathon | null | undefined): RunnerDetails[] {
+  return Array.from({ length: getRunnerCount(registration, marathon) - 1 }, (_, i) => registration.companions?.[i] ?? {})
+}
+
+/** "Changed to Runner + Runner: you're Runner 2 on Maria Santos's booking" */
+export const describePartOf = ({ packageName, runner, leadName, hadOwnPlace }: RunnerPartOf) =>
+  `${hadOwnPlace ? `Changed to ${packageName}: you're` : "You're"} Runner ${runner} on ${leadName}'s ${hadOwnPlace ? 'booking' : `${packageName} booking`}`
+
 export const isValidEmail = (email: string) => /^\S+@\S+\.\S+$/.test(email.trim())
+
+/** Two runners given the same email: only one person, who'd hold one booking. */
+export const hasRepeatedEmail = (runners: { email?: string }[]) => {
+  const emails = runners.map((runner) => runner.email?.trim().toLowerCase()).filter(Boolean)
+  return new Set(emails).size < emails.length
+}
+
+export const isLeadEmail = (email: string | undefined, leadEmail: string | null | undefined) =>
+  !!leadEmail && email?.trim().toLowerCase() === leadEmail.toLowerCase()
 
 /** "Runner 2 (Maria Santos) · " on a multi-runner booking, '' otherwise. */
 export function runnerPrefix(index: number, runnerCount: number, name?: string) {
@@ -39,6 +55,22 @@ export function hasAllPassports(registration: Registration, marathon: Marathon |
 }
 
 const answerMap = (runner: RunnerDetails) => Object.fromEntries((runner.answers ?? []).map((a) => [a.questionId, a.value]))
+
+/** On a multi-runner package, as lead or runner. */
+export function isOnSharedPackage(registration: Registration) {
+  return !!registration.partOf || !!registration.companions?.some((runner) => runner.email)
+}
+
+/** What an admin is told after applying one runner's deposit to the others. */
+export function sharedDepositMessage({ covered, waiting }: { covered: number; waiting: number }) {
+  const done =
+    covered > 0
+      ? `Deposit marked paid for ${covered === 1 ? 'the other runner' : `${covered} other runners`}.`
+      : 'No other runner was ready for this deposit.'
+  return waiting > 0
+    ? `${done} ${waiting === 1 ? 'One runner has' : `${waiting} runners have`}n't accepted their T&C yet, so it's settled automatically when they do, with no invoice to pay. If a runner has their own proof under review, review it as usual.`
+    : done
+}
 
 /** Whether this registration is paying its balance against the final invoice rather than its deposit. */
 export function isOnFinalInvoice(registration: Registration) {
@@ -104,9 +136,7 @@ export function getRegistrationTotalAmount(registration: Registration) {
 
 /** The deposit this proof should cover — the full total when the package has no deposit split (same rule as FinalInvoiceDialog). */
 export function getDepositDue(registration: Registration, marathon: Marathon | null | undefined) {
-  const total = getRegistrationTotalAmount(registration)
-  const depositAmount = marathon?.packages?.find((p) => p.id === registration.packageId)?.depositAmount
-  return Math.min(depositAmount ?? total, total)
+  return bookingDeposit(registration, marathon?.packages?.find((p) => p.id === registration.packageId))
 }
 
 /** Flagged by flagOverdueRegistrations and still sitting in the status it went overdue in. */
@@ -127,6 +157,7 @@ export function getRegistrationStatusMessage(registration: Registration, maratho
     case 'queued':
       return "You're on the waitlist. We'll notify you once a spot opens up and we have packages to offer you."
     case 'accepted':
+      if (registration.partOf) return `${describePartOf(registration.partOf)}. Accept your offer to receive your own invoice.`
       return "You've received an offer! Choose your package and accept it to receive your invoice."
     case 'terms_accepted':
       return 'Your invoice is ready. Pay your deposit using the instructions provided, then upload your proof of payment.'
@@ -337,6 +368,7 @@ export function getPendingActionReminder(
   registration: Registration,
   marathon: Marathon | undefined,
 ) {
+  if (step === 'terms' && registration.partOf) return 'Your place on this package is waiting — accept your offer to receive your invoice.'
   const questionnaire = step === 'questionnaire' ? getNextQuestionnaire(registration, marathon) : undefined
   return questionnaire
     ? `Please answer the "${questionnaire}" questionnaire to complete your booking.`

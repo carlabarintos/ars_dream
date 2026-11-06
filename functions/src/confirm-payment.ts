@@ -3,8 +3,9 @@ import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/
 
 import { db } from './admin.js'
 import { logAuditEntry } from './audit-log.js'
+import { bookingDeposit } from './email-template.js'
 import { requireAdmin } from './require-admin.js'
-import { packageSeats } from './runners.js'
+import { planSeats } from './runners.js'
 import { withSentry } from './sentry.js'
 
 // The Functions emulator has no real App Check backend to attest against
@@ -64,28 +65,34 @@ export const confirmPayment = onCall<ConfirmPaymentInput>(
       if (!marathon.capacity) {
         throw new HttpsError('failed-precondition', "Set this marathon's capacity before approving deposits.")
       }
-      const seatCount = packageSeats(marathon, registration.packageId)
-      if (marathon.confirmedCount + seatCount > marathon.capacity) {
+      const seats = await planSeats(transaction, registrationRef, registration, marathon)
+      if (marathon.confirmedCount + seats.take > marathon.capacity) {
         throw new HttpsError(
           'resource-exhausted',
-          seatCount > 1
-            ? `This marathon doesn't have ${seatCount} seats left for this package.`
-            : 'This marathon has no remaining capacity.',
+          seats.take > 1 ? `This marathon doesn't have ${seats.take} seats left for this package.` : 'This marathon has no remaining capacity.',
         )
       }
 
       transaction.update(registrationRef, {
         status: 'deposit_paid',
         depositPaidAt: new Date(),
+        // Later invoices credit this, not the package's deposit, which can change with the package.
+        depositPaidAmount: bookingDeposit(
+          registration as Parameters<typeof bookingDeposit>[0],
+          (marathon.packages as { id: string; depositAmount?: number; runnerCount?: number }[] | undefined)?.find((p) => p.id === registration.packageId),
+        ),
         depositProofUrls: registration.proofOfPaymentUrls ?? [],
         // The deposit receipt's "date received"; proofSubmittedAt is overwritten by the balance upload.
         depositProofSubmittedAt: registration.proofSubmittedAt ?? null,
         approvedPaymentReferences: [registration.paymentReference ?? ''],
         adminNote: null,
-        seatCount,
+        seatCount: seats.seatCount,
         updatedAt: new Date(),
       })
-      transaction.update(marathonRef, { confirmedCount: FieldValue.increment(seatCount) })
+      if (seats.holder) {
+        transaction.update(seats.holder.ref, { seatCount: FieldValue.increment(-1) })
+      }
+      if (seats.take > 0) transaction.update(marathonRef, { confirmedCount: FieldValue.increment(seats.take) })
     })
 
     if (loggedTarget) {

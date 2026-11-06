@@ -112,10 +112,13 @@ export function getStepDueDate(
     termsAcceptedAt?: TimestampLike | null
     finalInvoice?: { dueDate: TimestampLike } | null
     dueExtension?: { status: string; dueDate: TimestampLike } | null
+    partOf?: unknown
   },
   marathon: { offerAcceptanceDays?: number; depositDueDays?: number } | undefined,
   status: 'accepted' | 'terms_accepted' | 'final_invoiced',
 ): Date | undefined {
+  // Runner 2's offer never expires: it comes from the lead's booking, not the waitlist.
+  if (status === 'accepted' && registration.partOf) return undefined
   if (registration.dueExtension?.status === status) return registration.dueExtension.dueDate.toDate()
   if (status === 'final_invoiced') return registration.finalInvoice?.dueDate.toDate()
   if (status === 'accepted') {
@@ -291,7 +294,7 @@ export function buildAcceptanceEmail({
       <div style="padding: 20px 20px 0;">
         <p style="margin: 0; font-family: ${DISPLAY}; font-size: 26px; line-height: 1; letter-spacing: 1px;">${escapeHtml(pkg.name)}</p>
         <p style="margin: 10px 0 0; font-family: ${DISPLAY}; font-size: 32px; line-height: 1.1; letter-spacing: 1px;">${pkg.priceAmount ? `${currency} ${pkg.priceAmount.toLocaleString()}` : 'TBA'}</p>
-        ${pkg.depositAmount ? `<p style="margin: 2px 0 0; font-size: 12px; color: ${MUTED};">Deposit ${currency} ${Math.min(pkg.depositAmount, pkg.priceAmount).toLocaleString()}</p>` : ''}
+        ${pkg.depositAmount ? `<p style="margin: 2px 0 0; font-size: 12px; color: ${MUTED};">${packageDepositLabel(pkg)}</p>` : ''}
       </div>
       <div style="padding: 16px 20px 20px;">
         ${descriptionLines.length > 0 ? bulletTable(descriptionLines, '•', MUTED, MUTED) : ''}
@@ -484,6 +487,27 @@ interface ServiceDocumentContext {
 }
 
 /** Package + add-ons from the registration's snapshot, as invoice lines. */
+/** What one runner pays of a package's price: on a multi-runner package each runner has their own booking for their share. */
+export function runnerShare(pkg: { priceAmount: number; runnerCount?: number }) {
+  return Math.round((pkg.priceAmount / (pkg.runnerCount ?? 1)) * 100) / 100
+}
+
+/** "Deposit USD 1,000", or "Deposit USD 1,000 per runner" on a multi-runner package. */
+export function packageDepositLabel(pkg: { depositAmount?: number; runnerCount?: number; priceAmount: number; priceCurrency: string }) {
+  const deposit = Math.min(pkg.depositAmount ?? 0, runnerShare(pkg))
+  return `Deposit ${pkg.priceCurrency} ${deposit.toLocaleString()}${(pkg.runnerCount ?? 1) > 1 ? ' per runner' : ''}`
+}
+
+/** What a booking's first payment comes to, or came to: the amount approved once there is one, since the package may have changed since. No deposit split means the full amount. */
+export function bookingDeposit(
+  registration: Parameters<typeof packageLineItems>[0] & { depositPaidAmount?: number },
+  pkg: { depositAmount?: number } | undefined,
+) {
+  if (registration.depositPaidAmount != null) return registration.depositPaidAmount
+  const total = packageLineItems(registration).reduce((sum, item) => sum + item.amount, 0)
+  return Math.min(pkg?.depositAmount || total, total)
+}
+
 export function packageLineItems(registration: {
   packageName: string
   packagePriceAmount: number
@@ -687,24 +711,6 @@ export function buildReceiptEmail(input: ReceiptEmailInput): { subject: string; 
   })
 
   return { subject: title ? `${copy.title} — ${title}` : copy.title, body, html }
-}
-
-/**
- * Banner above a multi-runner booking's emails, for the runners CC'd on them (notifyUser's `runners`): they have no
- * account, so it tells them the account holder completes the booking and needs their passport photo and details.
- * Read by the account holder too, so it names everyone.
- */
-export function runnerCcNoteHtml(leadName: string, runners: { runner: number; name: string }[]): string {
-  const lead = escapeHtml(leadName)
-  const copied = runners.map((r) => `${escapeHtml(r.name || 'Runner')} (Runner ${r.runner})`).join(', ')
-  const addressed = runners.map((r) => escapeHtml(r.name || `Runner ${r.runner}`)).join(', ')
-  return `
-    <div style="background: ${PAGE_BG}; font-family: ${SANS}; padding: 16px 12px 0;">
-      <div style="max-width: 640px; margin: 0 auto; background: ${SECONDARY}; border: 1px solid ${BORDER}; border-left: 4px solid ${PRIMARY}; border-radius: 10px; padding: 12px 16px; font-size: 13px; line-height: 1.5; color: ${FOREGROUND};">
-        <b>Copied to ${copied}.</b> ${lead}, the account holder, completes this booking for every runner in the ARS Dream app.
-        ${addressed}: please send your passport bio page photo and any details they ask for to ${lead} &mdash; you don't need to sign in or use the buttons below yourself.
-      </div>
-    </div>`
 }
 
 /** Simple branded layout, reused for every other status-change email. */

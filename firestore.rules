@@ -116,8 +116,8 @@ service cloud.firestore {
           .hasOnly([
             'packageId', 'packageName', 'packagePriceAmount', 'packagePriceCurrency',
             'selectedAddOns', 'offeredPackageIds', 'offeredAt', 'cancelledBy', 'status', 'queuePosition', 'queueSortAt', 'termsAcceptedAt', 'answers',
-            'companions', 'companionsEditedBy', 'seatCount', 'proofOfPaymentUrls', 'proofSubmittedAt', 'paymentReference', 'adminNote', 'cancelledAt',
-            'depositPaidAt', 'depositProofUrls', 'depositProofSubmittedAt', 'approvedPaymentReferences', 'finalInvoice', 'previousFinalInvoices',
+            'companions', 'companionsEditedBy', 'partOf', 'seatCount', 'proofOfPaymentUrls', 'proofSubmittedAt', 'paymentReference', 'adminNote', 'cancelledAt',
+            'depositPaidAt', 'depositPaidAmount', 'depositCoveredBy', 'depositCoversPackage', 'depositProofUrls', 'depositProofSubmittedAt', 'approvedPaymentReferences', 'finalInvoice', 'previousFinalInvoices',
             'finalTermsAcceptedAt', 'transferredFrom', 'transferredTo', 'transferTermsAcceptedAt', 'createdAt', 'updatedAt',
           ]);
 
@@ -180,6 +180,11 @@ service cloud.firestore {
         );
 
       allow update: if isAdmin();
+    }
+
+    // Who runners 2+ are and whether they've joined, written only by Cloud Functions.
+    match /runnerBookings/{bookingId} {
+      allow read: if isAdmin();
     }
 
     // Staff-only notes. A subcollection because the registrant can read the
