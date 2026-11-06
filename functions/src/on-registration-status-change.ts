@@ -132,12 +132,18 @@ export const onRegistrationStatusChange = onDocumentUpdated(
       await event.data!.after.ref.update({ previousRounds: FieldValue.arrayUnion(endedRound(before)) })
     }
 
+    // A runner's T&C were still to come when another runner's payment covered them: settle it now they've accepted.
+    if (after.partOf && before.transferTermsAcceptedAt === null && after.transferTermsAcceptedAt) {
+      await applyDepositToPackage(event.params.registrationId, { automatic: true })
+    }
+
     if (before.status === after.status && !finalInvoiceReissued && !packageChanged) return
 
     // Another runner already paid this deposit: settle it now, so no invoice asks for it. deposit_paid brings its receipt.
+    // A runner yet to accept their T&C can't be settled, but owes nothing either, so they get no invoice.
     if (before.status === 'accepted' && after.status === 'terms_accepted' && (after.partOf || after.companions?.length)) {
-      const { covered } = await applyDepositToPackage(event.params.registrationId, { automatic: true })
-      if (covered.includes(event.params.registrationId)) return
+      const { covered, sourceId } = await applyDepositToPackage(event.params.registrationId, { automatic: true })
+      if (covered.includes(event.params.registrationId) || (sourceId && after.transferTermsAcceptedAt === null)) return
     }
 
     // Before the deposit is approved the invoice is derived from the package, so a package change amends it — resend it.

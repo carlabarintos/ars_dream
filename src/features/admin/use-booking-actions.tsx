@@ -271,6 +271,7 @@ export function useBookingActions(
         <ChangePackageDialog
           registration={packageRegistration}
           marathon={getMarathon(packageRegistration) ?? null}
+          leadEmail={getProfile(packageRegistration)?.email}
           onClose={() => setPackageRegistrationId(null)}
         />
       )}

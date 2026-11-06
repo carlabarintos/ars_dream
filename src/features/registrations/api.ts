@@ -150,6 +150,7 @@ export async function joinQueue(userId: string, marathonId: string, cycle: numbe
       answers: deleteField(),
       companions: deleteField(),
       companionsEditedBy: deleteField(),
+      suggestedCompanions: deleteField(),
       partOf: deleteField(),
       seatCount: deleteField(),
       proofOfPaymentUrls: [],
@@ -236,20 +237,34 @@ function runnerUpdate(registration: Registration, runner: number, details: Runne
   return { companions }
 }
 
+const checkRunnerLinksCallable = httpsCallable<{ registrationId: string; emails: string[] }, { blocked: string[] }>(functions, 'checkRunnerLinks')
+
+/** Admin-only: stops a save naming a runner who can't join this package yet (see linkBlock in on-registration-runners-change.ts). */
+async function assertRunnersCanLink(registrationId: string, runners: Pick<RunnerDetails, 'email'>[]) {
+  const emails = runners.flatMap((runner) => runner.email ?? [])
+  if (!emails.length) return
+  const { blocked } = (await checkRunnerLinksCallable({ registrationId, emails })).data
+  if (blocked.length) throw new Error(blocked.join(' '))
+}
+
+function companionContactFields(registration: Registration, contacts: Pick<RunnerDetails, 'name' | 'email'>[], editedBy: 'user' | 'admin') {
+  return {
+    companions: contacts.map((contact, i) => ({ ...registration.companions?.[i], ...contact })),
+    // Read by onRegistrationStatusChange to say who changed them in the booking's history.
+    companionsEditedBy: editedBy,
+    ...(editedBy === 'admin' ? { companionsSavedByAdminAt: serverTimestamp() } : {}),
+    updatedAt: serverTimestamp(),
+  }
+}
+
 /** Runners 2+'s name/email changed by an admin or the lead (EditRunnersDialog); their passports and answers are kept. */
 export async function updateCompanionContacts(
   registration: Registration,
   contacts: Pick<RunnerDetails, 'name' | 'email'>[],
   editedBy: 'user' | 'admin',
 ) {
-  const companions = contacts.map((contact, i) => ({ ...registration.companions?.[i], ...contact }))
-  await updateDoc(doc(db, 'registrations', registration.id), {
-    companions,
-    // Read by onRegistrationStatusChange to say who changed them in the booking's history.
-    companionsEditedBy: editedBy,
-    ...(editedBy === 'admin' ? { companionsSavedByAdminAt: serverTimestamp() } : {}),
-    updatedAt: serverTimestamp(),
-  })
+  if (editedBy === 'admin') await assertRunnersCanLink(registration.id, contacts)
+  await updateDoc(doc(db, 'registrations', registration.id), companionContactFields(registration, contacts, editedBy))
 }
 
 /** The questionnaire, answered right after the passport once the deposit is approved — once per runner. */
@@ -348,14 +363,23 @@ function packageChangeFields(
   }
 }
 
-/** Admin-only (plain update, allowed by the admin rule): swap the package/add-ons at any stage. onRegistrationStatusChange logs it to the booking's history. */
+/**
+ * Admin-only (plain update, allowed by the admin rule): swap the package/add-ons at any stage. onRegistrationStatusChange
+ * logs it to the booking's history. `runners` are saved in the same write, which links them as EditRunnersDialog does.
+ */
 export async function changeRegistrationPackage(
   registration: Registration,
   selectedPackage: MarathonPackage,
   selectedAddOns: MarathonPackageAddOn[],
   marathon: Marathon | null,
+  runners: Pick<RunnerDetails, 'name' | 'email'>[] = [],
 ) {
-  await updateDoc(doc(db, 'registrations', registration.id), packageChangeFields(registration, selectedPackage, selectedAddOns, marathon))
+  // Only new names: a runner left waiting on staff shouldn't stop the package changing.
+  await assertRunnersCanLink(registration.id, runners.filter((runner) => !registration.companions?.some((c) => c.email === runner.email)))
+  await updateDoc(doc(db, 'registrations', registration.id), {
+    ...packageChangeFields(registration, selectedPackage, selectedAddOns, marathon),
+    ...(runners.length ? companionContactFields(registration, runners, 'admin') : {}),
+  })
 }
 
 /** Everyone on a booking's package, for an admin taking someone off it. `booking` is null for a runner with no booking yet (invited, or not linked). */
@@ -407,9 +431,18 @@ export async function removeRunner(
   await batch.commit()
 }
 
-/** Admin-only: change which packages an open offer (`accepted`) lets the registrant pick from. */
-export async function changeOfferedPackages(registrationId: string, offeredPackageIds: string[]) {
-  await updateDoc(doc(db, 'registrations', registrationId), { offeredPackageIds, updatedAt: serverTimestamp() })
+/** Admin-only: change which packages an open offer (`accepted`) lets the registrant pick from, and the runners suggested for them. */
+export async function changeOfferedPackages(
+  registrationId: string,
+  offeredPackageIds: string[],
+  suggestedCompanions: Pick<RunnerDetails, 'name' | 'email'>[],
+) {
+  await assertRunnersCanLink(registrationId, suggestedCompanions)
+  await updateDoc(doc(db, 'registrations', registrationId), {
+    offeredPackageIds,
+    suggestedCompanions: suggestedCompanions.length ? suggestedCompanions : deleteField(),
+    updatedAt: serverTimestamp(),
+  })
 }
 
 /** Admin-only (plain update, allowed by the admin rule): issue or re-issue the final invoice. No capacity check needed — the seat was already counted at deposit. */
@@ -467,7 +500,13 @@ export async function extendDueDate(registration: Registration, dueDate: Date) {
 // slots) are enforced server-side rather than trusted from the client.
 
 const acceptRegistrationCallable = httpsCallable<
-  { registrationId: string; decision: 'accepted' | 'rejected'; offerImageUrl?: string; offeredPackageIds?: string[] },
+  {
+    registrationId: string
+    decision: 'accepted' | 'rejected'
+    offerImageUrl?: string
+    offeredPackageIds?: string[]
+    suggestedCompanions?: Pick<RunnerDetails, 'name' | 'email'>[]
+  },
   { status: string }
 >(functions, 'acceptRegistration')
 
@@ -495,12 +534,15 @@ export async function decideQueueRegistration(
   decision: 'accepted' | 'rejected',
   offeredPackageIds?: string[],
   offerImageUrl?: string,
+  suggestedCompanions?: Pick<RunnerDetails, 'name' | 'email'>[],
 ) {
+  await assertRunnersCanLink(registrationId, suggestedCompanions ?? [])
   await acceptRegistrationCallable({
     registrationId,
     decision,
     ...(offeredPackageIds ? { offeredPackageIds } : {}),
     ...(offerImageUrl ? { offerImageUrl } : {}),
+    ...(suggestedCompanions ? { suggestedCompanions } : {}),
   })
 }
 

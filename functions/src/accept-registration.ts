@@ -3,6 +3,7 @@ import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/
 
 import { db } from './admin.js'
 import { logAuditEntry } from './audit-log.js'
+import { EMAIL_PATTERN } from './create-user.js'
 import { requireAdmin } from './require-admin.js'
 import { packageSeats } from './runners.js'
 import { withSentry } from './sentry.js'
@@ -21,13 +22,15 @@ interface AcceptRegistrationInput {
   offerImageUrl?: string
   /** Required when accepting: the marathon packages the registrant may choose from when they accept the offer. */
   offeredPackageIds?: string[]
+  /** Runners 2+ the admin already knows about, prefilled for the lead when they accept (Registration.suggestedCompanions). */
+  suggestedCompanions?: { name: string; email: string }[]
 }
 
 export const acceptRegistration = onCall<AcceptRegistrationInput>(
   { enforceAppCheck },
   withSentry(async (request: CallableRequest<AcceptRegistrationInput>) => {
     const uid = await requireAdmin(request)
-    const { registrationId, decision, offerImageUrl, offeredPackageIds } = request.data
+    const { registrationId, decision, offerImageUrl, offeredPackageIds, suggestedCompanions = [] } = request.data
 
     const registrationRef = db.collection('registrations').doc(registrationId)
     const registrationSnap = await registrationRef.get()
@@ -49,6 +52,13 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
         metadata: { marathonId: registration.marathonId as string, userId: registration.userId as string },
       })
       return { status: 'rejected' }
+    }
+
+    if (
+      !Array.isArray(suggestedCompanions) ||
+      !suggestedCompanions.every((c) => typeof c?.name === 'string' && c.name.trim() && EMAIL_PATTERN.test(String(c?.email)))
+    ) {
+      throw new HttpsError('invalid-argument', 'Each runner needs a name and a valid email.')
     }
 
     const marathonRef = db.collection('marathons').doc(registration.marathonId)
@@ -117,6 +127,9 @@ export const acceptRegistration = onCall<AcceptRegistrationInput>(
         overdueAt: FieldValue.delete(),
         dueExtension: FieldValue.delete(),
         ...(offerImageUrl ? { offerImageUrl } : {}),
+        suggestedCompanions: suggestedCompanions.length
+          ? suggestedCompanions.map(({ name, email }) => ({ name, email }))
+          : FieldValue.delete(),
       })
     })
 

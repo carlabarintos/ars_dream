@@ -11,8 +11,11 @@ import { useAuthStore } from '@/features/auth/auth-store'
 import { uploadMarathonPackageOffer } from '@/features/marathons/api'
 import { sendPersonalMessage } from '@/features/messages/api'
 import { decideQueueRegistration } from '@/features/registrations/api'
+import { areRunnerRowsValid, filledRunnerRows, toRunnerRows } from '@/features/registrations/registration-flow'
 import { cn, formatPackagePrice } from '@/lib/utils'
 import type { Marathon, Registration, UserProfile } from '@/types'
+
+import { OptionalRunnerFields } from './OptionalRunnerFields'
 
 // Same template the onRegistrationStatusChange function sends, so the preview can't drift from the real email.
 import { buildAcceptanceEmail, getOfferAcceptanceDeadline } from '../../../functions/src/email-template'
@@ -48,6 +51,10 @@ export function OfferChatDialog({
   const offeredPackages = allPackages.filter((p) => offeredIds.includes(p.id))
   const defaultImageUrl = offeredPackages.find((p) => p.offerImageUrl)?.offerImageUrl
 
+  const [runners, setRunners] = useState<{ name: string; email: string }[]>([])
+  const runnersNeeded = Math.max(1, ...offeredPackages.map((p) => p.runnerCount ?? 1)) - 1
+  const offeredRunners = Array.from({ length: runnersNeeded }, (_, i) => runners[i] ?? { name: '', email: '' })
+
   const [text, setText] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | undefined>(undefined)
@@ -61,6 +68,7 @@ export function OfferChatDialog({
     if (!open || !registration || !marathon) return
     const ids = (marathon.packages ?? []).map((p) => p.id)
     setOfferedIds(ids)
+    setRunners(toRunnerRows(registration.suggestedCompanions))
     setText(buildDefaultOfferMessage(marathon.title))
     setImageFile(null)
     setImagePreviewUrl(marathon.packages?.find((p) => p.offerImageUrl)?.offerImageUrl)
@@ -95,7 +103,7 @@ export function OfferChatDialog({
     setIsSubmitting(true)
     try {
       const finalImageUrl = imageFile ? await uploadMarathonPackageOffer(imageFile) : defaultImageUrl
-      await decideQueueRegistration(registration.id, 'accepted', offeredIds, finalImageUrl)
+      await decideQueueRegistration(registration.id, 'accepted', offeredIds, finalImageUrl, filledRunnerRows(offeredRunners))
       try {
         await sendPersonalMessage(registration.userId, adminUid, 'admin', text.trim(), finalImageUrl, {
           registrationId: registration.id,
@@ -144,6 +152,8 @@ export function OfferChatDialog({
                 ))
               )}
             </div>
+
+            <OptionalRunnerFields count={runnersNeeded} rows={runners} leadEmail={profile?.email} onChange={setRunners} />
 
             <div className="flex flex-col gap-1.5">
               <Label className="text-muted-foreground text-xs">Offer image</Label>
@@ -210,7 +220,7 @@ export function OfferChatDialog({
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="button" onClick={() => setStep('preview')} disabled={!text.trim() || offeredIds.length === 0}>
+              <Button type="button" onClick={() => setStep('preview')} disabled={!text.trim() || offeredIds.length === 0 || !areRunnerRowsValid(offeredRunners, profile?.email)}>
                 Preview email
               </Button>
             </>

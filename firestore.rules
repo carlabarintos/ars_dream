@@ -116,7 +116,7 @@ service cloud.firestore {
           .hasOnly([
             'packageId', 'packageName', 'packagePriceAmount', 'packagePriceCurrency',
             'selectedAddOns', 'offeredPackageIds', 'offeredAt', 'cancelledBy', 'status', 'queuePosition', 'queueSortAt', 'termsAcceptedAt', 'answers',
-            'companions', 'companionsEditedBy', 'partOf', 'seatCount', 'proofOfPaymentUrls', 'proofSubmittedAt', 'paymentReference', 'adminNote', 'cancelledAt',
+            'companions', 'companionsEditedBy', 'suggestedCompanions', 'partOf', 'seatCount', 'proofOfPaymentUrls', 'proofSubmittedAt', 'paymentReference', 'adminNote', 'cancelledAt',
             'depositPaidAt', 'depositPaidAmount', 'depositCoveredBy', 'depositCoversPackage', 'depositProofUrls', 'depositProofSubmittedAt', 'approvedPaymentReferences', 'finalInvoice', 'previousFinalInvoices',
             'finalTermsAcceptedAt', 'transferredFrom', 'transferredTo', 'transferTermsAcceptedAt', 'createdAt', 'updatedAt',
           ]);

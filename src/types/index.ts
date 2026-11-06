@@ -270,7 +270,7 @@ export interface Registration {
   transferredFrom?: RegistrationTransfer
   /** This booking's slot was transferred to someone else; the booking itself is then 'cancelled'. */
   transferredTo?: RegistrationTransfer
-  /** On a slot transferred in past the offer step: null until the new holder accepts the T&C themselves. Absent means not needed. */
+  /** On a slot transferred in past the offer step, or a runner's booking (which has no offer step): null until they accept the T&C themselves. Absent means not needed. */
   transferTermsAcceptedAt?: Timestamp | null
   /** Set on runner 2+'s own booking on a multi-runner package (see RunnerPartOf). It runs the normal pipeline at their share of the price. */
   partOf?: RunnerPartOf
@@ -298,6 +298,8 @@ export interface Registration {
   passportPhotoUrl?: string
   /** Runners 2+ on a multi-runner package (`MarathonPackage.runnerCount`), named by the lead or an admin. Each gets their own booking (`partOf`). Index 0 is runner 2. */
   companions?: RunnerDetails[]
+  /** Runners 2+ an admin named while the offer is open, before any package is chosen. Only prefills the lead's wizard, which is what writes `companions`. */
+  suggestedCompanions?: Pick<RunnerDetails, 'name' | 'email'>[]
   /** Who last changed a companion's name/email (EditRunnersDialog), for the booking-history entry. */
   companionsEditedBy?: 'user' | 'admin'
   /** Bumped by an admin saving runner details, so onRegistrationRunnersChange links runners even if nothing else changed. */

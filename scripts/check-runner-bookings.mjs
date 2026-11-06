@@ -68,7 +68,8 @@ const bookingDoc = () => store.get('runnerBookings/r_2')
 await syncRunnerBookings('r', booking([{ name: 'New', email: 'New@x.com' }], { passportPhotoUrl: 'secret', answers: [] }))
 assert.equal(emails.length, 1)
 assert.equal(String(emails[0].to), 'new@x.com')
-assert.match(emails[0].subject, /offered a place as Runner 2 — Berlin/)
+assert.match(emails[0].subject, /included as Runner 2 — Berlin/)
+assert.doesNotMatch(emails[0].html, /offered/i)
 assert.match(emails[0].html, /Create My Account/)
 assert.match(emails[0].html, /mode=sign-up&amp;email=new%40x\.com|mode=sign-up&email=new%40x\.com/)
 const { inviteToken } = bookingDoc()
@@ -100,7 +101,7 @@ assert.equal(bookingDoc().userId, null)
 // The link's token, signed in as the invited email, does. Opening it twice is fine, and syncs keep the link.
 assert.equal(store.get('registrations/new-uid_m_1'), undefined)
 assert.equal((await claimInvite(inviteToken, 'new-uid', 'NEW@x.com')).runner, 2)
-assert.equal(store.get('registrations/new-uid_m_1').status, 'accepted')
+assert.equal(store.get('registrations/new-uid_m_1').status, 'terms_accepted')
 store.delete('registrations/new-uid_m_1')
 store.set('runnerBookings/r_2', { ...bookingDoc(), userId: null })
 assert.equal((await claimInvite(inviteToken, 'new-uid', 'NEW@x.com')).runner, 2)
@@ -150,7 +151,10 @@ await syncRunnerBookings('r', booking([{ name: 'Known', email: 'known@x.com' }])
 const own = 'registrations/known_m_1'
 const offer = store.get(own)
 assert.equal(offer.userId, 'known')
-assert.equal(offer.status, 'accepted')
+// No offer to accept: invoiced straight away, with their own T&C still to come.
+assert.equal(offer.status, 'terms_accepted')
+assert.ok(offer.termsAcceptedAt)
+assert.equal(offer.transferTermsAcceptedAt, null)
 assert.equal(offer.packagePriceAmount, 4500)
 assert.equal(offer.packagePriceCurrency, 'USD')
 assert.deepEqual(offer.offeredPackageIds, ['duo'])
@@ -173,7 +177,7 @@ assert.match(emails.at(-1).subject, /place was cancelled/)
 const queued = { userId: 'known', marathonId: 'm', cycle: 1, status: 'queued', packageId: '', queuePosition: 3, createdAt: 'original' }
 store.set(own, queued)
 await syncRunnerBookings('r', booking([{ name: 'Known', email: 'known@x.com' }]))
-assert.equal(store.get(own).status, 'accepted')
+assert.equal(store.get(own).status, 'terms_accepted')
 assert.equal(store.get(own).createdAt, 'original')
 assert.equal(store.get(own).queuePosition, null)
 assert.equal(store.get(own).partOf.hadOwnPlace, true)
@@ -187,12 +191,13 @@ assert.equal(store.get(own).createdAt, 'original')
 assert.equal(store.get(own).packageId, '')
 assert.equal(store.get(own).partOf, undefined)
 assert.equal(store.get(own).cancelledBy, undefined)
+assert.equal(store.get(own).transferTermsAcceptedAt, undefined)
 assert.match(emails.at(-1).subject, /back on the waitlist/)
 assert.doesNotMatch(emails.at(-1).html, /Lea<b>/)
 
 // The lead's booking being cancelled cancels theirs too, with no return to the waitlist.
 await syncRunnerBookings('r', booking([{ name: 'Known', email: 'known@x.com' }]))
-assert.equal(store.get(own).status, 'accepted')
+assert.equal(store.get(own).status, 'terms_accepted')
 await syncRunnerBookings('r', booking([{ name: 'Known', email: 'known@x.com' }], { status: 'cancelled' }))
 assert.equal(store.get(own).status, 'cancelled')
 assert.equal(store.get(own).cancelledBy, 'admin')
@@ -257,7 +262,7 @@ store.delete('runnerBookings/r_2')
 // A cancelled entry of theirs is kept in their history when they join.
 store.set(own, { ...queued, status: 'cancelled', createdAt: null })
 await syncRunnerBookings('r', booking([{ name: 'Known', email: 'known@x.com' }]))
-assert.equal(store.get(own).status, 'accepted')
+assert.equal(store.get(own).status, 'terms_accepted')
 assert.equal(store.get(own).previousRounds.length, 1)
 assert.equal(store.get(own).partOf.hadOwnPlace, false)
 store.delete(own)
@@ -324,6 +329,15 @@ assert.deepEqual((await applyDepositToPackage('r2_m_1', { automatic: true })).co
 assert.equal(store.get('registrations/r2_m_1').status, 'deposit_paid')
 assert.equal(store.get('registrations/r2_m_1').depositCoveredBy, 'p')
 
+// Same for a runner invoiced with their T&C still to come: nothing is settled until they accept.
+setup(paid, { status: 'terms_accepted', transferTermsAcceptedAt: null })
+result = await applyDepositToPackage('p')
+assert.deepEqual([result.covered, result.waiting], [[], 1])
+result = await applyDepositToPackage('r2_m_1', { automatic: true })
+assert.deepEqual([result.covered, result.sourceId], [[], 'p'])
+store.set('registrations/r2_m_1', { ...store.get('registrations/r2_m_1'), transferTermsAcceptedAt: 'now' })
+assert.deepEqual((await applyDepositToPackage('r2_m_1', { automatic: true })).covered, ['r2_m_1'])
+
 // Without an admin saying the payment covers everyone, accepting T&C leaves them to pay, with no refusal to stop the invoice.
 setup(paid, { status: 'terms_accepted' })
 assert.deepEqual((await applyDepositToPackage('r2_m_1', { automatic: true })).covered, [])
@@ -381,12 +395,29 @@ assert.equal(store.get('marathons/m').confirmedCount, 5)
 assert.equal(emails.length, sent + 1)
 assert.match(emails.at(-1).html, /moved your booking onto Lea&lt;b&gt;'s Runner \+ Runner package/)
 
-// Under review: the proof stays where it is for the admin to approve.
+// Under review: nothing moves until the proof is decided, or approving it would record the new package's deposit.
 reset({ status: 'payment_submitted', proofOfPaymentUrls: ['proof'] })
 await syncRunnerBookings('r', leadDuo, { byAdmin: true })
 assert.equal(store.get(own).status, 'payment_submitted')
 assert.deepEqual(store.get(own).proofOfPaymentUrls, ['proof'])
-assert.equal(store.get(own).packagePriceAmount, 4500)
+assert.equal(store.get(own).packageId, 'solo')
+assert.match(added.at(-1).text, /proof under review/)
+// Decided: an admin saving again does the move.
+store.set(own, { ...store.get(own), status: 'deposit_paid', depositPaidAt: 'then', depositPaidAmount: 700, seatCount: 1 })
+await syncRunnerBookings('r', leadDuo, { byAdmin: true })
+assert.equal(store.get(own).packageId, 'duo')
+
+// Already on another live multi-runner package, as a runner or its lead: left where they are, even for an admin.
+for (const extra of [
+  { status: 'accepted', partOf: { registrationId: 'other', runner: 2 } },
+  { status: 'queued', partOf: { registrationId: 'other', runner: 2 } },
+  { status: 'deposit_paid', packageId: 'duo', companions: [{ name: 'X', email: 'x@x.com' }] },
+]) {
+  reset(extra)
+  await syncRunnerBookings('r', leadDuo, { byAdmin: true })
+  assert.equal(store.get(own).partOf?.registrationId === 'r', false)
+  assert.match(added.at(-1).text, /already on another multi-runner package/)
+}
 
 // A deposit approved before depositPaidAmount existed is pinned to what the old package asked for.
 store.set('marathons/m', { ...store.get('marathons/m'), packages: [store.get('marathons/m').packages[0], { ...store.get('marathons/m').packages[1], depositAmount: 500 }] })
@@ -497,7 +528,7 @@ assert.equal(finalBalance(store.get(docC)), (9000 - 3 * 1000) / 3)
 // Removing Runner 2 leaves Runner 3 on the package, moved up, with no fresh offer email; Runner 2 is released.
 let before = emails.length
 await syncRunnerBookings('t', three([c]))
-assert.equal(store.get(docC).status, 'accepted')
+assert.equal(store.get(docC).status, 'terms_accepted')
 assert.equal(store.get(docC).partOf.runner, 2)
 assert.equal(store.get('runnerBookings/t_2').email, 'c@x.com')
 assert.equal(store.get('runnerBookings/t_3'), undefined)
@@ -508,13 +539,13 @@ assert.match(emails.at(-1).subject, /place was cancelled/)
 // Removing the last runner leaves the one ahead alone. Swapping a runner releases only them.
 await startTrio()
 await syncRunnerBookings('t', three([b]))
-assert.equal(store.get(docB).status, 'accepted')
+assert.equal(store.get(docB).status, 'terms_accepted')
 assert.equal(store.get(docC).status, 'cancelled')
 await startTrio()
 await syncRunnerBookings('t', three([{ name: 'Known', email: 'known@x.com' }, c]))
 assert.equal(store.get(docB).status, 'cancelled')
 assert.equal(store.get(docC).partOf.runner, 3)
-assert.equal(store.get(docC).status, 'accepted')
+assert.equal(store.get(docC).status, 'terms_accepted')
 
 // Seats: first payer takes all 3, then each deposit takes one over.
 await startTrio()
@@ -531,7 +562,7 @@ next = await seats3('c_m_1')
 assert.deepEqual([next.take, next.seatCount, next.holder?.ref.id], [0, 1, 'b_m_1'])
 
 // A shared deposit finds the spare seat on Runner 2 even though Runner 1 is the payer found first: no extra spot counted.
-store.set(docC, { ...store.get(docC), status: 'terms_accepted' })
+store.set(docC, { ...store.get(docC), status: 'terms_accepted', transferTermsAcceptedAt: 'then' })
 store.set('marathons/m', { ...store.get('marathons/m'), confirmedCount: 8 })
 assert.deepEqual((await applyDepositToPackage('t')).covered, ['c_m_1'])
 assert.equal(store.get('marathons/m').confirmedCount, 8)
@@ -541,8 +572,8 @@ assert.equal(store.get(docC).seatCount, 1)
 // One deposit covering all three moves both spare seats.
 await startTrio()
 store.set('registrations/t', { ...store.get('registrations/t'), status: 'deposit_paid', depositPaidAt: 'then', depositPaidAmount: 1000, seatCount: 3, depositProofUrls: ['p'], approvedPaymentReferences: ['r'] })
-store.set(docB, { ...store.get(docB), status: 'terms_accepted' })
-store.set(docC, { ...store.get(docC), status: 'terms_accepted' })
+store.set(docB, { ...store.get(docB), status: 'terms_accepted', transferTermsAcceptedAt: 'then' })
+store.set(docC, { ...store.get(docC), status: 'terms_accepted', transferTermsAcceptedAt: 'then' })
 store.set('marathons/m', { ...store.get('marathons/m'), confirmedCount: 8 })
 assert.equal((await applyDepositToPackage('c_m_1')).covered.length, 2)
 assert.equal(store.get('registrations/t').seatCount, 1)

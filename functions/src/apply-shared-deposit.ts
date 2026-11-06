@@ -51,7 +51,10 @@ export async function applyDepositToPackage(registrationId: string, { automatic 
       if (automatic) return { covered: [], waiting: 0 }
       throw new HttpsError('failed-precondition', "Approve one runner's deposit first, then apply it to the others.")
     }
-    const covered = group.filter(({ data }) => READY_STATUSES.includes(data.status) && !data.finalInvoice && !data.depositPaidAt)
+    const covered = group.filter(
+      ({ data }) =>
+        READY_STATUSES.includes(data.status) && data.transferTermsAcceptedAt !== null && !data.finalInvoice && !data.depositPaidAt,
+    )
     const waiting = group.filter(({ data }) => !data.depositPaidAt).length - covered.length + runners.filter((r) => !r.userId).length
 
     // Usually a runner holds spare seats already, so these are taken over from that hold, not newly counted. With three or

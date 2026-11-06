@@ -23,7 +23,7 @@ const ENDED_STATUSES = ['rejected', 'cancelled']
 const REPLACEABLE_STATUSES = ['queued', 'accepted']
 
 // Under way on a package of their own, but with no final invoice yet, so an admin can move it onto this one as it stands.
-const MERGEABLE_STATUSES = ['terms_accepted', 'payment_submitted', 'payment_rejected', 'deposit_paid']
+const MERGEABLE_STATUSES = ['terms_accepted', 'payment_rejected', 'deposit_paid']
 
 // Not paying yet, so a runner can still be taken off the package without a refund to sort out.
 const RELEASABLE_STATUSES = ['accepted', 'terms_accepted']
@@ -47,12 +47,34 @@ const marathonTitle = async (marathonId: string): Promise<string | undefined> =>
   (await db.collection('marathons').doc(marathonId).get()).data()?.title
 
 const findPackage = (marathon: Doc | undefined, packageId: string) =>
-  ((marathon?.packages ?? []) as { id: string; priceAmount: number; priceCurrency: string; runnerCount?: number; depositAmount?: number }[]).find(
+  ((marathon?.packages ?? []) as {
+    id: string
+    priceAmount: number
+    priceCurrency: string
+    runnerCount?: number
+    depositAmount?: number
+    addOns?: { id: string; name: string; priceAmount: number; mandatory?: boolean }[]
+  }[]).find(
     (p) => p.id === packageId,
   )
 
 const ownRegistrationRef = (userId: string, booking: Doc) =>
   db.collection('registrations').doc(`${userId}_${booking.marathonId}_${booking.cycle}`)
+
+/**
+ * Why a runner can't join this package yet, or null if nothing stops them. A proof under review waits because approving
+ * it after the move would record the new package's deposit, not what they paid.
+ */
+function linkBlock(own: Doc | undefined, registrationId: string, marathon: Doc | undefined) {
+  if (!own || ENDED_STATUSES.includes(own.status) || own.partOf?.registrationId === registrationId) return null
+  if (own.partOf || companionContacts(own, marathon).length > 0) {
+    return 'is already on another multi-runner package. Take them off it first.'
+  }
+  if (own.status === 'payment_submitted') {
+    return 'has a payment proof under review. Approve or reject it first, then save the runner details again.'
+  }
+  return null
+}
 
 const addStaffNote = (registrationId: string, text: string) =>
   db.collection('registrations').doc(registrationId).collection('internalNotes').add({
@@ -63,9 +85,11 @@ const addStaffNote = (registrationId: string, text: string) =>
   })
 
 /**
- * Gives a runner their own booking on the package: an open offer at their share of the price, which then runs the
- * normal pipeline (T&C, deposit, passport, final invoice). It sits at their usual registration id, so a waitlist place
- * or open offer they already hold becomes it, keeping createdAt for releaseRunner. One already under way keeps its
+ * Gives a runner their own booking on the package at their share of the price. There's no offer to accept: it goes
+ * straight to terms_accepted, which sends their deposit invoice, and `transferTermsAcceptedAt: null` asks for their own
+ * T&C before they pay. It then runs the normal pipeline (deposit, passport, final invoice). It sits at their usual
+ * registration id, so a waitlist place or open offer they already hold becomes it, keeping createdAt for releaseRunner.
+ * One already under way keeps its
  * status, deposit and seat and just moves onto this package at their share, keeping `previousPackage` so it can move
  * back; only an admin can do that, because a lead can enter anyone's email and this changes what someone is paying.
  * Anything else is left for staff to sort out. Returns what happened, or null if nothing did.
@@ -79,9 +103,15 @@ export async function attachRunner(userId: string, booking: Doc, marathon: Doc |
   const pkg = findPackage(marathon, booking.packageId)
   const { registrationId, runner, leadName, packageName } = booking
 
+  const blocked = linkBlock(own, registrationId, marathon)
+  if (blocked) {
+    await addStaffNote(registrationId, `Runner ${runner} (${booking.email}) ${blocked}`)
+    return null
+  }
+
   const isActive = own && !ENDED_STATUSES.includes(own.status)
-  if (isActive && (own.partOf || !REPLACEABLE_STATUSES.includes(own.status))) {
-    const canMerge = !own.partOf && !own.companions?.length && !own.finalInvoice && MERGEABLE_STATUSES.includes(own.status)
+  if (isActive && !REPLACEABLE_STATUSES.includes(own.status)) {
+    const canMerge = !own.companions?.length && !own.finalInvoice && MERGEABLE_STATUSES.includes(own.status)
     if (!canMerge || !byAdmin) {
       await addStaffNote(
         registrationId,
@@ -121,7 +151,10 @@ export async function attachRunner(userId: string, booking: Doc, marathon: Doc |
     packageName,
     packagePriceAmount: pkg ? runnerShare(pkg) : 0,
     packagePriceCurrency: pkg?.priceCurrency ?? '',
-    selectedAddOns: [],
+    // Mandatory ones only: they don't pick here. Anything else is added with Change Package.
+    selectedAddOns: (pkg?.addOns ?? [])
+      .filter((addOn) => addOn.mandatory)
+      .map((addOn) => ({ addOnId: addOn.id, name: addOn.name, priceAmount: addOn.priceAmount })),
     status: 'accepted',
     queuePosition: null,
     offeredPackageIds: [booking.packageId],
@@ -153,6 +186,8 @@ export async function attachRunner(userId: string, booking: Doc, marathon: Doc |
     `${isActive ? `${replaced} to ${packageName}: you're` : "You're"} now Runner ${runner} on ${leadName}'s booking`,
     marathon?.title,
   )
+  // Its own write, after the one above, so onRegistrationStatusChange sees accepted → terms_accepted and sends the invoice.
+  await ref.update({ status: 'terms_accepted', termsAcceptedAt: now, transferTermsAcceptedAt: null, updatedAt: now })
   return isActive ? 'replaced' : 'attached'
 }
 
@@ -188,6 +223,7 @@ async function releaseRunner(userId: string, booking: Doc) {
     selectedAddOns: [],
     queuePosition: null,
     termsAcceptedAt: null,
+    transferTermsAcceptedAt: FieldValue.delete(),
     partOf: FieldValue.delete(),
     offeredPackageIds: FieldValue.delete(),
     offeredAt: FieldValue.delete(),
@@ -287,18 +323,18 @@ async function splitLeadBooking(registrationId: string, registration: Doc, marat
   await db.collection('registrations').doc(registrationId).update({ packagePriceAmount: runnerShare(pkg), updatedAt: new Date() })
 }
 
-function offerCopy(booking: Doc, title: string | undefined) {
+function includedCopy(booking: Doc, title: string | undefined) {
   const tour = title ? `the ${title} tour` : 'a marathon tour'
-  const offer = (lead: string, packageName: string, tourName: string) =>
-    `You've been offered a place on ${lead}'s ${packageName} package for ${tourName}, as Runner ${booking.runner}.`
-  const heading = `You've been offered a place as Runner ${booking.runner}`
+  const included = (lead: string, packageName: string, tourName: string) =>
+    `You've been included as Runner ${booking.runner} on the ${packageName} package with ${lead} (Runner 1) for ${tourName}.`
+  const heading = `You've been included as Runner ${booking.runner}`
   return {
     title: heading,
     subject: title ? `${heading} — ${title}` : heading,
-    text: offer(booking.leadName, booking.packageName, tour),
+    text: included(booking.leadName, booking.packageName, tour),
     // renderEmailHtml doesn't escape, and the lead's name is theirs to set.
-    html: offer(escapeHtml(booking.leadName), escapeHtml(booking.packageName), escapeHtml(tour)),
-    ownStepsHtml: "You'll have your own deposit invoice, terms & conditions, passport upload and final invoice.",
+    html: included(escapeHtml(booking.leadName), escapeHtml(booking.packageName), escapeHtml(tour)),
+    ownStepsHtml: "Your own deposit invoice comes next, followed by your terms & conditions, passport upload and final invoice.",
   }
 }
 
@@ -319,7 +355,7 @@ async function notifyMerged(userId: string, booking: Doc, title: string | undefi
 }
 
 async function sendRunnerInvite(booking: Doc, title: string | undefined) {
-  const copy = offerCopy(booking, title)
+  const copy = includedCopy(booking, title)
   const params = new URLSearchParams({ mode: 'sign-up', email: booking.email, runnerInvite: booking.inviteToken })
   await sendEmail({
     to: booking.email,
@@ -417,7 +453,7 @@ export async function syncRunnerBookings(registrationId: string, registration: D
         continue
       }
       const replaced = outcome === 'replaced'
-      const copy = offerCopy(booking, marathon?.title)
+      const copy = includedCopy(booking, marathon?.title)
       await notifyUser({
         userId: user.uid,
         pushTitle: copy.title,
@@ -468,6 +504,31 @@ export const claimRunnerInvite = onCall<{ token: string }>(
   withSentry(async (request: CallableRequest<{ token: string }>) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to accept this invite.')
     return claimInvite(String(request.data.token ?? ''), request.auth.uid, request.auth.token.email)
+  }),
+)
+
+/** Lets an admin dialog refuse a runner before saving, since attachRunner can only leave a staff note. Returns one message per runner refused. */
+export const checkRunnerLinks = onCall<{ registrationId: string; emails: string[] }>(
+  { enforceAppCheck },
+  withSentry(async (request: CallableRequest<{ registrationId: string; emails: string[] }>) => {
+    await requireAdmin(request)
+    const registrationId = String(request.data.registrationId)
+    const lead = (await db.collection('registrations').doc(registrationId).get()).data()
+    if (!lead) throw new HttpsError('not-found', 'Registration not found.')
+    const marathon = (await db.collection('marathons').doc(lead.marathonId).get()).data()
+    const blocked = await Promise.all(
+      (request.data.emails ?? []).map(async (email) => {
+        const user = await auth.getUserByEmail(String(email).toLowerCase()).catch((error) => {
+          if (error?.code === 'auth/user-not-found') return null
+          throw error
+        })
+        if (!user) return null
+        const own = (await ownRegistrationRef(user.uid, { marathonId: lead.marathonId, cycle: lead.cycle ?? 1 }).get()).data()
+        const reason = linkBlock(own, registrationId, marathon)
+        return reason && `${email} ${reason}`
+      }),
+    )
+    return { blocked: blocked.filter(Boolean) as string[] }
   }),
 )
 

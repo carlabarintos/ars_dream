@@ -44,6 +44,15 @@ export const hasRepeatedEmail = (runners: { email?: string }[]) => {
 export const isLeadEmail = (email: string | undefined, leadEmail: string | null | undefined) =>
   !!leadEmail && email?.trim().toLowerCase() === leadEmail.toLowerCase()
 
+export const toRunnerRows = (runners: RunnerDetails[] = []) => runners.map((r) => ({ name: r.name ?? '', email: r.email ?? '' }))
+
+/** The rows an admin filled in; they may leave any blank for later. */
+export const filledRunnerRows = (rows: { name: string; email: string }[]) =>
+  rows.map((row) => ({ name: row.name.trim(), email: row.email.trim() })).filter((row) => row.name || row.email)
+
+export const areRunnerRowsValid = (rows: { name: string; email: string }[], leadEmail: string | null | undefined) =>
+  filledRunnerRows(rows).every((row) => row.name && isValidEmail(row.email) && !isLeadEmail(row.email, leadEmail)) && !hasRepeatedEmail(rows)
+
 /** "Runner 2 (Maria Santos) · " on a multi-runner booking, '' otherwise. */
 export function runnerPrefix(index: number, runnerCount: number, name?: string) {
   if (runnerCount <= 1) return ''
@@ -146,7 +155,9 @@ export function isOverdue(registration: Registration) {
 
 export function getRegistrationStatusMessage(registration: Registration, marathon: Marathon | undefined) {
   if (getPendingActionStep(registration, marathon) === 'transfer_terms') {
-    return 'A slot has been transferred to you. Accept the terms & conditions to take it over.'
+    return registration.partOf
+      ? `${describePartOf(registration.partOf)}. Accept the terms & conditions to pay your deposit.`
+      : 'A slot has been transferred to you. Accept the terms & conditions to take it over.'
   }
   if (isOverdue(registration)) {
     return registration.status === 'final_invoiced'
@@ -315,7 +326,7 @@ export const PENDING_ACTION_LABEL: Record<PendingActionStep, string> = {
 
 /** What an admin's "Send Reminder" tells the registrant, per pending step. */
 export const PENDING_ACTION_REMINDER: Record<PendingActionStep, string> = {
-  transfer_terms: 'A slot has been transferred to you — please accept the terms & conditions to take it over.',
+  transfer_terms: 'Please accept the terms & conditions for your booking to continue.',
   terms: "You have an offer waiting — choose your package and accept it before it expires.",
   payment: 'Your deposit is still due — please pay using your invoice and upload your proof of payment.',
   final_payment: 'Your final balance is still due — please pay using your final invoice and upload your proof of payment.',

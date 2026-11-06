@@ -90,7 +90,7 @@ export function RegistrationWizard({
   const chosenPackage = offeredPackages.find((pkg) => pkg.id === chosenPackageId)
   // Runners 2+ on a multi-runner package: the lead enters their name and email, which gets CC'd on the booking's emails.
   const [companionInfo, setCompanionInfo] = useState<{ name: string; email: string }[]>(() =>
-    (registration.companions ?? []).map((c) => ({ name: c.name ?? '', email: c.email ?? '' })),
+    (registration.companions ?? registration.suggestedCompanions ?? []).map((c) => ({ name: c.name ?? '', email: c.email ?? '' })),
   )
   const companionsNeeded = registration.partOf ? 0 : Math.max((chosenPackage?.runnerCount ?? 1) - 1, 0)
   const companionRows = Array.from({ length: companionsNeeded }, (_, i) => companionInfo[i])
@@ -194,7 +194,7 @@ export function RegistrationWizard({
     setIsSubmitting(true)
     try {
       await acceptTransferTerms(registration.id)
-      toast.success('Thanks! The slot is now yours.')
+      toast.success(registration.partOf ? 'Thanks! Next: pay your deposit.' : 'Thanks! The slot is now yours.')
       onClose()
     } catch (error) {
       toast.error(getFriendlyErrorMessage(error, 'terms'))
@@ -310,7 +310,9 @@ export function RegistrationWizard({
           <DialogTitle className="px-6 sm:px-0 sm:pr-6">{marathon?.title ?? 'Complete Your Registration'}</DialogTitle>
           <DialogDescription>
             {step === 'transfer_terms'
-              ? `${registration.transferredFrom ? formatTransferParty(registration.transferredFrom) : 'Another registrant'}'s slot has been transferred to you, together with the payments made so far.`
+              ? registration.partOf
+                ? `You're Runner ${registration.partOf.runner} on ${registration.partOf.leadName}'s ${registration.partOf.packageName} package. Accept the terms & conditions to pay your deposit.`
+                : `${registration.transferredFrom ? formatTransferParty(registration.transferredFrom) : 'Another registrant'}'s slot has been transferred to you, together with the payments made so far.`
               : step === 'terms'
               ? "You've received an offer! Choose your package, then review and accept the terms & conditions."
               : step === 'payment'
@@ -355,7 +357,7 @@ export function RegistrationWizard({
                 Cancel
               </Button>
               <Button disabled={!finalTermsAccepted} loading={isSubmitting} onClick={handleAcceptTransferTerms}>
-                Accept & Take Over Slot
+                {registration.partOf ? 'Accept & Continue' : 'Accept & Take Over Slot'}
               </Button>
             </DialogFooter>
           </div>

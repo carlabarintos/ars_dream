@@ -89,7 +89,7 @@ function getSteps(registration: Registration, marathon?: Marathon, profile: User
       done: !!offeredAt || !!termsAcceptedAt || status === 'accepted',
     },
     {
-      label: 'Accepted package',
+      label: registration.partOf ? 'Package' : 'Accepted package',
       detail: termsAcceptedAt
         ? [
             `${registration.packageName} · ${formatPackagePrice(registration.packagePriceCurrency, registration.packagePriceAmount)}`,
@@ -141,10 +141,10 @@ function getSteps(registration: Registration, marathon?: Marathon, profile: User
 
   const { partOf } = registration
   if (partOf) {
-    // Ahead of "Offered": this is what the offer was. A booking already under way joined where it had got to.
+    // In place of "Offered": this is what the offer was. A booking already under way joined where it had got to.
     const firstToDo = steps.findIndex((step) => !step.done)
     const at = partOf.joinedAt ? (firstToDo === -1 ? steps.length : firstToDo) : steps.findIndex((step) => step.label === 'Offered')
-    steps.splice(at, 0, {
+    steps.splice(at, partOf.joinedAt ? 0 : 1, {
       label: describePartOf(partOf),
       at: (partOf.joinedAt ?? offeredAt)?.toDate(),
       done: true,

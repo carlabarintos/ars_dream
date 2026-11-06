@@ -26,6 +26,7 @@ export function describeStatusEvent(registration: FirebaseFirestore.DocumentData
     case 'rejected':
       return 'Registration not offered'
     case 'terms_accepted':
+      if (registration.partOf) return 'Deposit invoice sent'
       return `Offer accepted — ${describePackage(registration)} chosen, deposit invoice sent`
     case 'payment_submitted':
       return onFinalInvoice ? 'Balance proof of payment submitted' : 'Deposit proof of payment submitted'
