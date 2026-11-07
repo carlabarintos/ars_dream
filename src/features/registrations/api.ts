@@ -133,9 +133,8 @@ export async function joinQueue(userId: string, marathonId: string, cycle: numbe
     }
     // Re-registering after a rejection/cancellation resets this same doc
     // back to a fresh waitlist entry — see the re-registration rule in
-    // firestore.rules. createdAt is reset to now so onRegistrationQueueChange
-    // (which orders the queue by createdAt asc) places them at the BACK of
-    // the queue, not wherever their original, already-resolved join time
+    // firestore.rules. createdAt is reset to now so getQueueNumbers (which
+    // orders the queue by createdAt asc) places them at the BACK of the queue, not wherever their original, already-resolved join time
     // would have put them.
     const batch = writeBatch(db)
     batch.update(registrationRef, {
@@ -144,8 +143,6 @@ export async function joinQueue(userId: string, marathonId: string, cycle: numbe
       offeredAt: deleteField(),
       cancelledBy: deleteField(),
       status: 'queued' satisfies Registration['status'],
-      queuePosition: null,
-      queueSortAt: deleteField(),
       termsAcceptedAt: null,
       answers: deleteField(),
       companions: deleteField(),
@@ -185,7 +182,6 @@ export async function joinQueue(userId: string, marathonId: string, cycle: numbe
     marathonId,
     ...NO_PACKAGE,
     status: 'queued' satisfies Registration['status'],
-    queuePosition: null,
     termsAcceptedAt: null,
     proofOfPaymentUrls: [],
     proofSubmittedAt: null,
@@ -514,20 +510,6 @@ const confirmPaymentCallable = httpsCallable<
   { registrationId: string; decision: 'confirmed' | 'rejected'; adminNote?: string },
   { status: string }
 >(functions, 'confirmPayment')
-
-/** Admin-only: swaps two adjacent queued registrations' places in line. */
-export async function swapQueuePositions(a: Registration, b: Registration) {
-  const batch = writeBatch(db)
-  batch.update(doc(db, 'registrations', a.id), {
-    queuePosition: b.queuePosition,
-    queueSortAt: b.queueSortAt ?? b.createdAt,
-  })
-  batch.update(doc(db, 'registrations', b.id), {
-    queuePosition: a.queuePosition,
-    queueSortAt: a.queueSortAt ?? a.createdAt,
-  })
-  await batch.commit()
-}
 
 export async function decideQueueRegistration(
   registrationId: string,

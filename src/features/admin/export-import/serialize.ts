@@ -184,7 +184,6 @@ export const REGISTRATION_COLUMNS = [
   'packagePriceCurrency',
   'selectedAddOnsJson',
   'status',
-  'queuePosition',
   'termsAcceptedAt',
   'answersJson',
   'proofSubmittedAt',
@@ -206,7 +205,6 @@ export interface RegistrationRestorePatch {
   packagePriceCurrency: string
   selectedAddOns: SelectedAddOn[]
   status: RegistrationStatus
-  queuePosition: number | null
   termsAcceptedAt: Timestamp | null
   answers: QuestionAnswer[]
   proofSubmittedAt: Timestamp | null
@@ -228,7 +226,6 @@ export function registrationToRow(registration: Registration): RegistrationRow {
     packagePriceCurrency: registration.packagePriceCurrency,
     selectedAddOnsJson: JSON.stringify(registration.selectedAddOns ?? []),
     status: registration.status,
-    queuePosition: registration.queuePosition == null ? '' : String(registration.queuePosition),
     termsAcceptedAt: isoOfNullable(registration.termsAcceptedAt),
     answersJson: JSON.stringify(registration.answers ?? []),
     proofSubmittedAt: isoOfNullable(registration.proofSubmittedAt),
@@ -250,7 +247,6 @@ export function rowToRegistrationRestorePatch(row: RegistrationRow): RowResult<R
     packagePriceCurrency: row.packagePriceCurrency,
     selectedAddOns: parseJsonArray<SelectedAddOn>(row.selectedAddOnsJson, 'selectedAddOnsJson'),
     status: row.status as RegistrationStatus,
-    queuePosition: row.queuePosition.trim() === '' ? null : Number(row.queuePosition),
     termsAcceptedAt: parseIsoNullable(row.termsAcceptedAt, 'termsAcceptedAt'),
     answers: parseJsonArray<QuestionAnswer>(row.answersJson, 'answersJson'),
     proofSubmittedAt: parseIsoNullable(row.proofSubmittedAt, 'proofSubmittedAt'),

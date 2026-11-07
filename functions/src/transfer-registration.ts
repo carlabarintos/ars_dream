@@ -138,7 +138,6 @@ export const transferRegistration = onCall<TransferRegistrationInput>(
       transaction.set(targetRef, {
         ...slot,
         userId: toUid,
-        queuePosition: null,
         // An offer not yet accepted takes T&C in its normal step; past that they're accepted again by the new holder.
         // An unaccepted offer restarts its accept-by clock for the new holder (flagOverdueRegistrations would cancel it otherwise).
         ...(source.status === 'accepted' ? { offeredAt: now, dueExtension: null } : { transferTermsAcceptedAt: null }),

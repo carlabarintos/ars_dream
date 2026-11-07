@@ -1,7 +1,6 @@
 import { ChevronDown, ChevronsUpDown, ChevronUp } from 'lucide-react'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -10,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-profiles'
 import { useMarathon } from '@/features/marathons/use-marathons'
-import { swapQueuePositions } from '@/features/registrations/api'
 import {
   getOfferedPackagesLabel,
   getPendingActionLabel,
@@ -27,6 +25,7 @@ import type { Marathon, Registration } from '@/types'
 import { BookingProgress } from '@/features/registrations/BookingTimeline'
 import { BulkWaitlistDialog } from './BulkWaitlistDialog'
 import { exportQueueCsv } from './export-import/full-export'
+import { getQueueNumbers } from './queue-numbers'
 import { ImportDialog } from './export-import/ImportDialog'
 import { groupByPackage, samePackage } from './package-rows'
 import { useAcknowledgeMarathon } from './use-acknowledge-marathon'
@@ -102,14 +101,16 @@ export function QueueReviewPage() {
   const { marathon } = useMarathon(marathonId)
   useAcknowledgeMarathon(marathon)
   const { registrations, isLoading } = useMarathonRegistrations(marathonId, marathon?.cycle ?? 1, ALL_DECIDED_STATUSES)
+  const queueNumbers = getQueueNumbers(registrations)
   const orderedRegistrations = [...registrations].sort(
-    (a, b) => (a.queuePosition ?? Infinity) - (b.queuePosition ?? Infinity),
+    (a, b) => (queueNumbers.get(a.id) ?? Infinity) - (queueNumbers.get(b.id) ?? Infinity),
   )
   const profiles = useUserProfilesByIds(orderedRegistrations.map((registration) => registration.userId))
-  const { openDetail, dialogs, decidingKey, setDecidingKey } = useBookingActions(
+  const { openDetail, dialogs } = useBookingActions(
     registrations,
     () => marathon ?? undefined,
     (registration) => profiles[registration.userId],
+    queueNumbers,
   )
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [showCancelled, setShowCancelled] = useState(false)
@@ -120,7 +121,7 @@ export function QueueReviewPage() {
       matchesStatusFilter(registration, statusFilter) &&
       (showCancelled || statusFilter === 'cancelled' || registration.status !== 'cancelled'),
   )
-  // Display only: moves and the CSV export keep using orderedRegistrations.
+  // Display only: the CSV export keeps using orderedRegistrations.
   const sortedRegistrations =
     updatedSort === 'none'
       ? statusFilteredRegistrations
@@ -135,32 +136,18 @@ export function QueueReviewPage() {
     },
   )
 
-  // Payments under review and confirmed bookings always show in full; only "Others" pages, reusing the hook's page size.
+  // Payments under review, confirmed and offered bookings always show in full; only "Others" pages, reusing the hook's page size.
   // Runners on one package stay together, in the section the most urgent of them belongs to.
   const packages = groupByPackage(filtered)
   const isUnderReview = (group: Registration[]) => group.some((r) => r.status === 'payment_submitted')
   const underReview = packages.filter(isUnderReview).flat()
   const reviewed = packages.filter((group) => !isUnderReview(group))
   const confirmed = reviewed.filter((group) => group.some(hasLockedSlot)).flat()
-  const others = reviewed.filter((group) => !group.some(hasLockedSlot)).flat()
+  const unlocked = reviewed.filter((group) => !group.some(hasLockedSlot))
+  const isOffered = (group: Registration[]) => group.some((r) => r.status === 'accepted')
+  const offered = unlocked.filter(isOffered).flat()
+  const others = unlocked.filter((group) => !isOffered(group)).flat()
   const othersShown = others.slice(0, visible.length)
-
-  // Neighbours come from the full queue, not the filtered/paginated view.
-  const queued = orderedRegistrations.filter((r) => r.status === 'queued' && r.queuePosition != null)
-
-  async function handleMove(registration: Registration, offset: -1 | 1) {
-    const index = queued.findIndex((r) => r.id === registration.id)
-    const neighbour = queued[index + offset]
-    if (index === -1 || !neighbour) return
-    setDecidingKey(`${registration.id}-move`)
-    try {
-      await swapQueuePositions(registration, neighbour)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Something went wrong')
-    } finally {
-      setDecidingKey(null)
-    }
-  }
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8">
@@ -230,6 +217,7 @@ export function QueueReviewPage() {
           {[
             { title: 'Payment Under Review', group: underReview },
             { title: 'Confirmed (deposit paid)', group: confirmed },
+            { title: 'Offered', group: offered },
             { title: 'Others', group: othersShown },
           ].map(({ title, group }) =>
             group.length === 0 ? null : (
@@ -273,37 +261,8 @@ export function QueueReviewPage() {
                         )}
                         onClick={() => openDetail(registration.id)}
                       >
-                        <TableCell
-                          className={cn('text-muted-foreground', isPaired && 'border-l-primary border-l-2')}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="flex items-center gap-1">
-                            {registration.queuePosition ?? '—'}
-                            {registration.status === 'queued' && registration.queuePosition != null && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="size-6"
-                                  aria-label="Move up"
-                                  disabled={decidingKey !== null || queued[0]?.id === registration.id}
-                                  onClick={() => handleMove(registration, -1)}
-                                >
-                                  <ChevronUp />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="size-6"
-                                  aria-label="Move down"
-                                  disabled={decidingKey !== null || queued.at(-1)?.id === registration.id}
-                                  onClick={() => handleMove(registration, 1)}
-                                >
-                                  <ChevronDown />
-                                </Button>
-                              </>
-                            )}
-                          </div>
+                        <TableCell className={cn('text-muted-foreground', isPaired && 'border-l-primary border-l-2')}>
+                          {queueNumbers.get(registration.id) ?? '—'}
                         </TableCell>
                         <TableCell>
                           <div className="font-medium">{formatUserName(profiles[registration.userId])}</div>

@@ -1,4 +1,4 @@
-import { FieldValue, type DocumentData, type Timestamp } from 'firebase-admin/firestore'
+import { FieldValue, type DocumentData } from 'firebase-admin/firestore'
 import { onDocumentWritten } from 'firebase-functions/v2/firestore'
 
 import { db } from './admin.js'
@@ -31,11 +31,7 @@ async function pushAdmins(before: DocumentData | undefined, after: DocumentData)
   )
 }
 
-// Keeps `queuePosition` in order of when each person last joined the waitlist
-// (1 = earliest), recomputed whenever a registration joins or leaves the
-// 'queued' state for a marathon (new signup, admin accept/reject, or a queued
-// registration being deleted). Someone who leaves the queue keeps their place
-// in the numbering, so no two bookings share a number.
+// Flags the marathon and pushes admins when a registrant moves their own booking.
 export const onRegistrationQueueChange = onDocumentWritten(
   { document: 'registrations/{registrationId}' },
   withSentry(async (event) => {
@@ -45,52 +41,12 @@ export const onRegistrationQueueChange = onDocumentWritten(
     // Flags the marathon on the admin dashboard. Only statuses the registrant
     // moves to themselves, so an admin's own actions don't flag it.
     if (after && before?.status !== after.status && REGISTRANT_STATUSES.includes(after.status) && !after.transferredTo) {
-      // Best-effort: a missing marathon (deleted) must not block the queue resync below.
+      // Best-effort: a missing marathon (deleted) must not block the admin push below.
       await db
         .doc(`marathons/${after.marathonId}`)
         .update({ lastActivityAt: FieldValue.serverTimestamp() })
         .catch(() => {})
       await pushAdmins(before, after).catch((error) => console.error('Admin push failed', error))
-    }
-
-    const wasQueued = before?.status === 'queued'
-    const isQueued = after?.status === 'queued'
-    if (wasQueued === isQueued) return
-
-    const marathonId = (after?.marathonId ?? before?.marathonId) as string | undefined
-    if (!marathonId) return
-
-    // Scoped to this doc's own cycle so a previous round's registrations
-    // (kept as history after a reopen, never touched) don't get mixed into
-    // the current round's position numbering.
-    const cycle = ((after ?? before)?.cycle as number | undefined) ?? 1
-
-    const queueSnap = await db
-      .collection('registrations')
-      .where('marathonId', '==', marathonId)
-      .get()
-
-    // queueSortAt is set when an admin moves someone up/down in Queue Review.
-    const sortKey = (doc: (typeof queueSnap.docs)[number]) =>
-      ((doc.data().queueSortAt ?? doc.data().createdAt) as Timestamp).toMillis()
-    // A null position off the queue means they never waitlisted (runner 2, slot transfer), so they get no number.
-    const docsInCycle = queueSnap.docs
-      .filter((doc) => ((doc.data().cycle as number | undefined) ?? 1) === cycle)
-      .filter((doc) => doc.data().status === 'queued' || doc.data().queuePosition != null)
-      .sort((a, b) => sortKey(a) - sortKey(b))
-
-    const batch = db.batch()
-    let pendingWrites = 0
-    docsInCycle.forEach((doc, index) => {
-      const position = index + 1
-      if (doc.data().queuePosition !== position) {
-        batch.update(doc.ref, { queuePosition: position })
-        pendingWrites++
-      }
-    })
-
-    if (pendingWrites > 0) {
-      await batch.commit()
     }
   }),
 )

@@ -41,6 +41,7 @@ export function useBookingActions(
   registrations: Registration[],
   getMarathon: (registration: Registration) => Marathon | undefined,
   getProfile: (registration: Registration) => UserProfile | undefined,
+  queueNumbers?: Map<string, number>,
 ) {
   const adminUid = useAuthStore((state) => state.firebaseUser?.uid)
   const [decidingKey, setDecidingKey] = useState<string | null>(null)
@@ -255,6 +256,7 @@ export function useBookingActions(
           registration={detailRegistration}
           marathon={getMarathon(detailRegistration)}
           profile={getProfile(detailRegistration)}
+          queueNumber={queueNumbers?.get(detailRegistration.id)}
           runnerTabs={packageBookings.map((r) => ({
             id: r.id,
             label: `Runner ${r.partOf?.runner ?? 1} · ${formatUserName(getProfile(r))}`,
@@ -337,5 +339,5 @@ export function useBookingActions(
     </>
   )
 
-  return { openDetail: setDetailRegistrationId, dialogs, decidingKey, setDecidingKey }
+  return { openDetail: setDetailRegistrationId, dialogs }
 }

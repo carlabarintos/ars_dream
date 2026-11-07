@@ -131,8 +131,8 @@ const answers = [
 
 // [email, first, last, joined days ago, registration fields]
 const people = [
-  ['maria.santos@demo.test', 'Maria', 'Santos', 20, { status: 'queued', ...noPackage, queuePosition: 1 }],
-  ['juan.delacruz@demo.test', 'Juan', 'Dela Cruz', 18, { status: 'queued', ...noPackage, queuePosition: 2 }],
+  ['maria.santos@demo.test', 'Maria', 'Santos', 20, { status: 'queued', ...noPackage }],
+  ['juan.delacruz@demo.test', 'Juan', 'Dela Cruz', 18, { status: 'queued', ...noPackage }],
   ['ana.reyes@demo.test', 'Ana', 'Reyes', 25, { status: 'accepted', ...noPackage, ...offer(1) }],
   [
     'paolo.garcia@demo.test',
@@ -230,7 +230,6 @@ for (const [email, firstName, lastName, joinedDaysAgo, fields] of people) {
   await db.collection('registrations').add({
     userId,
     marathonId: MARATHON_ID,
-    queuePosition: null,
     termsAcceptedAt: null,
     proofOfPaymentUrls: [],
     proofSubmittedAt: null,

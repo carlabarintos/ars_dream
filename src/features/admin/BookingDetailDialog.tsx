@@ -63,6 +63,7 @@ export function BookingDetailDialog({
   registration,
   marathon,
   profile,
+  queueNumber,
   runnerTabs,
   onOpenRunner,
   actions,
@@ -71,6 +72,7 @@ export function BookingDetailDialog({
   registration: Registration
   marathon: Marathon | undefined
   profile: UserProfile | undefined
+  queueNumber: number | undefined
   /** Every booking on this one's package, for moving between runners. */
   runnerTabs: { id: string; label: string }[]
   onOpenRunner: (registrationId: string) => void
@@ -119,7 +121,7 @@ export function BookingDetailDialog({
             {[
               profile?.email,
               profile?.contactNumber,
-              registration.queuePosition && `Queue #${registration.queuePosition}`,
+              queueNumber && `Queue #${queueNumber}`,
             ]
               .filter(Boolean)
               .join(' · ')}

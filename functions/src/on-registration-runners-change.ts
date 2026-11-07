@@ -156,7 +156,6 @@ export async function attachRunner(userId: string, booking: Doc, marathon: Doc |
       .filter((addOn) => addOn.mandatory)
       .map((addOn) => ({ addOnId: addOn.id, name: addOn.name, priceAmount: addOn.priceAmount })),
     status: 'accepted',
-    queuePosition: null,
     offeredPackageIds: [booking.packageId],
     offeredAt: now,
     partOf: { registrationId, runner, leadName, packageName, hadOwnPlace: !!isActive },
@@ -221,7 +220,6 @@ async function releaseRunner(userId: string, booking: Doc) {
     packagePriceAmount: 0,
     packagePriceCurrency: '',
     selectedAddOns: [],
-    queuePosition: null,
     termsAcceptedAt: null,
     transferTermsAcceptedAt: FieldValue.delete(),
     partOf: FieldValue.delete(),

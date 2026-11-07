@@ -174,12 +174,11 @@ assert.equal(store.get(own).partOf, undefined)
 assert.match(emails.at(-1).subject, /place was cancelled/)
 
 // Already waitlisted: that entry becomes their booking, keeps its place in line, and their timeline and email say so.
-const queued = { userId: 'known', marathonId: 'm', cycle: 1, status: 'queued', packageId: '', queuePosition: 3, createdAt: 'original' }
+const queued = { userId: 'known', marathonId: 'm', cycle: 1, status: 'queued', packageId: '', createdAt: 'original' }
 store.set(own, queued)
 await syncRunnerBookings('r', booking([{ name: 'Known', email: 'known@x.com' }]))
 assert.equal(store.get(own).status, 'terms_accepted')
 assert.equal(store.get(own).createdAt, 'original')
-assert.equal(store.get(own).queuePosition, null)
 assert.equal(store.get(own).partOf.hadOwnPlace, true)
 assert.match(added.at(-1).text, /waitlist place was changed to Runner \+ Runner: you're now Runner 2 on Lea<b>'s booking/)
 assert.match(emails.at(-1).html, /replaces your own entry/)

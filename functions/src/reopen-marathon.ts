@@ -81,7 +81,6 @@ export const reopenMarathon = onCall<ReopenMarathonInput>(
         packagePriceCurrency: '',
         selectedAddOns: [],
         status: 'queued',
-        queuePosition: index + 1,
         cycle: newCycle,
         termsAcceptedAt: null,
         proofOfPaymentUrls: [],

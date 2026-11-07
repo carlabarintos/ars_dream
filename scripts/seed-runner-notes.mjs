@@ -119,7 +119,6 @@ const baseRegistration = {
   packagePriceAmount: 3500,
   packagePriceCurrency: 'USD',
   status: 'deposit_paid',
-  queuePosition: null,
   proofOfPaymentUrls: [],
   adminNote: null,
   depositPaidAmount: 500,
