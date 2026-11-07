@@ -13,6 +13,13 @@ export function getOfferedPackages(registration: Registration, marathon: Maratho
   return (marathon?.packages ?? []).filter((pkg) => ids.includes(pkg.id))
 }
 
+/** "Offered: A, B" while an open offer waits for the registrant to pick a package. */
+export function getOfferedPackagesLabel(registration: Registration, marathon: Marathon | null | undefined) {
+  if (registration.status !== 'accepted' || hasChosenPackage(registration)) return undefined
+  const names = getOfferedPackages(registration, marathon ?? undefined).map((pkg) => pkg.name)
+  return names.length > 0 ? `Offered: ${names.join(', ')}` : undefined
+}
+
 /** Runners this booking names (e.g. 2 for a "Runner + Runner" lead); 1 until a package is chosen, and 1 on a runner's own booking. */
 export function getRunnerCount(registration: Registration, marathon: Marathon | null | undefined) {
   if (registration.partOf) return 1

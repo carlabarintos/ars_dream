@@ -16,6 +16,7 @@ import { UploadedFileThumb } from '@/features/registrations/BookingDocumentDialo
 import {
   getCompanions,
   getLabelledPaymentProofs,
+  getOfferedPackagesLabel,
   getPaymentProofs,
   getRunners,
   runnerPrefix,
@@ -78,12 +79,30 @@ export function BookingDetailDialog({
 }) {
   const { latest } = getPaymentProofs(registration)
   const proofs = getLabelledPaymentProofs(registration)
-  const [notes, setNotes] = useState<InternalNote[]>([])
-
   const [runnerBookings, setRunnerBookings] = useState<RunnerBooking[]>([])
+  // A package's bookings share one notes view; a booking outside the tabs (a runner swapped out once paying) only shows its own.
+  const tabIds = runnerTabs.map((tab) => tab.id)
+  const noteIds = tabIds.includes(registration.id) ? tabIds : [registration.id]
+  const noteIdsKey = noteIds.join(',')
+  const [notesById, setNotesById] = useState<Record<string, InternalNote[]>>({})
 
-  useEffect(() => subscribeToInternalNotes(registration.id, setNotes), [registration.id])
   useEffect(() => subscribeToRegistrationRunnerBookings(registration.id, setRunnerBookings), [registration.id])
+  useEffect(() => {
+    const unsubscribes = noteIdsKey.split(',').map((id) =>
+      subscribeToInternalNotes(id, (notes) => setNotesById((prev) => ({ ...prev, [id]: notes }))),
+    )
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe())
+  }, [noteIdsKey])
+
+  const notes = noteIds
+    .flatMap((id) =>
+      (notesById[id] ?? []).map((note) => ({
+        registrationId: id,
+        note,
+        label: noteIds.length > 1 ? runnerTabs.find((tab) => tab.id === id)?.label : undefined,
+      })),
+    )
+    .sort((a, b) => b.note.createdAt.toMillis() - a.note.createdAt.toMillis())
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -173,7 +192,7 @@ export function BookingDetailDialog({
               )}
             </TabsContent>
             <TabsContent value="notes">
-              <InternalNotes registrationId={registration.id} notes={notes} />
+              <InternalNotes addRegistrationId={registration.id} notes={notes} />
             </TabsContent>
           </Tabs>
 
@@ -189,7 +208,9 @@ export function BookingDetailDialog({
                   </span>
                 </>
               ) : (
-                <span className="text-muted-foreground">No package chosen yet</span>
+                <span className="text-muted-foreground">
+                  {getOfferedPackagesLabel(registration, marathon) ?? 'No package chosen yet'}
+                </span>
               )}
             </p>
             {registration.partOf && (

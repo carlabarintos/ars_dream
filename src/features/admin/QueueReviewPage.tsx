@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronsUpDown, ChevronUp } from 'lucide-react'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -12,6 +12,7 @@ import { formatUserName, useUserProfilesByIds } from '@/features/auth/use-user-p
 import { useMarathon } from '@/features/marathons/use-marathons'
 import { swapQueuePositions } from '@/features/registrations/api'
 import {
+  getOfferedPackagesLabel,
   getPendingActionLabel,
   getPendingActionStep,
   isOverdue,
@@ -59,6 +60,12 @@ const STATUS_FILTER_LABEL: Record<StatusFilter, string> = {
   cancelled: 'Cancelled',
 }
 
+// Values double as the header's aria-sort. 'none' keeps queue order.
+const NEXT_SORT = { none: 'descending', descending: 'ascending', ascending: 'none' } as const
+const SORT_ICON = { none: ChevronsUpDown, descending: ChevronDown, ascending: ChevronUp }
+
+const updatedMillis = (registration: Registration) => registration.updatedAt?.toMillis() ?? 0
+
 function matchesStatusFilter(registration: Registration, filter: StatusFilter) {
   switch (filter) {
     case 'all':
@@ -96,13 +103,22 @@ export function QueueReviewPage() {
   )
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [showCancelled, setShowCancelled] = useState(false)
+  const [updatedSort, setUpdatedSort] = useState<keyof typeof NEXT_SORT>('none')
+  const SortIcon = SORT_ICON[updatedSort]
   const statusFilteredRegistrations = orderedRegistrations.filter(
     (registration) =>
       matchesStatusFilter(registration, statusFilter) &&
       (showCancelled || statusFilter === 'cancelled' || registration.status !== 'cancelled'),
   )
+  // Display only: moves and the CSV export keep using orderedRegistrations.
+  const sortedRegistrations =
+    updatedSort === 'none'
+      ? statusFilteredRegistrations
+      : [...statusFilteredRegistrations].sort(
+          (a, b) => (updatedMillis(a) - updatedMillis(b)) * (updatedSort === 'ascending' ? 1 : -1),
+        )
   const { query, setQuery, filtered, visible, loadMore } = usePaginatedSearch(
-    statusFilteredRegistrations,
+    sortedRegistrations,
     (registration, q) => {
       const profile = profiles[registration.userId]
       return formatUserName(profile).toLowerCase().includes(q) || (profile?.email ?? '').toLowerCase().includes(q)
@@ -220,6 +236,17 @@ export function QueueReviewPage() {
                       <TableHead>Package</TableHead>
                       <TableHead>Progress</TableHead>
                       <TableHead>Requested</TableHead>
+                      <TableHead aria-sort={updatedSort}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="-ml-3 h-8"
+                          onClick={() => setUpdatedSort(NEXT_SORT[updatedSort])}
+                        >
+                          Last Update
+                          <SortIcon />
+                        </Button>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -273,7 +300,9 @@ export function QueueReviewPage() {
                           <div className="text-muted-foreground text-xs">{profiles[registration.userId]?.email ?? '—'}</div>
                           <RunnerLinkNote registration={registration} />
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{registration.packageName || '—'}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {registration.packageName || getOfferedPackagesLabel(registration, marathon) || '—'}
+                        </TableCell>
                         <TableCell>
                           <div className="flex flex-col items-start gap-1.5">
                             <StatusBadge
@@ -286,6 +315,9 @@ export function QueueReviewPage() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {registration.createdAt?.toDate().toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {registration.updatedAt?.toDate().toLocaleString() ?? '—'}
                         </TableCell>
                       </TableRow>
                       )

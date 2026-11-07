@@ -25,11 +25,11 @@ function buildDefaultOfferMessage(marathonTitle: string) {
 }
 
 /**
- * Opened from the Accept action in Queue Review. Two steps: first the admin picks which packages to offer
+ * Opened from the Accept action in Queue Review. First the admin picks which packages to offer
  * (the registrant chooses one when accepting), previews (and optionally swaps, just for this send) the
  * first offered package's standard offer image and edits a pre-filled chat message;
- * then they review the exact acceptance email the registrant will receive, and only from there can
- * accept — which sends the email (via onRegistrationStatusChange) and the chat message.
+ * then they can optionally review the exact acceptance email the registrant will receive. Sending,
+ * from either step, sends the email (via onRegistrationStatusChange) and the chat message.
  */
 export function OfferChatDialog({
   registration,
@@ -60,6 +60,7 @@ export function OfferChatDialog({
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | undefined>(undefined)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [step, setStep] = useState<'compose' | 'preview'>('compose')
+  const canSend = text.trim() !== '' && offeredIds.length > 0 && areRunnerRowsValid(offeredRunners, profile?.email)
 
   // Re-derive defaults each time the dialog opens for a (possibly different) registration —
   // depends only on primitive ids so it doesn't re-fire (and wipe in-progress edits) on every
@@ -217,11 +218,14 @@ export function OfferChatDialog({
         <DialogFooter>
           {step === 'compose' ? (
             <>
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" className="sm:mr-auto" onClick={() => setStep('preview')} disabled={!canSend || isSubmitting}>
+                Preview email
+              </Button>
+              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button type="button" onClick={() => setStep('preview')} disabled={!text.trim() || offeredIds.length === 0 || !areRunnerRowsValid(offeredRunners, profile?.email)}>
-                Preview email
+              <Button type="button" onClick={handleProceed} disabled={!canSend} loading={isSubmitting}>
+                {isSubmitting ? 'Sending offer…' : 'Send offer'}
               </Button>
             </>
           ) : (

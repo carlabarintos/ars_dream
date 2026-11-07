@@ -11,7 +11,14 @@ import { addInternalNote, deleteInternalNote } from '@/features/registrations/ap
 import type { InternalNote } from '@/types'
 
 /** Staff-only notes on a booking. They live in a subcollection because the registrant can read the registration doc itself. */
-export function InternalNotes({ registrationId, notes }: { registrationId: string; notes: InternalNote[] }) {
+export function InternalNotes({
+  addRegistrationId,
+  notes,
+}: {
+  /** New notes go on this booking; the list may combine several of a package's bookings. */
+  addRegistrationId: string
+  notes: { registrationId: string; note: InternalNote; label?: string }[]
+}) {
   const profile = useAuthStore((state) => state.profile)
   const [text, setText] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -21,7 +28,7 @@ export function InternalNotes({ registrationId, notes }: { registrationId: strin
     if (!profile || !text.trim()) return
     setIsSaving(true)
     try {
-      await addInternalNote(registrationId, profile.uid, formatUserName(profile), text.trim())
+      await addInternalNote(addRegistrationId, profile.uid, formatUserName(profile), text.trim())
       setText('')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
@@ -30,10 +37,10 @@ export function InternalNotes({ registrationId, notes }: { registrationId: strin
     }
   }
 
-  async function handleDelete(noteId: string) {
+  async function handleDelete(item: { registrationId: string; note: InternalNote }) {
     if (!window.confirm('Delete this note?')) return
     try {
-      await deleteInternalNote(registrationId, noteId)
+      await deleteInternalNote(item.registrationId, item.note.id)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
     }
@@ -55,8 +62,9 @@ export function InternalNotes({ registrationId, notes }: { registrationId: strin
         </Button>
       </form>
       <ul className="flex flex-col gap-2">
-        {notes.map((note) => (
-          <li key={note.id} className="bg-muted rounded-md p-2 text-sm">
+        {notes.map(({ registrationId, note, label }) => (
+          <li key={registrationId + note.id} className="bg-muted rounded-md p-2 text-sm">
+            {label && <p className="text-muted-foreground mb-1 text-xs">{label}</p>}
             <p className="break-words whitespace-pre-wrap">{note.text}</p>
             <div className="text-muted-foreground mt-1 flex items-center justify-between gap-2 text-xs">
               <span>
@@ -68,7 +76,7 @@ export function InternalNotes({ registrationId, notes }: { registrationId: strin
                 variant="ghost"
                 className="size-6"
                 aria-label="Delete note"
-                onClick={() => handleDelete(note.id)}
+                onClick={() => handleDelete({ registrationId, note })}
               >
                 <Trash2 className="size-3.5" />
               </Button>
