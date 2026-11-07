@@ -21,7 +21,7 @@ import { RunnerLinkNote } from '@/features/registrations/RunnerLinkNote'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { useMarathonRegistrations } from '@/features/registrations/use-registrations'
 import { usePaginatedSearch } from '@/lib/use-paginated-search'
-import { cn } from '@/lib/utils'
+import { cn, formatDeviceTime } from '@/lib/utils'
 import type { Marathon, Registration } from '@/types'
 
 import { BookingProgress } from '@/features/registrations/BookingTimeline'
@@ -65,6 +65,16 @@ const NEXT_SORT = { none: 'descending', descending: 'ascending', ascending: 'non
 const SORT_ICON = { none: ChevronsUpDown, descending: ChevronDown, ascending: ChevronUp }
 
 const updatedMillis = (registration: Registration) => registration.updatedAt?.toMillis() ?? 0
+
+function DateAndTime({ date }: { date: Date | undefined }) {
+  if (!date) return '—'
+  return (
+    <>
+      <div>{date.toLocaleDateString()}</div>
+      <div className="text-xs">{formatDeviceTime(date)}</div>
+    </>
+  )
+}
 
 function matchesStatusFilter(registration: Registration, filter: StatusFilter) {
   switch (filter) {
@@ -300,8 +310,10 @@ export function QueueReviewPage() {
                           <div className="text-muted-foreground text-xs">{profiles[registration.userId]?.email ?? '—'}</div>
                           <RunnerLinkNote registration={registration} />
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {registration.packageName || getOfferedPackagesLabel(registration, marathon) || '—'}
+                        <TableCell className="text-muted-foreground text-xs whitespace-normal">
+                          <div className="max-w-40">
+                            {registration.packageName || getOfferedPackagesLabel(registration, marathon) || '—'}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col items-start gap-1.5">
@@ -314,10 +326,10 @@ export function QueueReviewPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {registration.createdAt?.toDate().toLocaleDateString()}
+                          <DateAndTime date={registration.createdAt?.toDate()} />
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {registration.updatedAt?.toDate().toLocaleString() ?? '—'}
+                          <DateAndTime date={registration.updatedAt?.toDate()} />
                         </TableCell>
                       </TableRow>
                       )
