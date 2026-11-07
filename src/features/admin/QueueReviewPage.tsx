@@ -144,7 +144,9 @@ export function QueueReviewPage() {
   const reviewed = packages.filter((group) => !isUnderReview(group))
   const confirmed = reviewed.filter((group) => group.some(hasLockedSlot)).flat()
   const unlocked = reviewed.filter((group) => !group.some(hasLockedSlot))
-  const isOffered = (group: Registration[]) => group.some((r) => r.status === 'accepted')
+  // Unlocked, so a payment_rejected here is a deposit: they accepted the offer and are still to pay.
+  const isOffered = (group: Registration[]) =>
+    group.some((r) => ['accepted', 'terms_accepted', 'payment_rejected'].includes(r.status))
   const offered = unlocked.filter(isOffered).flat()
   const others = unlocked.filter((group) => !isOffered(group)).flat()
   const othersShown = others.slice(0, visible.length)
