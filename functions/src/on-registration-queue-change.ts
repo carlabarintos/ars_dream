@@ -12,11 +12,12 @@ const ADMIN_PUSH_TITLES: Record<string, string> = {
   payment_submitted: 'Payment proof to review',
 }
 
-/** A slot transfer lands on these statuses too, but that's an admin's own action. */
+/** A slot transfer or restore lands on these statuses too, but that's an admin's own action. */
 async function pushAdmins(before: DocumentData | undefined, after: DocumentData) {
   const justTransferred = after.transferredFrom && !before?.transferredFrom
+  const justRestored = after.restoredAt && after.restoredAt.toMillis() !== before?.restoredAt?.toMillis()
   const title = ADMIN_PUSH_TITLES[after.status]
-  if (!title || justTransferred) return
+  if (!title || justTransferred || justRestored) return
 
   const [marathon, user] = await Promise.all([
     db.doc(`marathons/${after.marathonId}`).get(),

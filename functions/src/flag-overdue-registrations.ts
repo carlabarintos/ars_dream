@@ -56,7 +56,7 @@ export const flagOverdueRegistrations = onSchedule(
             if ((await transaction.get(doc.ref)).data()?.status !== 'accepted') return false
             const now = new Date()
             // cancelledBy 'admin' → the booking history reads "Booking cancelled by ARS Dream" (onRegistrationStatusChange).
-            transaction.update(doc.ref, { status: 'cancelled', cancelledAt: now, cancelledBy: 'admin', updatedAt: now })
+            transaction.update(doc.ref, { status: 'cancelled', cancelledAt: now, cancelledBy: 'admin', statusBeforeCancel: 'accepted', updatedAt: now })
             return true
           })
           if (!cancelled) return

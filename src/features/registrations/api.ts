@@ -577,6 +577,15 @@ export async function cancelRegistration(registrationId: string) {
   await cancelRegistrationCallable({ registrationId })
 }
 
+const restoreRegistrationCallable = httpsCallable<
+  { registrationId: string; status?: string; packageId?: string },
+  { status: string }
+>(functions, 'restoreRegistration')
+
+export async function restoreRegistration(registrationId: string, status?: string, packageId?: string) {
+  await restoreRegistrationCallable({ registrationId, status, packageId })
+}
+
 const sendReminderCallable = httpsCallable<{ registrationId: string; text: string }, { sent: boolean }>(
   functions,
   'sendReminder',

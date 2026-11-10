@@ -322,6 +322,10 @@ export interface Registration {
   cancelledAt?: Timestamp | null
   /** Who cancelled, set by cancelRegistration alongside `cancelledAt`. Only meaningful while status is 'cancelled'. */
   cancelledBy?: 'user' | 'admin'
+  /** The status it was cancelled from, put back by restoreRegistration. Absent on cancellations before this field existed. */
+  statusBeforeCancel?: RegistrationStatus
+  /** When an admin last restored it from 'cancelled' (restoreRegistration). */
+  restoredAt?: Timestamp
   /** Which of the marathon's registration rounds this belongs to (see Marathon.cycle). Absent means cycle 1 (predates this field). */
   cycle?: number
   /** Set by confirmPayment when the deposit is approved (→ 'deposit_paid'). Its presence means this registration holds a counted seat. */
@@ -424,6 +428,7 @@ export type AuditAction =
   | 'registration_accepted'
   | 'registration_rejected'
   | 'registration_cancelled'
+  | 'registration_restored'
   | 'registration_transferred'
   | 'payment_confirmed'
   | 'payment_rejected'

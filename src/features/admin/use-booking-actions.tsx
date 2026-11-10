@@ -6,7 +6,13 @@ import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName } from '@/features/auth/use-user-profiles'
 import { BookingChatDialog } from '@/features/messages/BookingChatDialog'
 import { EditRunnersDialog } from '@/features/registrations/EditRunnersDialog'
-import { applySharedDeposit, cancelRegistration, decideQueueRegistration, sendReminder } from '@/features/registrations/api'
+import {
+  applySharedDeposit,
+  cancelRegistration,
+  decideQueueRegistration,
+  restoreRegistration,
+  sendReminder,
+} from '@/features/registrations/api'
 import {
   getPendingActionReminder,
   getPendingActionStep,
@@ -111,6 +117,53 @@ export function useBookingActions(
     }
   }
 
+  async function handleRestore(registration: Registration) {
+    const name = formatUserName(getProfile(registration))
+    let status: string | undefined
+    if (registration.statusBeforeCancel) {
+      if (!confirm(`Restore ${name}'s booking to "${registration.statusBeforeCancel}"? They'll be notified.`)) return
+    } else {
+      // Cancelled before the step was recorded: the booking's chat history shows the step before "Booking cancelled".
+      const guess = registration.finalInvoice
+        ? 'final_invoiced'
+        : registration.depositPaidAt
+          ? 'deposit_paid'
+          : registration.termsAcceptedAt
+            ? 'terms_accepted'
+            : registration.offeredAt
+              ? 'accepted'
+              : 'queued'
+      status = prompt(
+        `Restore ${name}'s booking to which step? Check its chat history for the step before it was cancelled.\n` +
+          'queued · accepted · terms_accepted · payment_submitted · payment_rejected · deposit_paid · final_invoiced · confirmed',
+        guess,
+      )?.trim()
+      if (!status) return
+    }
+    let packageId: string | undefined
+    if (status === 'terms_accepted' && !registration.packageId) {
+      // No package was ever chosen: invoice one straight away, skipping the offer. They accept the T&C before paying.
+      const packages = (getMarathon(registration)?.packages ?? []).filter((p) => (p.runnerCount ?? 1) === 1)
+      const offered = packages.find((p) => registration.offeredPackageIds?.includes(p.id)) ?? packages[0]
+      const choice = prompt(
+        `Which package should the deposit invoice be for?\n${packages.map((p) => p.name).join(' · ')}`,
+        offered?.name,
+      )?.trim()
+      if (!choice) return
+      packageId = packages.find((p) => p.name === choice)?.id
+      if (!packageId) return toast.error(`No single-runner package named "${choice}".`)
+    }
+    setDecidingKey(`${registration.id}-restore`)
+    try {
+      await restoreRegistration(registration.id, status, packageId)
+      toast.success('Booking restored.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setDecidingKey(null)
+    }
+  }
+
   async function handleSharedDeposit(registration: Registration) {
     if (!confirm('Mark every other runner on this package as deposit paid, using the payment already approved?')) return
     setDecidingKey(`${registration.id}-shared-deposit`)
@@ -174,6 +227,14 @@ export function useBookingActions(
             onClick={() => setPackageRegistrationId(registration.id)}
           >
             Change Package
+          </Button>
+        )}
+        {registration.status === 'cancelled' && !registration.transferredTo && (
+          <Button
+            loading={decidingKey === `${registration.id}-restore`}
+            onClick={() => handleRestore(registration)}
+          >
+            Restore Booking
           </Button>
         )}
         {getRunnerCount(registration, getMarathon(registration)) > 1 &&

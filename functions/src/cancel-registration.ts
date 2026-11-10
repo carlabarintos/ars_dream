@@ -25,7 +25,7 @@ const enforceAppCheck = process.env.FUNCTIONS_EMULATOR !== 'true'
 // registration holds a counted seat in marathons.confirmedCount that must be
 // released atomically with the status change — the same reason
 // acceptRegistration/confirmPayment run server-side instead of client writes.
-const CANCELLABLE_STATUSES = [
+export const CANCELLABLE_STATUSES = [
   'queued',
   'accepted',
   'terms_accepted',
@@ -73,6 +73,8 @@ export const cancelRegistration = onCall<CancelRegistrationInput>(
         cancelledAt: new Date(),
         // Read by the booking history entry (booking-event.ts) to say who cancelled.
         cancelledBy: registration.userId === uid ? 'user' : 'admin',
+        // What restoreRegistration puts back.
+        statusBeforeCancel: registration.status,
         updatedAt: new Date(),
       })
 

@@ -49,6 +49,8 @@ export const onRegistrationStatusChange = onDocumentUpdated(
     // transferRegistration logs and notifies both sides itself; its writes must not re-send invoices/receipts here.
     const transferAt = (r: FirebaseFirestore.DocumentData) => (r.transferredTo ?? r.transferredFrom)?.at?.toMillis()
     if (transferAt(after) && transferAt(after) !== transferAt(before)) return
+    // restoreRegistration logs and notifies itself; the restored status mustn't re-send its invoice/receipt.
+    if (after.restoredAt && after.restoredAt.toMillis() !== before.restoredAt?.toMillis()) return
     // Same for a runner joining or leaving a package (on-registration-runners-change.ts), unless their booking is under
     // way and stays so: that's a package change like any other, with the amended invoice and seat change it brings.
     const isUnderWay = before.status === after.status && after.status !== 'accepted'
