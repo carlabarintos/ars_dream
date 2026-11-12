@@ -32,6 +32,7 @@ import {
   submitTermsAndConditions,
 } from './api'
 import { BookingDocumentFrame, UploadedFileButton } from './BookingDocumentDialog'
+import { ExtraPassports } from './ExtraPassports'
 import { getBookingDocuments, downloadBookingDocument } from './booking-documents'
 import {
   getFinalInvoiceBalance,
@@ -532,6 +533,13 @@ export function RegistrationWizard({
                 Make sure all four corners are visible and the text is readable, with no glare. Your passport should be
                 valid for at least 6 months after the event.
               </p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Other ID (optional)</Label>
+              <p className="text-muted-foreground text-xs">
+                Not Filipino, or hold more than one passport? Add your residency card, second passport or certificates here.
+              </p>
+              <ExtraPassports registration={registration} editable />
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={onClose}>
