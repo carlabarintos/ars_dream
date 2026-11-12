@@ -32,7 +32,7 @@ import { BookingChat } from '@/features/messages/BookingChatDialog'
 import { cn } from '@/lib/utils'
 import type { Registration, RegistrationStatus } from '@/types'
 
-import { submitPassportPhoto } from './api'
+import { addProofOfPayment, submitPassportPhoto } from './api'
 import { UploadedFileThumb } from './BookingDocumentDialog'
 import { BookingTimeline } from './BookingTimeline'
 import { CancelRegistrationButton } from './CancelRegistrationButton'
@@ -296,6 +296,7 @@ export function MyRegistrationsPage() {
           sorted.map((registration) => {
             const marathon = marathons[registration.marathonId]
             const pendingStep = getPendingActionStep(registration, marathon)
+            const paymentDue = pendingStep === 'payment' || pendingStep === 'final_payment'
             const StatusIcon = STATUS_ICON[registration.status]
 
             return (
@@ -425,7 +426,10 @@ export function MyRegistrationsPage() {
                       />
                     </div>
                   </div>
-                  {(getRunners(registration, marathon).some((r) => r.passportPhotoUrl) || getLabelledPaymentProofs(registration).length > 0) && (
+                  {(getRunners(registration, marathon).some((r) => r.passportPhotoUrl) ||
+                    getLabelledPaymentProofs(registration).length > 0 ||
+                    isPastDeposit(registration) ||
+                    paymentDue) && (
                     <div className="flex flex-col gap-2">
                       <div className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase">
                         <PaperclipIcon className="size-3.5" />
@@ -434,13 +438,15 @@ export function MyRegistrationsPage() {
                       <div className="flex flex-wrap gap-3">
                         {getRunners(registration, marathon).map(
                           (runner, i, all) =>
-                            runner.passportPhotoUrl && (
-                              <div key={runner.passportPhotoUrl} className="flex flex-col gap-1.5">
-                                <UploadedFileThumb
-                                  url={runner.passportPhotoUrl}
-                                  label={`${runnerPrefix(i, all.length, runner.name)}Passport bio page`}
-                                  className="h-24"
-                                />
+                            (runner.passportPhotoUrl || isPastDeposit(registration)) && (
+                              <div key={i} className="flex flex-col gap-1.5">
+                                {runner.passportPhotoUrl && (
+                                  <UploadedFileThumb
+                                    url={runner.passportPhotoUrl}
+                                    label={`${runnerPrefix(i, all.length, runner.name)}Passport bio page`}
+                                    className="h-24"
+                                  />
+                                )}
                                 {isPastDeposit(registration) && (
                                   <FileUploadButton
                                     variant="outline"
@@ -448,10 +454,10 @@ export function MyRegistrationsPage() {
                                     accept="image/*"
                                     onFiles={async ([file]) => {
                                       await submitPassportPhoto(registration, i, file)
-                                      toast.success('Passport replaced.')
+                                      toast.success(runner.passportPhotoUrl ? 'Passport replaced.' : 'Passport uploaded.')
                                     }}
                                   >
-                                    Replace
+                                    {runner.passportPhotoUrl ? 'Replace' : `Upload ${runnerPrefix(i, all.length, runner.name)}Passport`}
                                   </FileUploadButton>
                                 )}
                               </div>
@@ -461,6 +467,28 @@ export function MyRegistrationsPage() {
                           <UploadedFileThumb key={url} url={url} label={`Payment proof · ${label}`} className="h-24" />
                         ))}
                       </div>
+                      {registration.status === 'payment_submitted' ? (
+                        <FileUploadButton
+                          variant="outline"
+                          size="sm"
+                          className="self-start"
+                          accept="image/*,application/pdf"
+                          multiple
+                          onFiles={async (files) => {
+                            await addProofOfPayment(registration, files, registration.paymentReference ?? '')
+                            toast.success(files.length > 1 ? `${files.length} slips added.` : 'Slip added.')
+                          }}
+                        >
+                          Add More {isOnFinalInvoice(registration) ? 'Balance' : 'Deposit'} Slips
+                        </FileUploadButton>
+                      ) : (
+                        paymentDue && (
+                          // Opens the wizard: a first slip needs a payment reference and may need T&C acceptance.
+                          <Button variant="outline" size="sm" className="self-start" onClick={() => setActiveRegistrationId(registration.id)}>
+                            Upload {pendingStep === 'final_payment' ? 'Balance' : 'Deposit'} Slip
+                          </Button>
+                        )
+                      )}
                       <ExtraPassports registration={registration} editable={isPastDeposit(registration)} />
                     </div>
                   )}
