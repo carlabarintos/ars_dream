@@ -423,47 +423,47 @@ export function MyRegistrationsPage() {
                             : undefined
                         }
                       />
-                      {(getRunners(registration, marathon).some((r) => r.passportPhotoUrl) || getLabelledPaymentProofs(registration).length > 0) && (
-                        <>
-                          <div className="text-muted-foreground mt-2 flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase">
-                            <PaperclipIcon className="size-3.5" />
-                            Your uploads
-                          </div>
-                          <div className="flex flex-wrap gap-3">
-                            {getRunners(registration, marathon).map(
-                              (runner, i, all) =>
-                                runner.passportPhotoUrl && (
-                                  <div key={runner.passportPhotoUrl} className="flex flex-col gap-1.5">
-                                    <UploadedFileThumb
-                                      url={runner.passportPhotoUrl}
-                                      label={`${runnerPrefix(i, all.length, runner.name)}Passport bio page`}
-                                      className="h-24"
-                                    />
-                                    {isPastDeposit(registration) && (
-                                      <FileUploadButton
-                                        variant="outline"
-                                        size="sm"
-                                        accept="image/*"
-                                        onFiles={async ([file]) => {
-                                          await submitPassportPhoto(registration, i, file)
-                                          toast.success('Passport replaced.')
-                                        }}
-                                      >
-                                        Replace
-                                      </FileUploadButton>
-                                    )}
-                                  </div>
-                                ),
-                            )}
-                            {getLabelledPaymentProofs(registration).map(({ url, label }) => (
-                              <UploadedFileThumb key={url} url={url} label={`Payment proof · ${label}`} className="h-24" />
-                            ))}
-                          </div>
-                          <ExtraPassports registration={registration} editable={isPastDeposit(registration)} />
-                        </>
-                      )}
                     </div>
                   </div>
+                  {(getRunners(registration, marathon).some((r) => r.passportPhotoUrl) || getLabelledPaymentProofs(registration).length > 0) && (
+                    <div className="flex flex-col gap-2">
+                      <div className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase">
+                        <PaperclipIcon className="size-3.5" />
+                        Your uploads
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        {getRunners(registration, marathon).map(
+                          (runner, i, all) =>
+                            runner.passportPhotoUrl && (
+                              <div key={runner.passportPhotoUrl} className="flex flex-col gap-1.5">
+                                <UploadedFileThumb
+                                  url={runner.passportPhotoUrl}
+                                  label={`${runnerPrefix(i, all.length, runner.name)}Passport bio page`}
+                                  className="h-24"
+                                />
+                                {isPastDeposit(registration) && (
+                                  <FileUploadButton
+                                    variant="outline"
+                                    size="sm"
+                                    accept="image/*"
+                                    onFiles={async ([file]) => {
+                                      await submitPassportPhoto(registration, i, file)
+                                      toast.success('Passport replaced.')
+                                    }}
+                                  >
+                                    Replace
+                                  </FileUploadButton>
+                                )}
+                              </div>
+                            ),
+                        )}
+                        {getLabelledPaymentProofs(registration).map(({ url, label }) => (
+                          <UploadedFileThumb key={url} url={url} label={`Payment proof · ${label}`} className="h-24" />
+                        ))}
+                      </div>
+                      <ExtraPassports registration={registration} editable={isPastDeposit(registration)} />
+                    </div>
+                  )}
                 </CardContent>
 
                 <CardFooter className="border-border flex flex-col gap-2 border-t pt-4 pb-5">
