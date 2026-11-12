@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { CheckIcon, FileTextIcon, XIcon } from 'lucide-react'
+import { CheckIcon, FileTextIcon, MailIcon, XIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   type BookingDocument,
   getBookingDocuments,
@@ -9,7 +10,7 @@ import {
 } from '@/features/registrations/booking-documents'
 import { describePartOf, getQuestionnaires, getRunners, isQuestionAnswered, runnerPrefix } from '@/features/registrations/registration-flow'
 import { cn, formatPackagePrice } from '@/lib/utils'
-import { formatTransferParty, type Marathon, type Registration, type UserProfile } from '@/types'
+import { type BookingEmail, formatTransferParty, type Marathon, type Registration, type UserProfile } from '@/types'
 
 import { BookingDocumentDialog, UploadedFileThumb } from './BookingDocumentDialog'
 
@@ -197,20 +198,42 @@ function getPreviousRoundSteps(registration: Registration): Step[] {
   })
 }
 
+/** Each email goes under the latest step that happened before it was sent: the step that sent it, or a reminder about it. */
+function emailsByStep(steps: Step[], emails: BookingEmail[]) {
+  const byStep = steps.map((): BookingEmail[] => [])
+  for (const email of emails) {
+    const sentAt = email.sentAt?.toMillis() ?? Date.now()
+    let best = -1
+    steps.forEach((step, index) => {
+      const at = step.done ? step.at?.getTime() : undefined
+      if (at !== undefined && at <= sentAt && (best === -1 || at >= steps[best].at!.getTime())) best = index
+    })
+    // Sent before any dated step (a clock skew of a second or two): show it on the first one.
+    byStep[best === -1 ? 0 : best]?.push(email)
+  }
+  return byStep
+}
+
 export function BookingTimeline({
   registration,
   marathon,
   profile,
+  emails = [],
 }: {
   registration: Registration
   marathon: Marathon | undefined
   profile: UserProfile
+  /** Admin-only: emails sent about this booking, each viewable from its step. */
+  emails?: BookingEmail[]
 }) {
   const [viewing, setViewing] = useState<BookingDocument>()
+  const [viewingEmail, setViewingEmail] = useState<BookingEmail>()
+  const allSteps = [...getPreviousRoundSteps(registration), ...getSteps(registration, marathon, profile)]
+  const stepEmails = emailsByStep(allSteps, emails)
   return (
     <>
       <ol className="flex flex-col">
-        {[...getPreviousRoundSteps(registration), ...getSteps(registration, marathon, profile)].map((step, index, steps) => {
+        {allSteps.map((step, index, steps) => {
           const document = step.done && step.document
           const isNext = index === steps.findIndex((s) => !s.done)
           return (
@@ -245,23 +268,66 @@ export function BookingTimeline({
                   )}
                   {step.upload && <UploadedFileThumb {...step.upload} className="mt-1.5 h-20" />}
                 </div>
-                {document && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7"
-                    onClick={() => setViewing(document)}
-                  >
-                    <FileTextIcon />
-                    {document.label}
-                  </Button>
-                )}
+                <div className="flex flex-wrap gap-1.5">
+                  {document && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7"
+                      onClick={() => setViewing(document)}
+                    >
+                      <FileTextIcon />
+                      {document.label}
+                    </Button>
+                  )}
+                  {stepEmails[index].map((email) => (
+                    <Button
+                      key={email.id}
+                      variant="outline"
+                      size="sm"
+                      className={cn('h-7', email.failed && 'text-destructive')}
+                      title={email.subject}
+                      onClick={() => setViewingEmail(email)}
+                    >
+                      <MailIcon />
+                      {email.failed ? 'Email failed' : 'Email'}
+                    </Button>
+                  ))}
+                </div>
               </div>
             </li>
           )
         })}
       </ol>
       <BookingDocumentDialog document={viewing} marathonTitle={marathon?.title} onClose={() => setViewing(undefined)} />
+      <Dialog open={!!viewingEmail} onOpenChange={(open) => !open && setViewingEmail(undefined)}>
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] grid-cols-[minmax(0,1fr)] overflow-y-auto sm:max-w-3xl">
+          {viewingEmail && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{viewingEmail.subject}</DialogTitle>
+                <DialogDescription>
+                  To {viewingEmail.to}
+                  {viewingEmail.cc.length > 0 && ` · Cc ${viewingEmail.cc.join(', ')}`}
+                  {viewingEmail.sentAt && ` · ${viewingEmail.sentAt.toDate().toLocaleString()}`}
+                  {viewingEmail.failed && ' · Sending failed, so it likely never arrived'}
+                </DialogDescription>
+              </DialogHeader>
+              {/* No allow-scripts: same-origin only so the frame can be sized to its content. */}
+              <iframe
+                title={viewingEmail.subject}
+                srcDoc={viewingEmail.html}
+                sandbox="allow-same-origin"
+                onLoad={(e) => {
+                  const frame = e.currentTarget
+                  frame.style.height = `${frame.contentDocument?.documentElement.scrollHeight ?? 0}px`
+                }}
+                className="h-[60vh] w-full rounded-md border border-border bg-white"
+              />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

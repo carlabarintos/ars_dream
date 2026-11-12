@@ -65,6 +65,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
         const body = 'ARS Dream updated the runner details on your booking. Please check they are correct.'
         await notifyUser({
           userId: after.userId,
+          registrationId: event.params.registrationId,
           pushTitle: 'Runner details updated',
           pushBody: body,
           emailSubject: marathonTitle ? `Runner details updated — ${marathonTitle}` : 'Runner details updated',
@@ -101,6 +102,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
       const body = `Your due date has been extended to ${due}.`
       await notifyUser({
         userId: after.userId,
+        registrationId: event.params.registrationId,
         pushTitle: 'Due date extended',
         pushBody: body,
         emailSubject: marathonTitle ? `Due date extended — ${marathonTitle}` : 'Due date extended',
@@ -121,6 +123,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
       const body = `The packages in your offer have been updated: ${names}.`
       await notifyUser({
         userId: after.userId,
+        registrationId: event.params.registrationId,
         pushTitle: 'Offer updated',
         pushBody: body,
         emailSubject: marathon?.title ? `Offer updated — ${marathon.title}` : 'Offer updated',
@@ -183,6 +186,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
         const body = `ARS Dream updated your booking to: ${describePackage(after)}.`
         await notifyUser({
           userId: after.userId,
+          registrationId: event.params.registrationId,
           pushTitle: 'Your package was updated',
           pushBody: body,
           emailSubject: marathonTitle ? `Your package was updated — ${marathonTitle}` : 'Your package was updated',
@@ -250,6 +254,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
       })
       await notifyUser({
         userId: after.userId,
+        registrationId: event.params.registrationId,
         pushTitle: copy.title,
         pushBody: copy.body,
         emailSubject: subject,
@@ -282,6 +287,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
       })
       await notifyUser({
         userId: after.userId,
+        registrationId: event.params.registrationId,
         pushTitle: copy.title,
         pushBody: copy.body,
         emailSubject: subject,
@@ -302,6 +308,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
       })
       await notifyUser({
         userId: after.userId,
+        registrationId: event.params.registrationId,
         pushTitle: copy.title,
         pushBody: copy.body,
         emailSubject: subject,
@@ -333,6 +340,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
       })
       await notifyUser({
         userId: after.userId,
+        registrationId: event.params.registrationId,
         pushTitle: copy.title,
         pushBody: copy.body,
         emailSubject: subject,
@@ -345,6 +353,7 @@ export const onRegistrationStatusChange = onDocumentUpdated(
 
     await notifyUser({
       userId: after.userId,
+      registrationId: event.params.registrationId,
       pushTitle: copy.title,
       pushBody: copy.body,
       emailSubject: marathonTitle ? `${copy.title} — ${marathonTitle}` : copy.title,

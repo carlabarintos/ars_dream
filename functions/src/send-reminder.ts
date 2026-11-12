@@ -38,6 +38,7 @@ export const sendReminder = onCall<SendReminderInput>(
     const title = 'Reminder: action needed on your booking'
     await notifyUser({
       userId: registration.userId,
+      registrationId,
       pushTitle: title,
       pushBody: text,
       emailSubject: marathonTitle ? `${title} — ${marathonTitle}` : title,

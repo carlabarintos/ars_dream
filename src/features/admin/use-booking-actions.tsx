@@ -10,8 +10,10 @@ import {
   applySharedDeposit,
   cancelRegistration,
   decideQueueRegistration,
+  recordPaymentByAdmin,
   restoreRegistration,
   sendReminder,
+  termsOwedBeforePayment,
 } from '@/features/registrations/api'
 import {
   getPendingActionReminder,
@@ -28,6 +30,7 @@ import type { Marathon, Registration, UserProfile } from '@/types'
 import { BookingDetailDialog } from './BookingDetailDialog'
 import { ChangePackageDialog } from './ChangePackageDialog'
 import { EXTENDABLE_STATUSES, ExtendDueDateDialog } from './ExtendDueDateDialog'
+import { FileUploadButton } from './FileUploadButton'
 import { FinalInvoiceDialog } from './FinalInvoiceDialog'
 import { OfferChatDialog } from './OfferChatDialog'
 import { PaymentProofsDialog } from './PaymentProofsDialog'
@@ -176,6 +179,29 @@ export function useBookingActions(
     }
   }
 
+  async function handleSlipUpload(registration: Registration, files: File[]) {
+    const name = formatUserName(getProfile(registration))
+    const kind = registration.finalInvoice ? 'balance' : 'deposit'
+    const owed = termsOwedBeforePayment(registration)
+    if (
+      (owed.transfer || owed.final) &&
+      !confirm(
+        `${name} hasn't accepted the Terms & Conditions in the app yet. Have they agreed to them another way (e.g. by email)? ` +
+          "OK records their acceptance now. Cancel stops here, so you can send a reminder instead.",
+      )
+    )
+      return
+    const reference = prompt(`Approve this ${kind} payment for ${name}? Branch / Ref. no. (optional):`, '')
+    if (reference === null) return
+    await recordPaymentByAdmin(registration, files, reference.trim())
+    toast.success(`${kind === 'deposit' ? 'Deposit' : 'Balance'} slip uploaded and approved.`)
+    if (kind === 'deposit' && isOnSharedPackage(registration) && confirm('Does this payment cover the other runners on this package too?')) {
+      await applySharedDeposit(registration.id)
+        .then((result) => toast.success(sharedDepositMessage(result)))
+        .catch((error) => toast.error(`Deposit approved, but not applied to the other runner: ${error.message}`))
+    }
+  }
+
   async function handleRemind(registration: Registration) {
     const marathon = getMarathon(registration)
     const step = getPendingActionStep(registration, marathon)
@@ -259,6 +285,16 @@ export function useBookingActions(
               Apply Shared Deposit
             </Button>
           )}
+        {['terms_accepted', 'payment_rejected', 'final_invoiced'].includes(registration.status) && (
+          <FileUploadButton
+            variant="outline"
+            accept="image/*,application/pdf"
+            multiple
+            onFiles={(files) => handleSlipUpload(registration, files)}
+          >
+            {registration.finalInvoice ? 'Upload Balance Slip' : 'Upload Deposit Slip'}
+          </FileUploadButton>
+        )}
         {registration.status === 'payment_submitted' && (
           <Button variant="outline" onClick={() => setPaymentsRegistrationId(registration.id)}>
             Review Payment

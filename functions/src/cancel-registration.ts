@@ -103,6 +103,7 @@ export const cancelRegistration = onCall<CancelRegistrationInput>(
         const copy = expired ? OFFER_EXPIRED_COPY : OFFER_WITHDRAWN_COPY
         await notifyUser({
           userId: registration.userId,
+          registrationId,
           pushTitle: copy.title,
           pushBody: copy.body,
           emailSubject: marathonTitle ? `${copy.title} — ${marathonTitle}` : copy.title,
@@ -121,6 +122,7 @@ export const cancelRegistration = onCall<CancelRegistrationInput>(
         const copy = DEPOSIT_MISSED_COPY
         await notifyUser({
           userId: registration.userId,
+          registrationId,
           pushTitle: copy.title,
           pushBody: copy.body,
           emailSubject: marathonTitle ? `${copy.title} — ${marathonTitle}` : copy.title,
@@ -133,6 +135,7 @@ export const cancelRegistration = onCall<CancelRegistrationInput>(
       const body = 'Your registration was cancelled by ARS Dream. Message us if you think this is a mistake.'
       await notifyUser({
         userId: registration.userId,
+        registrationId,
         pushTitle: 'Registration cancelled',
         pushBody: body,
         emailSubject: 'Registration cancelled',

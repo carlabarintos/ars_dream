@@ -167,6 +167,7 @@ export const transferRegistration = onCall<TransferRegistrationInput>(
       logBookingEvent(targetId, { ...source, userId: toUid }, `Slot transferred by ARS Dream from ${from}`, marathonTitle),
       notifyUser({
         userId: preview.userId,
+        registrationId,
         pushTitle: 'Slot transferred',
         pushBody: `Your slot on ${tour} has been transferred to ${to}.`,
         emailSubject: marathonTitle ? `Slot transferred — ${marathonTitle}` : 'Slot transferred',
@@ -174,6 +175,7 @@ export const transferRegistration = onCall<TransferRegistrationInput>(
       }),
       notifyUser({
         userId: toUid,
+        registrationId: targetId,
         pushTitle: 'A slot has been transferred to you',
         pushBody: `You now hold a slot on ${tour}. Sign in to accept the terms & conditions and complete your booking.`,
         emailSubject: marathonTitle ? `A slot has been transferred to you — ${marathonTitle}` : 'A slot has been transferred to you',

@@ -194,6 +194,11 @@ service cloud.firestore {
       allow create: if isAdmin() && request.resource.data.authorId == request.auth.uid;
     }
 
+    // Copies of emails sent about a booking, written only by Cloud Functions (sendEmail).
+    match /registrations/{registrationId}/emails/{emailId} {
+      allow read: if isAdmin();
+    }
+
     match /rateLimits/{uid} {
       // Sole purpose: a per-user "last queue action" timestamp read by
       // rateLimitOk() above. lastActionAt must equal the server's own

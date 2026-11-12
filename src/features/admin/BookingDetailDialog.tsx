@@ -7,8 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatUserName } from '@/features/auth/use-user-profiles'
 import {
   resendRunnerInvite,
+  subscribeToBookingEmails,
   subscribeToInternalNotes,
   subscribeToRegistrationRunnerBookings,
+  submitPassportPhoto,
 } from '@/features/registrations/api'
 import { BookingTimeline } from '@/features/registrations/BookingTimeline'
 import { QuestionnaireLink } from '@/features/registrations/QuestionnaireLink'
@@ -23,8 +25,9 @@ import {
 } from '@/features/registrations/registration-flow'
 import { StatusBadge } from '@/features/registrations/StatusBadge'
 import { formatPackagePrice } from '@/lib/utils'
-import type { InternalNote, Marathon, Registration, RunnerBooking, RunnerDetails, UserProfile } from '@/types'
+import type { BookingEmail, InternalNote, Marathon, Registration, RunnerBooking, RunnerDetails, UserProfile } from '@/types'
 
+import { FileUploadButton } from './FileUploadButton'
 import { InternalNotes } from './InternalNotes'
 import { ApprovedReferences } from './PaymentProofsDialog'
 
@@ -88,7 +91,10 @@ export function BookingDetailDialog({
   const noteIdsKey = noteIds.join(',')
   const [notesById, setNotesById] = useState<Record<string, InternalNote[]>>({})
 
+  const [emails, setEmails] = useState<BookingEmail[]>([])
+
   useEffect(() => subscribeToRegistrationRunnerBookings(registration.id, setRunnerBookings), [registration.id])
+  useEffect(() => subscribeToBookingEmails(registration.id, setEmails), [registration.id])
   useEffect(() => {
     const unsubscribes = noteIdsKey.split(',').map((id) =>
       subscribeToInternalNotes(id, (notes) => setNotesById((prev) => ({ ...prev, [id]: notes }))),
@@ -150,28 +156,40 @@ export function BookingDetailDialog({
             <TabsContent value="details" className="flex flex-col gap-6 data-[state=inactive]:hidden">
               <section className="flex flex-col gap-3">
                 <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">History</h3>
-                {profile && <BookingTimeline registration={registration} marathon={marathon} profile={profile} />}
+                {profile && <BookingTimeline registration={registration} marathon={marathon} profile={profile} emails={emails} />}
                 <QuestionnaireLink registration={registration} marathon={marathon} />
               </section>
 
-              {registration.status === 'confirmed' && (
+              {registration.depositPaidAt && (
                 <section className="flex flex-col gap-3">
                   <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Passport bio page</h3>
                   <div className="flex flex-wrap gap-3">
-                    {getRunners(registration, marathon).map((runner, i, all) =>
-                      runner.passportPhotoUrl ? (
-                        <UploadedFileThumb
-                          key={i}
-                          url={runner.passportPhotoUrl}
-                          label={`${runnerPrefix(i, all.length, runner.name)}Passport bio page`}
-                          className="h-48"
-                        />
-                      ) : (
-                        <p key={i} className="text-muted-foreground text-sm">
-                          {runnerPrefix(i, all.length, runner.name)}Not uploaded yet.
-                        </p>
-                      ),
-                    )}
+                    {getRunners(registration, marathon).map((runner, i, all) => (
+                      <div key={i} className="flex flex-col gap-2">
+                        {runner.passportPhotoUrl ? (
+                          <UploadedFileThumb
+                            url={runner.passportPhotoUrl}
+                            label={`${runnerPrefix(i, all.length, runner.name)}Passport bio page`}
+                            className="h-48"
+                          />
+                        ) : (
+                          <p className="text-muted-foreground text-sm">{runnerPrefix(i, all.length, runner.name)}Not uploaded yet.</p>
+                        )}
+                        {!['rejected', 'cancelled'].includes(registration.status) && (
+                          <FileUploadButton
+                            variant="outline"
+                            size="sm"
+                            accept="image/*"
+                            onFiles={async ([file]) => {
+                              await submitPassportPhoto(registration, i, file)
+                              toast.success('Passport uploaded.')
+                            }}
+                          >
+                            {runner.passportPhotoUrl ? 'Replace Passport' : 'Upload Passport'}
+                          </FileUploadButton>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </section>
               )}

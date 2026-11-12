@@ -123,6 +123,7 @@ export const restoreRegistration = onCall<RestoreRegistrationInput>(
     const body = 'ARS Dream has restored your cancelled booking, so it continues from where it left off.'
     await notifyUser({
       userId: registration.userId,
+      registrationId,
       pushTitle: 'Booking restored',
       pushBody: body,
       emailSubject: marathonTitle ? `Booking restored — ${marathonTitle}` : 'Booking restored',

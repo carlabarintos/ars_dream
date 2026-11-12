@@ -19,7 +19,8 @@ service firebase.storage {
       // Only the registrant who owns this registration may upload their own
       // proof of payment; admins (and the owner) may read it back for review.
       allow read: if isOwner() || isAdmin();
-      allow write: if isOwner() &&
+      // Admins may upload on the registrant's behalf (e.g. a slip received by email).
+      allow write: if (isOwner() || isAdmin()) &&
         request.resource.size < 10 * 1024 * 1024 &&
         request.resource.contentType.matches('image/.*|application/pdf');
     }
@@ -32,7 +33,7 @@ service firebase.storage {
       }
 
       allow read: if isOwner() || isAdmin();
-      allow write: if isOwner() &&
+      allow write: if (isOwner() || isAdmin()) &&
         request.resource.size < 10 * 1024 * 1024 &&
         request.resource.contentType.matches('image/.*');
     }

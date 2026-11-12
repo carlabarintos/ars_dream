@@ -1,6 +1,9 @@
+import { FieldValue } from 'firebase-admin/firestore'
 import { defineSecret } from 'firebase-functions/params'
 import { logger } from 'firebase-functions'
 import { Resend } from 'resend'
+
+import { db } from './admin.js'
 
 export const resendApiKey = defineSecret('RESEND_API_KEY')
 
@@ -17,12 +20,16 @@ export async function sendEmail({
   cc,
   subject,
   html,
+  registrationId,
 }: {
   to: string
   cc?: string[]
   subject: string
   html: string
+  /** Keeps a copy at registrations/{id}/emails so staff can see it from the booking's history. */
+  registrationId?: string
 }): Promise<void> {
+  let failed = true
   try {
     const resend = new Resend(resendApiKey.value())
     const { error } = await resend.emails.send({
@@ -34,8 +41,20 @@ export async function sendEmail({
     })
     if (error) {
       logger.error('sendEmail failed', { to, subject, error })
+    } else {
+      failed = false
     }
   } catch (error) {
     logger.error('sendEmail threw', { to, subject, error })
+  }
+  if (!registrationId) return
+  try {
+    await db
+      .collection('registrations')
+      .doc(registrationId)
+      .collection('emails')
+      .add({ to, cc: cc ?? [], subject, html, failed, sentAt: FieldValue.serverTimestamp() })
+  } catch (error) {
+    logger.error('sendEmail log failed', { registrationId, subject, error })
   }
 }

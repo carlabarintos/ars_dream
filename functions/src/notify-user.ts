@@ -20,6 +20,7 @@ export async function notifyUser({
   ctaUrl = APP_URL,
   emailHtml,
   cc = [],
+  registrationId,
 }: {
   userId: string
   pushTitle: string
@@ -31,6 +32,8 @@ export async function notifyUser({
   /** Fully rendered email, overriding the default title/body/CTA layout (e.g. the acceptance email). */
   emailHtml?: string
   cc?: string[]
+  /** The booking this is about, so the email shows in its history. */
+  registrationId?: string
 }): Promise<void> {
   const userDoc = await db.collection('users').doc(userId).get()
 
@@ -45,6 +48,7 @@ export async function notifyUser({
     await sendEmail({
       to: email,
       cc,
+      registrationId,
       subject: emailSubject,
       html: emailHtml ?? renderEmailHtml({ title: pushTitle, body: emailBody, ctaLabel, ctaUrl }),
     })

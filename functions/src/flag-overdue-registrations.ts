@@ -62,6 +62,7 @@ export const flagOverdueRegistrations = onSchedule(
           if (!cancelled) return
           await notifyUser({
             userId: registration.userId,
+            registrationId: doc.id,
             pushTitle: OFFER_EXPIRED_COPY.title,
             pushBody: OFFER_EXPIRED_COPY.body,
             emailSubject: marathonTitle ? `${OFFER_EXPIRED_COPY.title} — ${marathonTitle}` : OFFER_EXPIRED_COPY.title,
@@ -79,6 +80,7 @@ export const flagOverdueRegistrations = onSchedule(
         await logBookingEvent(doc.id, registration, `Flagged overdue — ${copy.title.toLowerCase()}`, marathonTitle)
         await notifyUser({
           userId: registration.userId,
+          registrationId: doc.id,
           pushTitle: copy.title,
           pushBody: copy.body,
           emailSubject: marathonTitle ? `${copy.title} — ${marathonTitle}` : copy.title,

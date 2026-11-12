@@ -238,6 +238,7 @@ async function releaseRunner(userId: string, booking: Doc) {
   await logBookingEvent(ref.id, own, text, title)
   await notifyUser({
     userId,
+    registrationId: ref.id,
     pushTitle: heading,
     pushBody: text,
     emailSubject: title ? `${heading} — ${title}` : heading,
@@ -282,6 +283,7 @@ async function cancelRunner(userId: string, booking: Doc) {
   await logBookingEvent(ref.id, own, text, title)
   await notifyUser({
     userId,
+    registrationId: ref.id,
     pushTitle: heading,
     pushBody: text,
     emailSubject: title ? `${heading} — ${title}` : heading,
@@ -342,6 +344,7 @@ async function notifyMerged(userId: string, booking: Doc, title: string | undefi
     `ARS Dream has moved your booking onto ${lead}'s ${packageName} package, as Runner ${booking.runner}. Any deposit you've paid stays on your booking and comes off your final invoice.`
   await notifyUser({
     userId,
+    registrationId: ownRegistrationRef(userId, booking).id,
     pushTitle: heading,
     pushBody: text(booking.leadName, booking.packageName),
     emailSubject: title ? `${heading} — ${title}` : heading,
@@ -454,6 +457,7 @@ export async function syncRunnerBookings(registrationId: string, registration: D
       const copy = includedCopy(booking, marathon?.title)
       await notifyUser({
         userId: user.uid,
+        registrationId: ownRegistrationRef(user.uid, booking).id,
         pushTitle: copy.title,
         pushBody: copy.text,
         emailSubject: copy.subject,

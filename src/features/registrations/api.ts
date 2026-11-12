@@ -21,6 +21,7 @@ import { httpsCallable } from 'firebase/functions'
 
 import { db, functions, storage } from '@/firebase/config'
 import type {
+  BookingEmail,
   InternalNote,
   InvoiceLineItem,
   Marathon,
@@ -287,7 +288,12 @@ export async function submitPassportPhoto(
   })
 }
 
-export async function submitProofOfPayment(registrationId: string, files: File[], paymentReference: string) {
+export async function submitProofOfPayment(
+  registrationId: string,
+  files: File[],
+  paymentReference: string,
+  extraFields: Record<string, unknown> = {},
+) {
   const urls = await Promise.all(
     files.map(async (file, index) => {
       const storageRef = ref(storage, `proof-of-payment/${registrationId}/${Date.now()}-${index}-${file.name}`)
@@ -301,6 +307,7 @@ export async function submitProofOfPayment(registrationId: string, files: File[]
     proofOfPaymentUrls: urls,
     proofSubmittedAt: serverTimestamp(),
     paymentReference,
+    ...extraFields,
     updatedAt: serverTimestamp(),
   })
 }
@@ -323,6 +330,29 @@ export async function submitFinalPayment(registration: Registration, files: File
     ...(registration.status === 'final_invoiced' ? { finalTermsAcceptedAt: serverTimestamp() } : {}),
     updatedAt: serverTimestamp(),
   })
+}
+
+/** T&C a registrant still has to accept before paying: a transferred slot / Runner 2's (`transfer`) or a fresh final invoice's (`final`). */
+export function termsOwedBeforePayment(registration: Registration) {
+  return {
+    transfer: registration.transferTermsAcceptedAt === null,
+    final: registration.status === 'final_invoiced' && !registration.finalTermsAcceptedAt,
+  }
+}
+
+/**
+ * Admin-only: a slip received outside the app (deposit, or balance on a final invoice), uploaded and approved in one go.
+ * Goes through payment_submitted so confirmPayment still does the capacity check, receipts and emails. If that approval
+ * fails, the proof is left awaiting review. Records any T&C still owed as accepted: the caller must have confirmed
+ * with the admin that the registrant agreed to them outside the app.
+ */
+export async function recordPaymentByAdmin(registration: Registration, files: File[], paymentReference: string) {
+  const owed = termsOwedBeforePayment(registration)
+  await submitProofOfPayment(registration.id, files, paymentReference, {
+    ...(owed.transfer ? { transferTermsAcceptedAt: serverTimestamp() } : {}),
+    ...(owed.final ? { finalTermsAcceptedAt: serverTimestamp() } : {}),
+  })
+  await confirmPayment(registration.id)
 }
 
 /** The write that moves a booking to another package. An unpaid final invoice is amended and re-issued to match; a confirmed booking's paid invoice is left alone (bill the difference via an Additional Invoice). */
@@ -657,6 +687,14 @@ export function subscribeToInternalNotes(registrationId: string, onData: (notes:
   const q = query(internalNotesRef(registrationId), orderBy('createdAt', 'desc'))
   return onSnapshot(q, (snapshot) => {
     onData(snapshot.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }) as InternalNote))
+  })
+}
+
+/** Oldest first. Admin-only (see firestore.rules). */
+export function subscribeToBookingEmails(registrationId: string, onData: (emails: BookingEmail[]) => void) {
+  const q = query(collection(db, 'registrations', registrationId, 'emails'), orderBy('sentAt'))
+  return onSnapshot(q, (snapshot) => {
+    onData(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as BookingEmail))
   })
 }
 

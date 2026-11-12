@@ -375,6 +375,18 @@ export interface InternalNote {
   createdAt: Timestamp
 }
 
+/** Copy of an email sent about a booking, at registrations/{id}/emails/{emailId}. Admin-read; only Cloud Functions write it. */
+export interface BookingEmail {
+  id: string
+  to: string
+  cc: string[]
+  subject: string
+  html: string
+  /** Resend refused or errored, so it likely never arrived. */
+  failed: boolean
+  sentAt: Timestamp
+}
+
 export interface PersonalMessage {
   id: string
   senderId: string
