@@ -35,7 +35,7 @@ service firebase.storage {
       allow read: if isOwner() || isAdmin();
       allow write: if (isOwner() || isAdmin()) &&
         request.resource.size < 10 * 1024 * 1024 &&
-        request.resource.contentType.matches('image/.*');
+        request.resource.contentType.matches('image/.*|application/pdf');
     }
 
     // Review photos, uploaded by the submitReview callable (Admin SDK). Public once the review is approved.

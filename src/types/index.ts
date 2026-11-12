@@ -298,7 +298,7 @@ export interface Registration {
   answers?: QuestionAnswer[]
   /** Photo of the passport bio page, uploaded by the registrant once the deposit is approved — required before the booking counts as complete. */
   passportPhotoUrl?: string
-  /** Optional extra passports (non-running companions, family, etc.), added by the registrant or an admin once the deposit is approved. */
+  /** Optional extra ID documents (2nd passport, residency card, certificates, companions' passports…), each labelled by `name`, added by the registrant or an admin once the deposit is approved. */
   extraPassports?: ExtraPassport[]
   /** Runners 2+ on a multi-runner package (`MarathonPackage.runnerCount`), named by the lead or an admin. Each gets their own booking (`partOf`). Index 0 is runner 2. */
   companions?: RunnerDetails[]

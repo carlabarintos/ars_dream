@@ -293,7 +293,7 @@ export async function submitPassportPhoto(
 
 /** Extra passports (companions, family…) on top of each runner's own; each file is labelled with `name`. */
 export async function addExtraPassports(registrationId: string, name: string, files: File[]) {
-  checkUploads(files, false)
+  checkUploads(files, true)
   const passports = await Promise.all(
     files.map(async (file, index) => {
       const storageRef = ref(storage, `passports/${registrationId}/${Date.now()}-${index}-${file.name}`)
