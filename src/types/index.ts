@@ -220,6 +220,12 @@ export function formatTransferParty(party: Pick<RegistrationTransfer, 'name' | '
   return party.email && party.email !== party.name ? `${party.name} (${party.email})` : party.name
 }
 
+export interface ExtraPassport {
+  /** Whose passport it is, as typed by the uploader. */
+  name: string
+  url: string
+}
+
 /** One runner's booking details. */
 export interface RunnerDetails {
   /** Runners 2+ only, as `Registration.companions`: entered by the lead or an admin. Their booking is made from this (see RunnerBooking). */
@@ -292,6 +298,8 @@ export interface Registration {
   answers?: QuestionAnswer[]
   /** Photo of the passport bio page, uploaded by the registrant once the deposit is approved — required before the booking counts as complete. */
   passportPhotoUrl?: string
+  /** Optional extra passports (non-running companions, family, etc.), added by the registrant or an admin once the deposit is approved. */
+  extraPassports?: ExtraPassport[]
   /** Runners 2+ on a multi-runner package (`MarathonPackage.runnerCount`), named by the lead or an admin. Each gets their own booking (`partOf`). Index 0 is runner 2. */
   companions?: RunnerDetails[]
   /** Runners 2+ an admin named while the offer is open, before any package is chosen. Only prefills the lead's wizard, which is what writes `companions`. */

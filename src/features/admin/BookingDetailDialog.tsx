@@ -13,6 +13,7 @@ import {
   submitPassportPhoto,
 } from '@/features/registrations/api'
 import { BookingTimeline } from '@/features/registrations/BookingTimeline'
+import { ExtraPassports } from '@/features/registrations/ExtraPassports'
 import { QuestionnaireLink } from '@/features/registrations/QuestionnaireLink'
 import { UploadedFileThumb } from '@/features/registrations/BookingDocumentDialog'
 import {
@@ -191,6 +192,7 @@ export function BookingDetailDialog({
                       </div>
                     ))}
                   </div>
+                  <ExtraPassports registration={registration} editable={!['rejected', 'cancelled'].includes(registration.status)} className="h-48" />
                 </section>
               )}
 

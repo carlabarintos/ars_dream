@@ -1,5 +1,6 @@
 import {
   addDoc,
+  arrayRemove,
   arrayUnion,
   collection,
   deleteDoc,
@@ -22,6 +23,7 @@ import { httpsCallable } from 'firebase/functions'
 import { db, functions, storage } from '@/firebase/config'
 import type {
   BookingEmail,
+  ExtraPassport,
   InternalNote,
   InvoiceLineItem,
   Marathon,
@@ -286,6 +288,23 @@ export async function submitPassportPhoto(
     ...runnerUpdate(registration, runner, { ...contact, passportPhotoUrl: await getDownloadURL(storageRef) }),
     updatedAt: serverTimestamp(),
   })
+}
+
+/** Extra passports (companions, family…) on top of each runner's own; each file is labelled with `name`. */
+export async function addExtraPassports(registrationId: string, name: string, files: File[]) {
+  const passports = await Promise.all(
+    files.map(async (file, index) => {
+      const storageRef = ref(storage, `passports/${registrationId}/${Date.now()}-${index}-${file.name}`)
+      await uploadBytes(storageRef, file)
+      return { name, url: await getDownloadURL(storageRef) }
+    }),
+  )
+  await updateDoc(doc(db, 'registrations', registrationId), { extraPassports: arrayUnion(...passports), updatedAt: serverTimestamp() })
+}
+
+// shortcut: the file stays in Storage, only the link is dropped; delete it too if storage cost matters.
+export async function removeExtraPassport(registrationId: string, passport: ExtraPassport) {
+  await updateDoc(doc(db, 'registrations', registrationId), { extraPassports: arrayRemove(passport), updatedAt: serverTimestamp() })
 }
 
 export async function submitProofOfPayment(

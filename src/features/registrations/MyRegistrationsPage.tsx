@@ -37,6 +37,7 @@ import { UploadedFileThumb } from './BookingDocumentDialog'
 import { BookingTimeline } from './BookingTimeline'
 import { CancelRegistrationButton } from './CancelRegistrationButton'
 import { EditRunnersDialog } from './EditRunnersDialog'
+import { ExtraPassports } from './ExtraPassports'
 import { QuestionnaireLink } from './QuestionnaireLink'
 import {
   canReopenWizard,
@@ -458,6 +459,7 @@ export function MyRegistrationsPage() {
                               <UploadedFileThumb key={url} url={url} label={`Payment proof · ${label}`} className="h-24" />
                             ))}
                           </div>
+                          <ExtraPassports registration={registration} editable={isPastDeposit(registration)} />
                         </>
                       )}
                     </div>
