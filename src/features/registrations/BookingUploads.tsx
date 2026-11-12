@@ -1,13 +1,14 @@
-import { PaperclipIcon } from "lucide-react";
-import { toast } from "sonner";
+import { PaperclipIcon } from 'lucide-react'
+import { toast } from 'sonner'
 
-import { Button } from "@/components/ui/button";
-import { FileUploadButton } from "@/features/admin/FileUploadButton";
-import type { Marathon, Registration } from "@/types";
+import { Button } from '@/components/ui/button'
+import { FileUploadButton } from '@/features/admin/FileUploadButton'
+import { cn } from '@/lib/utils'
+import type { Marathon, Registration } from '@/types'
 
-import { addProofOfPayment, submitPassportPhoto } from "./api";
-import { UploadedFileThumb } from "./BookingDocumentDialog";
-import { ExtraPassports } from "./ExtraPassports";
+import { addProofOfPayment, submitPassportPhoto } from './api'
+import { UploadedFileThumb } from './BookingDocumentDialog'
+import { ExtraPassports } from './ExtraPassports'
 import {
   getLabelledPaymentProofs,
   getPendingActionStep,
@@ -15,26 +16,24 @@ import {
   isOnFinalInvoice,
   isPastDeposit,
   runnerPrefix,
-} from "./registration-flow";
+} from './registration-flow'
 
 /** A registrant's passports, other IDs and payment slips on one booking, with upload buttons for whatever is due. */
 export function BookingUploads({
   registration,
   marathon,
   onOpenWizard,
+  className,
 }: {
-  registration: Registration;
-  marathon: Marathon | undefined;
-  onOpenWizard: () => void;
+  registration: Registration
+  marathon: Marathon | undefined
+  onOpenWizard: () => void
+  className?: string
 }) {
-  const pendingStep = getPendingActionStep(registration, marathon);
-  const paymentDue =
-    pendingStep === "payment" || pendingStep === "final_payment";
+  const pendingStep = getPendingActionStep(registration, marathon)
+  const paymentDue = pendingStep === 'payment' || pendingStep === 'final_payment'
   // Also while a balance slip is under review, which isPastDeposit leaves out (it drives the pending steps); the rules allow it.
-  const canUploadDocs =
-    isPastDeposit(registration) ||
-    (registration.depositPaidAt != null &&
-      registration.status === "payment_submitted");
+  const canUploadDocs = isPastDeposit(registration) || (registration.depositPaidAt != null && registration.status === 'payment_submitted')
 
   if (
     !getRunners(registration, marathon).some((r) => r.passportPhotoUrl) &&
@@ -42,10 +41,10 @@ export function BookingUploads({
     !canUploadDocs &&
     !paymentDue
   )
-    return null;
+    return null
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className={cn('flex flex-col gap-2', className)}>
       <div className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase">
         <PaperclipIcon className="size-3.5" />
         Your uploads
@@ -68,32 +67,21 @@ export function BookingUploads({
                     size="sm"
                     accept="image/*"
                     onFiles={async ([file]) => {
-                      await submitPassportPhoto(registration, i, file);
-                      toast.success(
-                        runner.passportPhotoUrl
-                          ? "Passport replaced."
-                          : "Passport uploaded.",
-                      );
+                      await submitPassportPhoto(registration, i, file)
+                      toast.success(runner.passportPhotoUrl ? 'Passport replaced.' : 'Passport uploaded.')
                     }}
                   >
-                    {runner.passportPhotoUrl
-                      ? "Replace"
-                      : `Upload ${runnerPrefix(i, all.length, runner.name)}Passport`}
+                    {runner.passportPhotoUrl ? 'Replace' : `Upload ${runnerPrefix(i, all.length, runner.name)}Passport`}
                   </FileUploadButton>
                 )}
               </div>
             ),
         )}
         {getLabelledPaymentProofs(registration).map(({ url, label }) => (
-          <UploadedFileThumb
-            key={url}
-            url={url}
-            label={`Payment proof · ${label}`}
-            className="h-24"
-          />
+          <UploadedFileThumb key={url} url={url} label={`Payment proof · ${label}`} className="h-24" />
         ))}
       </div>
-      {registration.status === "payment_submitted" ? (
+      {registration.status === 'payment_submitted' ? (
         <FileUploadButton
           variant="outline"
           size="sm"
@@ -101,34 +89,21 @@ export function BookingUploads({
           accept="image/*,application/pdf"
           multiple
           onFiles={async (files) => {
-            await addProofOfPayment(
-              registration,
-              files,
-              registration.paymentReference ?? "",
-            );
-            toast.success(
-              files.length > 1 ? `${files.length} slips added.` : "Slip added.",
-            );
+            await addProofOfPayment(registration, files, registration.paymentReference ?? '')
+            toast.success(files.length > 1 ? `${files.length} slips added.` : 'Slip added.')
           }}
         >
-          Add More {isOnFinalInvoice(registration) ? "Balance" : "Deposit"}{" "}
-          Slips
+          Add More {isOnFinalInvoice(registration) ? 'Balance' : 'Deposit'} Slips
         </FileUploadButton>
       ) : (
         paymentDue && (
           // Opens the wizard: a first slip needs a payment reference and may need T&C acceptance.
-          <Button
-            variant="outline"
-            size="sm"
-            className="self-start"
-            onClick={onOpenWizard}
-          >
-            Upload {pendingStep === "final_payment" ? "Balance" : "Deposit"}{" "}
-            Slip
+          <Button variant="outline" size="sm" className="self-start" onClick={onOpenWizard}>
+            Upload {pendingStep === 'final_payment' ? 'Balance' : 'Deposit'} Slip
           </Button>
         )
       )}
       <ExtraPassports registration={registration} editable={canUploadDocs} />
     </div>
-  );
+  )
 }

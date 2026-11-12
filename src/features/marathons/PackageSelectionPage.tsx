@@ -206,7 +206,6 @@ export function PackageSelectionPage() {
               </p>
             )}
             <p className="text-muted-foreground">{getRegistrationStatusMessage(myRegistration, marathon ?? undefined)}</p>
-            <BookingUploads registration={myRegistration} marathon={marathon ?? undefined} onOpenWizard={() => setShowWizard(true)} />
           </CardContent>
           {(canReopenWizard(myRegistration, marathon ?? undefined) || canCancelRegistration(myRegistration)) && (
             <CardFooter className="border-border flex flex-col gap-2 border-t pt-4">
@@ -218,6 +217,12 @@ export function PackageSelectionPage() {
               <CancelRegistrationButton registration={myRegistration} />
             </CardFooter>
           )}
+          <BookingUploads
+            registration={myRegistration}
+            marathon={marathon ?? undefined}
+            onOpenWizard={() => setShowWizard(true)}
+            className="border-border border-t px-5 pt-4 pb-5"
+          />
         </Card>
       )}
 

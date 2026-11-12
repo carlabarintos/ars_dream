@@ -417,7 +417,6 @@ export function MyRegistrationsPage() {
                       />
                     </div>
                   </div>
-                  <BookingUploads registration={registration} marathon={marathon} onOpenWizard={() => setActiveRegistrationId(registration.id)} />
                 </CardContent>
 
                 <CardFooter className="border-border flex flex-col gap-2 border-t pt-4 pb-5">
@@ -440,6 +439,12 @@ export function MyRegistrationsPage() {
                     )}
                   <CancelRegistrationButton registration={registration} />
                 </CardFooter>
+                <BookingUploads
+                  registration={registration}
+                  marathon={marathon}
+                  onOpenWizard={() => setActiveRegistrationId(registration.id)}
+                  className="border-border border-t px-5 pt-4 pb-5"
+                />
               </Card>
             )
           })
