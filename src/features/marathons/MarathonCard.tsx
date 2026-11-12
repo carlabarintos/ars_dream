@@ -67,7 +67,7 @@ export function MarathonCard({
         </div>
 
         <div className="text-muted-foreground text-xs">
-          {!marathon.capacity ? 'Slots TBA' : `${marathon.capacity} slots`}
+          {!marathon.capacity ? 'Slots TBA' : `${spotsLeft} slots left`}
         </div>
       </CardContent>
 

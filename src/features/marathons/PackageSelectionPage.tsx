@@ -168,7 +168,7 @@ export function PackageSelectionPage() {
               Slots
             </span>
             <span className="text-sm font-semibold tabular-nums">
-              {!marathon.capacity ? 'TBA' : `${marathon.capacity} slots`}
+              {!marathon.capacity ? 'TBA' : `${spotsLeft} slots left`}
             </span>
           </div>
         </div>
