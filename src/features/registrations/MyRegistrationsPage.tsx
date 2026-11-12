@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 import {
   AlertCircleIcon,
   BanIcon,
@@ -24,12 +25,14 @@ import { TicketSeam } from '@/components/TicketSeam'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
+import { FileUploadButton } from '@/features/admin/FileUploadButton'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { useMarathonsByIds } from '@/features/marathons/use-marathons'
 import { BookingChat } from '@/features/messages/BookingChatDialog'
 import { cn } from '@/lib/utils'
 import type { Registration, RegistrationStatus } from '@/types'
 
+import { submitPassportPhoto } from './api'
 import { UploadedFileThumb } from './BookingDocumentDialog'
 import { BookingTimeline } from './BookingTimeline'
 import { CancelRegistrationButton } from './CancelRegistrationButton'
@@ -429,12 +432,26 @@ export function MyRegistrationsPage() {
                             {getRunners(registration, marathon).map(
                               (runner, i, all) =>
                                 runner.passportPhotoUrl && (
-                                  <UploadedFileThumb
-                                    key={runner.passportPhotoUrl}
-                                    url={runner.passportPhotoUrl}
-                                    label={`${runnerPrefix(i, all.length, runner.name)}Passport bio page`}
-                                    className="h-24"
-                                  />
+                                  <div key={runner.passportPhotoUrl} className="flex flex-col gap-1.5">
+                                    <UploadedFileThumb
+                                      url={runner.passportPhotoUrl}
+                                      label={`${runnerPrefix(i, all.length, runner.name)}Passport bio page`}
+                                      className="h-24"
+                                    />
+                                    {isPastDeposit(registration) && (
+                                      <FileUploadButton
+                                        variant="outline"
+                                        size="sm"
+                                        accept="image/*"
+                                        onFiles={async ([file]) => {
+                                          await submitPassportPhoto(registration, i, file)
+                                          toast.success('Passport replaced.')
+                                        }}
+                                      >
+                                        Replace
+                                      </FileUploadButton>
+                                    )}
+                                  </div>
                                 ),
                             )}
                             {getLabelledPaymentProofs(registration).map(({ url, label }) => (
