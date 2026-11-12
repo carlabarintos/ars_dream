@@ -297,6 +297,8 @@ export function MyRegistrationsPage() {
             const marathon = marathons[registration.marathonId]
             const pendingStep = getPendingActionStep(registration, marathon)
             const paymentDue = pendingStep === 'payment' || pendingStep === 'final_payment'
+            // Also while a balance slip is under review, which isPastDeposit leaves out (it drives the pending steps); the rules allow it.
+            const canUploadDocs = isPastDeposit(registration) || (registration.depositPaidAt != null && registration.status === 'payment_submitted')
             const StatusIcon = STATUS_ICON[registration.status]
 
             return (
@@ -428,7 +430,7 @@ export function MyRegistrationsPage() {
                   </div>
                   {(getRunners(registration, marathon).some((r) => r.passportPhotoUrl) ||
                     getLabelledPaymentProofs(registration).length > 0 ||
-                    isPastDeposit(registration) ||
+                    canUploadDocs ||
                     paymentDue) && (
                     <div className="flex flex-col gap-2">
                       <div className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase">
@@ -438,7 +440,7 @@ export function MyRegistrationsPage() {
                       <div className="flex flex-wrap gap-3">
                         {getRunners(registration, marathon).map(
                           (runner, i, all) =>
-                            (runner.passportPhotoUrl || isPastDeposit(registration)) && (
+                            (runner.passportPhotoUrl || canUploadDocs) && (
                               <div key={i} className="flex flex-col gap-1.5">
                                 {runner.passportPhotoUrl && (
                                   <UploadedFileThumb
@@ -447,7 +449,7 @@ export function MyRegistrationsPage() {
                                     className="h-24"
                                   />
                                 )}
-                                {isPastDeposit(registration) && (
+                                {canUploadDocs && (
                                   <FileUploadButton
                                     variant="outline"
                                     size="sm"
@@ -489,7 +491,7 @@ export function MyRegistrationsPage() {
                           </Button>
                         )
                       )}
-                      <ExtraPassports registration={registration} editable={isPastDeposit(registration)} />
+                      <ExtraPassports registration={registration} editable={canUploadDocs} />
                     </div>
                   )}
                 </CardContent>
