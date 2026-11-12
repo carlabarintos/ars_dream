@@ -156,6 +156,12 @@ service cloud.firestore {
             request.resource.data.finalTermsAcceptedAt == request.time &&
             request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['status', 'proofOfPaymentUrls', 'proofSubmittedAt', 'paymentReference', 'finalTermsAcceptedAt', 'updatedAt'])) ||
+          // More slips added to a proof under review (e.g. a deposit paid in several transfers); never removes one.
+          (resource.data.status == 'payment_submitted' &&
+            request.resource.data.status == 'payment_submitted' &&
+            request.resource.data.proofOfPaymentUrls.hasAll(resource.data.proofOfPaymentUrls) &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['proofOfPaymentUrls', 'paymentReference', 'updatedAt'])) ||
           // The passport bio page and questionnaire are due once the deposit is approved, in any later
           // active status (see BOOKING_DETAILS_STATUSES in registration-flow.ts). Submitted answers
           // are read-only: a later write may only add answers (e.g. to a question added afterwards).

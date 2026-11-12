@@ -24,6 +24,7 @@ import { useAuthStore } from '@/features/auth/auth-store'
 
 import {
   acceptTransferTerms,
+  addProofOfPayment,
   submitFinalPayment,
   submitPassportPhoto,
   submitProofOfPayment,
@@ -292,9 +293,11 @@ export function RegistrationWizard({
     if (!canSubmitPayment) return
     setIsSubmitting(true)
     try {
-      await (isFinal
-        ? submitFinalPayment(registration, files, paymentReference.trim())
-        : submitProofOfPayment(registration.id, files, paymentReference.trim()))
+      await (registration.status === 'payment_submitted'
+        ? addProofOfPayment(registration, files, paymentReference.trim())
+        : isFinal
+          ? submitFinalPayment(registration, files, paymentReference.trim())
+          : submitProofOfPayment(registration.id, files, paymentReference.trim()))
       toast.success('Proof of payment submitted. An admin will review it shortly.')
       onClose()
     } catch (error) {
@@ -665,7 +668,7 @@ export function RegistrationWizard({
             )}
             {registration.status === 'payment_submitted' && (
               <div className="bg-muted/50 rounded-md border border-border p-3 text-sm">
-                Your proof of payment is under review. You can still replace it below if you submitted the wrong file.
+                Your proof of payment is under review. You can still add more slips below, e.g. if you paid in several transfers.
               </div>
             )}
             {invoiceDocument && (
@@ -781,7 +784,7 @@ export function RegistrationWizard({
                 {files.length > 0
                   ? 'Add more files'
                   : currentProofs.length > 0
-                    ? 'Choose replacement files'
+                    ? 'Add more slips'
                     : 'Choose files'}
               </label>
               <input
@@ -827,7 +830,7 @@ export function RegistrationWizard({
                 Cancel
               </Button>
               <Button disabled={!canSubmitPayment} loading={isSubmitting} onClick={handleSubmitPayment}>
-                {currentProofs.length > 0 ? 'Replace Payment Proof' : 'Submit Payment Proof'}
+                {registration.status === 'payment_submitted' ? 'Add Payment Proof' : 'Submit Payment Proof'}
               </Button>
             </DialogFooter>
           </div>

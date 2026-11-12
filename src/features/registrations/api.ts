@@ -307,19 +307,23 @@ export async function removeExtraPassport(registrationId: string, passport: Extr
   await updateDoc(doc(db, 'registrations', registrationId), { extraPassports: arrayRemove(passport), updatedAt: serverTimestamp() })
 }
 
+function uploadProofs(registrationId: string, files: File[], prefix = '') {
+  return Promise.all(
+    files.map(async (file, index) => {
+      const storageRef = ref(storage, `proof-of-payment/${registrationId}/${Date.now()}-${prefix}${index}-${file.name}`)
+      await uploadBytes(storageRef, file)
+      return getDownloadURL(storageRef)
+    }),
+  )
+}
+
 export async function submitProofOfPayment(
   registrationId: string,
   files: File[],
   paymentReference: string,
   extraFields: Record<string, unknown> = {},
 ) {
-  const urls = await Promise.all(
-    files.map(async (file, index) => {
-      const storageRef = ref(storage, `proof-of-payment/${registrationId}/${Date.now()}-${index}-${file.name}`)
-      await uploadBytes(storageRef, file)
-      return getDownloadURL(storageRef)
-    }),
-  )
+  const urls = await uploadProofs(registrationId, files)
 
   await updateDoc(doc(db, 'registrations', registrationId), {
     status: 'payment_submitted' satisfies Registration['status'],
@@ -333,13 +337,7 @@ export async function submitProofOfPayment(
 
 /** Balance proof against the final invoice. From 'final_invoiced' this also records T&C acceptance; a resubmit after rejection doesn't re-ask. */
 export async function submitFinalPayment(registration: Registration, files: File[], paymentReference: string) {
-  const urls = await Promise.all(
-    files.map(async (file, index) => {
-      const storageRef = ref(storage, `proof-of-payment/${registration.id}/${Date.now()}-balance-${index}-${file.name}`)
-      await uploadBytes(storageRef, file)
-      return getDownloadURL(storageRef)
-    }),
-  )
+  const urls = await uploadProofs(registration.id, files, 'balance-')
 
   await updateDoc(doc(db, 'registrations', registration.id), {
     status: 'payment_submitted' satisfies Registration['status'],
@@ -347,6 +345,16 @@ export async function submitFinalPayment(registration: Registration, files: File
     proofSubmittedAt: serverTimestamp(),
     paymentReference,
     ...(registration.status === 'final_invoiced' ? { finalTermsAcceptedAt: serverTimestamp() } : {}),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/** Extra slips on a proof already under review (e.g. a payment split over several transfers); the earlier ones stay. */
+export async function addProofOfPayment(registration: Registration, files: File[], paymentReference: string) {
+  const urls = await uploadProofs(registration.id, files, registration.finalInvoice ? 'balance-' : '')
+  await updateDoc(doc(db, 'registrations', registration.id), {
+    proofOfPaymentUrls: arrayUnion(...urls),
+    paymentReference,
     updatedAt: serverTimestamp(),
   })
 }
