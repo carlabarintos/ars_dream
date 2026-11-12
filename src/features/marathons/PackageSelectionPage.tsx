@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
 import { MarathonBanner } from '@/components/MarathonBanner'
 import { TicketSeam } from '@/components/TicketSeam'
 import { useAuthStore } from '@/features/auth/auth-store'
@@ -112,7 +111,6 @@ export function PackageSelectionPage() {
   }
 
   const eventDate = marathon.eventDate?.toDate()
-  const percentFull = marathon.capacity ? (marathon.confirmedCount / marathon.capacity) * 100 : 0
   const statusPill = AVAILABILITY_PILL[getMarathonAvailability(marathon)]
   const sharedInclusions = toBulletLines(marathon.sharedInclusions)
   const packageNotes = toBulletLines(marathon.packageNotes)
@@ -166,12 +164,11 @@ export function PackageSelectionPage() {
           <div className="flex flex-col gap-1.5 p-4">
             <span className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase">
               <UsersIcon className="size-3.5" />
-              Spots Left
+              Slots
             </span>
             <span className="text-sm font-semibold tabular-nums">
-              {!marathon.capacity ? 'TBA' : `${spotsLeft} of ${marathon.capacity}`}
+              {!marathon.capacity ? 'TBA' : `${marathon.capacity} slots`}
             </span>
-            <Progress value={percentFull} className="h-1.5" />
           </div>
         </div>
       </div>

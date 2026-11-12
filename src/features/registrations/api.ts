@@ -282,6 +282,7 @@ export async function submitPassportPhoto(
   /** Runner 2+'s name/email, when missing (see RunnerDetails). */
   contact: Pick<RunnerDetails, 'name' | 'email'> = {},
 ) {
+  checkUploads([file], false)
   const storageRef = ref(storage, `passports/${registration.id}/${Date.now()}-${file.name}`)
   await uploadBytes(storageRef, file)
   await updateDoc(doc(db, 'registrations', registration.id), {
@@ -292,6 +293,7 @@ export async function submitPassportPhoto(
 
 /** Extra passports (companions, family…) on top of each runner's own; each file is labelled with `name`. */
 export async function addExtraPassports(registrationId: string, name: string, files: File[]) {
+  checkUploads(files, false)
   const passports = await Promise.all(
     files.map(async (file, index) => {
       const storageRef = ref(storage, `passports/${registrationId}/${Date.now()}-${index}-${file.name}`)
@@ -307,7 +309,22 @@ export async function removeExtraPassport(registrationId: string, passport: Extr
   await updateDoc(doc(db, 'registrations', registrationId), { extraPassports: arrayRemove(passport), updatedAt: serverTimestamp() })
 }
 
+/** Mirrors storage.rules' size/type limits up front, which otherwise reject with a vague "couldn't be uploaded". */
+function checkUploads(files: File[], allowPdf: boolean) {
+  for (const file of files) {
+    if (!(file.type.startsWith('image/') || (allowPdf && file.type === 'application/pdf'))) {
+      throw new UserFacingError(`"${file.name}" isn't a supported file. Please use a JPG or PNG photo${allowPdf ? ' or a PDF' : ''}.`)
+    }
+    if (file.size >= 10 * 1024 * 1024) {
+      throw new UserFacingError(
+        `"${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB. Files must be under 10 MB. Try a screenshot instead.`,
+      )
+    }
+  }
+}
+
 function uploadProofs(registrationId: string, files: File[], prefix = '') {
+  checkUploads(files, true)
   return Promise.all(
     files.map(async (file, index) => {
       const storageRef = ref(storage, `proof-of-payment/${registrationId}/${Date.now()}-${prefix}${index}-${file.name}`)

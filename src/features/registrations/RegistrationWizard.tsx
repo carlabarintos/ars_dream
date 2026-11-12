@@ -793,14 +793,16 @@ export function RegistrationWizard({
                 accept="image/*,application/pdf"
                 multiple
                 onChange={(e) => {
-                  setFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])])
+                  // Copy before clearing: resetting value empties the live FileList the updater would read.
+                  const picked = Array.from(e.target.files ?? [])
                   e.target.value = ''
+                  setFiles((prev) => [...prev, ...picked])
                 }}
                 className="sr-only"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="payment-reference">Branch visited or online reference number</Label>
+              <Label htmlFor="payment-reference">Branch visited or online reference number (required)</Label>
               <Input
                 id="payment-reference"
                 value={paymentReference}
