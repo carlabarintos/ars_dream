@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -11,15 +11,27 @@ import { addExtraPassports, removeExtraPassport } from './api'
 import { UploadedFileThumb } from './BookingDocumentDialog'
 
 /** ID documents beyond each runner's own passport (2nd passport, residency card, certificates, companions' passports…). Shown once the deposit is approved. */
-export function ExtraPassports({ registration, editable, className = 'h-24' }: { registration: Registration; editable: boolean; className?: string }) {
+export function ExtraPassports({
+  registration,
+  editable,
+  className = 'h-24',
+  leading,
+}: {
+  registration: Registration
+  editable: boolean
+  className?: string
+  /** Tiles shown first in the same row, e.g. the runner's own passport. */
+  leading?: ReactNode
+}) {
   const [name, setName] = useState('')
   const passports = registration.extraPassports ?? []
-  if (!editable && !passports.length) return null
+  if (!editable && !passports.length && !leading) return null
 
   return (
     <div className="flex flex-col gap-2">
-      {passports.length > 0 && (
+      {(passports.length > 0 || leading) && (
         <div className="flex flex-wrap gap-3">
+          {leading}
           {passports.map((passport) => (
             <div key={passport.url} className="flex flex-col gap-1.5">
               <UploadedFileThumb url={passport.url} label={passport.name} className={className} />
@@ -43,7 +55,7 @@ export function ExtraPassports({ registration, editable, className = 'h-24' }: {
         </div>
       )}
       {editable && (
-        <div className="flex gap-2">
+        <div className="flex max-w-md gap-2">
           <Input
             placeholder="What is it? (e.g. residency card, 2nd passport, Maria's passport)"
             aria-label="Document description"
