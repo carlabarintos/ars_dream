@@ -19,6 +19,7 @@ import { TicketSeam } from '@/components/TicketSeam'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { getPackageDescription, toBulletLines } from '@/features/marathons/api'
 import { joinQueue } from '@/features/registrations/api'
+import { BookingUploads } from '@/features/registrations/BookingUploads'
 import { CancelRegistrationButton } from '@/features/registrations/CancelRegistrationButton'
 import {
   canCancelRegistration,
@@ -205,6 +206,7 @@ export function PackageSelectionPage() {
               </p>
             )}
             <p className="text-muted-foreground">{getRegistrationStatusMessage(myRegistration, marathon ?? undefined)}</p>
+            <BookingUploads registration={myRegistration} marathon={marathon ?? undefined} onOpenWizard={() => setShowWizard(true)} />
           </CardContent>
           {(canReopenWizard(myRegistration, marathon ?? undefined) || canCancelRegistration(myRegistration)) && (
             <CardFooter className="border-border flex flex-col gap-2 border-t pt-4">
