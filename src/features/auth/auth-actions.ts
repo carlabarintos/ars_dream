@@ -1,13 +1,13 @@
 import {
   createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
 } from 'firebase/auth'
 import { doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
+import { httpsCallable } from 'firebase/functions'
 
-import { auth, db } from '@/firebase/config'
+import { auth, db, functions } from '@/firebase/config'
 import { unregisterPushNotifications } from '@/firebase/messaging'
 import type { Gender, UserRole } from '@/types'
 
@@ -99,9 +99,11 @@ export async function updateUserRole(uid: string, role: UserRole) {
  * page for any environment where the custom action URL isn't configured yet
  * (e.g. the local emulator, which always uses its own built-in action page).
  */
+const sendPasswordResetCallable = httpsCallable<{ email: string }, { ok: true }>(functions, 'sendPasswordReset')
+
 export async function requestPasswordReset(email: string) {
-  // No continue URL: Firebase rejects any origin not in Auth's authorized domains, and ResetPasswordPage links back to sign-in itself.
-  await sendPasswordResetEmail(auth, email)
+  // Sent server-side through Resend: Firebase's own mailer wasn't reaching inboxes.
+  await sendPasswordResetCallable({ email })
 }
 
 export async function signInWithEmail(email: string, password: string) {
