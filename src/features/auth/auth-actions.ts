@@ -100,7 +100,8 @@ export async function updateUserRole(uid: string, role: UserRole) {
  * (e.g. the local emulator, which always uses its own built-in action page).
  */
 export async function requestPasswordReset(email: string) {
-  await sendPasswordResetEmail(auth, email, { url: `${window.location.origin}/sign-in` })
+  // No continue URL: Firebase rejects any origin not in Auth's authorized domains, and ResetPasswordPage links back to sign-in itself.
+  await sendPasswordResetEmail(auth, email)
 }
 
 export async function signInWithEmail(email: string, password: string) {
