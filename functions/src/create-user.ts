@@ -3,7 +3,7 @@ import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/
 
 import { auth, db } from './admin.js'
 import { logAuditEntry } from './audit-log.js'
-import { APP_URL, escapeHtml, renderEmailHtml } from './email-template.js'
+import { appResetLink, escapeHtml, renderEmailHtml } from './email-template.js'
 import { requireAdmin } from './require-admin.js'
 import { resendApiKey, sendEmail } from './send-email.js'
 import { withSentry } from './sentry.js'
@@ -38,7 +38,7 @@ export async function createInvitedUser(email: string) {
     createdAt: FieldValue.serverTimestamp(),
   })
 
-  const link = await auth.generatePasswordResetLink(email, { url: `${APP_URL}/sign-in` })
+  const link = appResetLink(await auth.generatePasswordResetLink(email))
   await sendEmail({
     to: email,
     subject: "You're invited to ARS Dream",

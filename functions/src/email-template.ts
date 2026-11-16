@@ -3,6 +3,11 @@
 
 export const APP_URL = 'https://arsdreamsports.com'
 
+/** Points a generatePasswordResetLink link at our own ResetPasswordPage instead of Firebase's hosted page. */
+export function appResetLink(firebaseLink: string) {
+  return `${APP_URL}/reset-password?oobCode=${encodeURIComponent(new URL(firebaseLink).searchParams.get('oobCode') ?? '')}`
+}
+
 // Light-theme tokens from src/index.css, flattened to hex (email clients don't support oklch/CSS variables).
 const PRIMARY = '#1D67CD'
 const NAVY = '#00509E'

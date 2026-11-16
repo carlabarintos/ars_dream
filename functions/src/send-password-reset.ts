@@ -5,7 +5,7 @@ import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/
 
 import { auth, db } from './admin.js'
 import { EMAIL_PATTERN } from './create-user.js'
-import { APP_URL, renderEmailHtml } from './email-template.js'
+import { appResetLink, renderEmailHtml } from './email-template.js'
 import { resendApiKey, sendEmail } from './send-email.js'
 import { withSentry } from './sentry.js'
 
@@ -36,8 +36,7 @@ export const sendPasswordReset = onCall<{ email: string }>(
     })
     if (!allowed) return { ok: true }
 
-    // The continue URL is Firebase's hosted page's "Continue" link; its domain must be an Auth authorized domain or this throws.
-    const link = await auth.generatePasswordResetLink(email, { url: `${APP_URL}/sign-in` }).catch((error) => {
+    const link = await auth.generatePasswordResetLink(email).catch((error) => {
       if (error?.code === 'auth/user-not-found' || error?.code === 'auth/email-not-found') return null
       logger.error('generatePasswordResetLink failed', { code: error?.code, message: error?.message })
       throw error
@@ -51,7 +50,7 @@ export const sendPasswordReset = onCall<{ email: string }>(
         title: 'Reset your password',
         body: "We received a request to reset your ARS Dream password. If it wasn't you, you can ignore this email.",
         ctaLabel: 'Reset My Password',
-        ctaUrl: link,
+        ctaUrl: appResetLink(link),
       }),
     })
     return { ok: true }
