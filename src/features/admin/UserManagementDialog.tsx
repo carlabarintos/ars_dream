@@ -223,6 +223,7 @@ function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: () =>
     setIsSettingPassword(true)
     try {
       setNewPassword(await setUserPassword(profile.uid))
+      toast.success("New password emailed with a sign-in link.")
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
     } finally {
@@ -334,7 +335,7 @@ function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: () =>
       <div className="flex items-center justify-between gap-2">
         <div>
           <p className="text-muted-foreground text-xs">
-            Or generate a new password and give it to them yourself. Their current password stops working.
+            Or generate a new password and email it to them with a sign-in link. Their current password stops working.
           </p>
           {newPassword && (
             <p className="mt-1 text-sm">
