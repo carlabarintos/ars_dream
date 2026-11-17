@@ -21,6 +21,7 @@ const ACTION_LABEL: Record<AuditAction, string> = {
   marathon_reopened: 'Reopened marathon',
   user_role_changed: 'Changed user role',
   user_created: 'Created user',
+  user_password_set: 'Set user password',
   operational_data_cleared: 'Cleared operational data',
 }
 
@@ -38,6 +39,7 @@ const ACTION_VARIANT: Record<AuditAction, 'success' | 'destructive' | 'secondary
   marathon_reopened: 'secondary',
   user_role_changed: 'warning',
   user_created: 'success',
+  user_password_set: 'warning',
   operational_data_cleared: 'destructive',
 }
 

@@ -12,6 +12,7 @@ export type AuditAction =
   | 'payment_rejected'
   | 'marathon_reopened'
   | 'user_created'
+  | 'user_password_set'
   | 'operational_data_cleared'
 
 export type AuditTargetType = 'registration' | 'marathon' | 'user' | 'system'

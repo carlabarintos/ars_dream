@@ -18,7 +18,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { requestPasswordReset, updateUserProfileAsAdmin, updateUserRole } from '@/features/auth/auth-actions'
+import {
+  requestPasswordReset,
+  setUserPassword,
+  updateUserProfileAsAdmin,
+  updateUserRole,
+} from '@/features/auth/auth-actions'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { formatUserName } from '@/features/auth/use-user-profiles'
 import { useMarathonsByIds, usePublishedMarathons } from '@/features/marathons/use-marathons'
@@ -167,6 +172,8 @@ function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: () =>
   const [gender, setGender] = useState<Gender | ''>(profile.gender ?? '')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSendingReset, setIsSendingReset] = useState(false)
+  const [newPassword, setNewPassword] = useState<string | null>(null)
+  const [isSettingPassword, setIsSettingPassword] = useState(false)
   const [isUpdatingRole, setIsUpdatingRole] = useState(false)
   const isSelf = currentUid === profile.uid
 
@@ -208,6 +215,18 @@ function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: () =>
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
     } finally {
       setIsSendingReset(false)
+    }
+  }
+
+  async function handleSetPassword() {
+    if (!window.confirm(`Generate a new password for ${formatUserName(profile)}? Their current password will stop working.`)) return
+    setIsSettingPassword(true)
+    try {
+      setNewPassword(await setUserPassword(profile.uid))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Something went wrong')
+    } finally {
+      setIsSettingPassword(false)
     }
   }
 
@@ -310,6 +329,40 @@ function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: () =>
         >
           Send reset email
         </Button>
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <p className="text-muted-foreground text-xs">
+            Or generate a new password and give it to them yourself. Their current password stops working.
+          </p>
+          {newPassword && (
+            <p className="mt-1 text-sm">
+              New password:{' '}
+              <code className="bg-muted rounded px-1.5 py-0.5 font-mono select-all">{newPassword}</code>
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 gap-2">
+          {newPassword && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                navigator.clipboard
+                  .writeText(newPassword)
+                  .then(() => toast.success('Password copied.'))
+                  .catch(() => toast.error('Could not copy. Select the password and copy it manually.'))
+              }
+            >
+              Copy
+            </Button>
+          )}
+          <Button type="button" variant="outline" size="sm" loading={isSettingPassword} onClick={handleSetPassword}>
+            Generate password
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center justify-between gap-2 border-t border-border pt-4">

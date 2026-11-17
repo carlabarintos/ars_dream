@@ -458,6 +458,7 @@ export type AuditAction =
   | 'marathon_reopened'
   | 'user_role_changed'
   | 'user_created'
+  | 'user_password_set'
   | 'operational_data_cleared'
 
 export type AuditTargetType = 'registration' | 'marathon' | 'user' | 'system'

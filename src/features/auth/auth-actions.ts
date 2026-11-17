@@ -96,6 +96,13 @@ export async function requestPasswordReset(email: string) {
   await sendPasswordResetCallable({ email })
 }
 
+const setUserPasswordCallable = httpsCallable<{ uid: string }, { password: string }>(functions, 'setUserPassword')
+
+/** Admin gives another user a new generated password and gets it back to pass on (functions/src/set-user-password.ts). */
+export async function setUserPassword(uid: string) {
+  return (await setUserPasswordCallable({ uid })).data.password
+}
+
 export async function signInWithEmail(email: string, password: string) {
   await signInWithEmailAndPassword(auth, email, password)
 }
