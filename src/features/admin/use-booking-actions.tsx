@@ -18,6 +18,7 @@ import {
 import {
   getPendingActionReminder,
   getPendingActionStep,
+  type PendingActionStep,
   getRunnerCount,
   getCompanions,
   isOnSharedPackage,
@@ -202,9 +203,9 @@ export function useBookingActions(
     }
   }
 
-  async function handleRemind(registration: Registration) {
+  async function handleRemind(registration: Registration, only?: PendingActionStep) {
     const marathon = getMarathon(registration)
-    const step = getPendingActionStep(registration, marathon)
+    const step = only ?? getPendingActionStep(registration, marathon, { deferTerms: true })
     if (!step) return
     const name = formatUserName(getProfile(registration))
     const text = prompt(`Remind ${name} by email and push:`, getPendingActionReminder(step, registration, marathon))?.trim()
@@ -300,7 +301,7 @@ export function useBookingActions(
             Review Payment
           </Button>
         )}
-        {getPendingActionStep(registration, getMarathon(registration)) && (
+        {getPendingActionStep(registration, getMarathon(registration), { deferTerms: true }) && (
           <Button
             variant="outline"
             loading={decidingKey === `${registration.id}-remind`}
@@ -309,6 +310,17 @@ export function useBookingActions(
             Send Reminder
           </Button>
         )}
+        {registration.transferTermsAcceptedAt === null &&
+          !['rejected', 'cancelled'].includes(registration.status) &&
+          getPendingActionStep(registration, getMarathon(registration), { deferTerms: true }) !== 'transfer_terms' && (
+            <Button
+              variant="outline"
+              loading={decidingKey === `${registration.id}-remind`}
+              onClick={() => handleRemind(registration, 'transfer_terms')}
+            >
+              Remind T&C
+            </Button>
+          )}
         {(EXTENDABLE_STATUSES as string[]).includes(registration.status) && !(registration.status === 'accepted' && registration.partOf) && (
           <Button variant="outline" onClick={() => setExtendRegistrationId(registration.id)}>
             Extend Due Date

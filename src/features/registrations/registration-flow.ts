@@ -84,7 +84,7 @@ export function sharedDepositMessage({ covered, waiting }: { covered: number; wa
       ? `Deposit marked paid for ${covered === 1 ? 'the other runner' : `${covered} other runners`}.`
       : 'No other runner was ready for this deposit.'
   return waiting > 0
-    ? `${done} ${waiting === 1 ? 'One runner has' : `${waiting} runners have`}n't accepted their T&C yet, so it's settled automatically when they do, with no invoice to pay. If a runner has their own proof under review, review it as usual.`
+    ? `${done} ${waiting === 1 ? 'One runner has' : `${waiting} runners have`}n't joined yet (settled automatically when they do) or ${waiting === 1 ? 'has' : 'have'} their own proof under review: review any proof as usual.`
     : done
 }
 
@@ -163,7 +163,7 @@ export function isOverdue(registration: Registration) {
 export function getRegistrationStatusMessage(registration: Registration, marathon: Marathon | undefined) {
   if (getPendingActionStep(registration, marathon) === 'transfer_terms') {
     return registration.partOf
-      ? `${describePartOf(registration.partOf)}. Accept the terms & conditions to pay your deposit.`
+      ? `${describePartOf(registration.partOf)}. Accept the terms & conditions before your final payment.`
       : 'A slot has been transferred to you. Accept the terms & conditions to take it over.'
   }
   if (isOverdue(registration)) {
@@ -333,7 +333,7 @@ export const PENDING_ACTION_LABEL: Record<PendingActionStep, string> = {
 
 /** What an admin's "Send Reminder" tells the registrant, per pending step. */
 export const PENDING_ACTION_REMINDER: Record<PendingActionStep, string> = {
-  transfer_terms: 'Please accept the terms & conditions for your booking to continue.',
+  transfer_terms: 'Please accept the terms & conditions for your booking before your final payment.',
   terms: "You have an offer waiting — choose your package and accept it before it expires.",
   payment: 'Your deposit is still due — please pay using your invoice and upload your proof of payment.',
   final_payment: 'Your final balance is still due — please pay using your final invoice and upload your proof of payment.',
@@ -341,22 +341,26 @@ export const PENDING_ACTION_REMINDER: Record<PendingActionStep, string> = {
   questionnaire: 'Please answer the event questionnaires to complete your booking.',
 }
 
-/** What the registrant still needs to do next, or null if nothing is required of them right now. */
+/**
+ * What the registrant still needs to do next, or null if nothing is required of them right now. A transferred slot /
+ * Runner 2's own T&C come first, but only the balance waits on them: `deferTerms` (the registrant chose "Do This Later")
+ * skips them until nothing else is left or the final payment is next.
+ */
 export function getPendingActionStep(
   registration: Registration,
   marathon: Marathon | undefined,
+  { deferTerms = false } = {},
 ): PendingActionStep | null {
-  // A slot transferred in: the new holder accepts the T&C before anything else.
-  if (registration.transferTermsAcceptedAt === null && !['rejected', 'cancelled'].includes(registration.status)) {
-    return 'transfer_terms'
-  }
+  const termsOwed = registration.transferTermsAcceptedAt === null && !['rejected', 'cancelled'].includes(registration.status)
+  if (termsOwed && !deferTerms) return 'transfer_terms'
   if (registration.status === 'accepted') return 'terms'
   if (registration.status === 'terms_accepted') return 'payment'
+  if (registration.status === 'payment_rejected' && !isOnFinalInvoice(registration)) return 'payment'
   // Passport bio page, then the questionnaire, come first once the deposit is approved — before the balance.
   if (isPastDeposit(registration) && !hasAllPassports(registration, marathon)) return 'passport'
   if (isPastDeposit(registration) && !hasSubmittedBookingDetails(registration, marathon)) return 'questionnaire'
-  if (registration.status === 'final_invoiced') return 'final_payment'
-  if (registration.status === 'payment_rejected') return isOnFinalInvoice(registration) ? 'final_payment' : 'payment'
+  if (termsOwed) return 'transfer_terms'
+  if (registration.status === 'final_invoiced' || registration.status === 'payment_rejected') return 'final_payment'
   return null
 }
 

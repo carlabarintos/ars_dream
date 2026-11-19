@@ -11,7 +11,8 @@ import { withSentry } from './sentry.js'
 // Same reasoning as reopen-marathon.ts.
 const enforceAppCheck = process.env.FUNCTIONS_EMULATOR !== 'true'
 
-// Owing a deposit, with their T&C accepted (that step is always their own) and no proof of their own under review.
+// Owing a deposit, with no proof of their own under review. Their own T&C needn't be in yet: those are only due before
+// the balance (transfer_terms).
 const READY_STATUSES = ['terms_accepted', 'payment_rejected']
 const ENDED_STATUSES = ['rejected', 'cancelled']
 
@@ -19,8 +20,9 @@ const ENDED_STATUSES = ['rejected', 'cancelled']
  * One payment covering every runner on a package: the deposit already approved on one booking also settles the others'.
  * Works from any booking on the package, so it doesn't matter which runner paid. Each covered booking gets the same
  * proof and goes to deposit_paid, so onRegistrationStatusChange sends its receipt as usual. Runners who can't take it
- * yet come back as `waiting`, and the payment is marked `depositCoversPackage` so accepting their T&C settles them too
- * (`automatic`: that call, which only acts on such a payment and never refuses, so the invoice can go out instead).
+ * yet (not signed up, or a proof of their own under review) come back as `waiting`, and the payment is marked
+ * `depositCoversPackage` so it settles them when they join (`automatic`: that call, which only acts on such a payment and never
+ * refuses, so the invoice can go out instead).
  */
 export async function applyDepositToPackage(registrationId: string, { automatic = false } = {}) {
   const registrations = db.collection('registrations')
@@ -53,7 +55,7 @@ export async function applyDepositToPackage(registrationId: string, { automatic 
     }
     const covered = group.filter(
       ({ data }) =>
-        READY_STATUSES.includes(data.status) && data.transferTermsAcceptedAt !== null && !data.finalInvoice && !data.depositPaidAt,
+        READY_STATUSES.includes(data.status) && !data.finalInvoice && !data.depositPaidAt,
     )
     const waiting = group.filter(({ data }) => !data.depositPaidAt).length - covered.length + runners.filter((r) => !r.userId).length
 

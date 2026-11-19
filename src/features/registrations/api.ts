@@ -376,10 +376,10 @@ export async function addProofOfPayment(registration: Registration, files: File[
   })
 }
 
-/** T&C a registrant still has to accept before paying: a transferred slot / Runner 2's (`transfer`) or a fresh final invoice's (`final`). */
+/** T&C a registrant still has to accept before paying the balance: a transferred slot / Runner 2's (`transfer`) or a fresh final invoice's (`final`). */
 export function termsOwedBeforePayment(registration: Registration) {
   return {
-    transfer: registration.transferTermsAcceptedAt === null,
+    transfer: registration.transferTermsAcceptedAt === null && !!registration.finalInvoice,
     final: registration.status === 'final_invoiced' && !registration.finalTermsAcceptedAt,
   }
 }

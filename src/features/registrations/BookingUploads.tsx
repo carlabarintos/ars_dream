@@ -31,7 +31,7 @@ export function BookingUploads({
   onOpenWizard: () => void
   className?: string
 }) {
-  const pendingStep = getPendingActionStep(registration, marathon)
+  const pendingStep = getPendingActionStep(registration, marathon, { deferTerms: true })
   const paymentDue = pendingStep === 'payment' || pendingStep === 'final_payment'
   // Also while a balance slip is under review, which isPastDeposit leaves out (it drives the pending steps); the rules allow it.
   const canUploadDocs = isPastDeposit(registration) || (registration.depositPaidAt != null && registration.status === 'payment_submitted')

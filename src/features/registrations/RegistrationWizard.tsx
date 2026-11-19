@@ -69,7 +69,7 @@ export function RegistrationWizard({
   const runners = getRunners(registration, marathon)
   // Which runner the passport/questionnaire step is for — the lead fills in every runner on a multi-runner package.
   const [runner, setRunner] = useState(() =>
-    getPendingActionStep(registration, marathon) === 'passport'
+    getPendingActionStep(registration, marathon, { deferTerms: true }) === 'passport'
       ? getNextRunner(registration, marathon, 'passport')
       : getNextRunner(registration, marathon, 'questionnaire', initialQuestionnaire),
   )
@@ -124,7 +124,9 @@ export function RegistrationWizard({
       (questionnaires.length === 1 ? questionnaires[0].name : null),
   )
   const activeItems = questionnaires.find((q) => q.name === openQuestionnaire)?.questions ?? []
-  const pendingStep = getPendingActionStep(registration, marathon)
+  const [deferTerms, setDeferTerms] = useState(false)
+  const pendingStep = getPendingActionStep(registration, marathon, { deferTerms })
+  const canDeferTerms = getPendingActionStep(registration, marathon, { deferTerms: true }) !== 'transfer_terms'
   const step = initialQuestionnaire
     ? 'questionnaire'
     : pendingStep ??
@@ -316,7 +318,7 @@ export function RegistrationWizard({
           <DialogDescription>
             {step === 'transfer_terms'
               ? registration.partOf
-                ? `You're Runner ${registration.partOf.runner} on ${registration.partOf.leadName}'s ${registration.partOf.packageName} package. Accept the terms & conditions to pay your deposit.`
+                ? `You're Runner ${registration.partOf.runner} on ${registration.partOf.leadName}'s ${registration.partOf.packageName} package. Accept the terms & conditions before your final payment.`
                 : `${registration.transferredFrom ? formatTransferParty(registration.transferredFrom) : 'Another registrant'}'s slot has been transferred to you, together with the payments made so far.`
               : step === 'terms'
               ? "You've received an offer! Choose your package, then review and accept the terms & conditions."
@@ -358,9 +360,15 @@ export function RegistrationWizard({
               </Label>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
+              {canDeferTerms ? (
+                <Button variant="outline" onClick={() => setDeferTerms(true)}>
+                  Do This Later
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+              )}
               <Button disabled={!finalTermsAccepted} loading={isSubmitting} onClick={handleAcceptTransferTerms}>
                 {registration.partOf ? 'Accept & Continue' : 'Accept & Take Over Slot'}
               </Button>

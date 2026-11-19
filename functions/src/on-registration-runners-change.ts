@@ -87,7 +87,7 @@ const addStaffNote = (registrationId: string, text: string) =>
 /**
  * Gives a runner their own booking on the package at their share of the price. There's no offer to accept: it goes
  * straight to terms_accepted, which sends their deposit invoice, and `transferTermsAcceptedAt: null` asks for their own
- * T&C before they pay. It then runs the normal pipeline (deposit, passport, final invoice). It sits at their usual
+ * T&C before the balance. It then runs the normal pipeline (deposit, passport, final invoice). It sits at their usual
  * registration id, so a waitlist place or open offer they already hold becomes it, keeping createdAt for releaseRunner.
  * One already under way keeps its
  * status, deposit and seat and just moves onto this package at their share, keeping `previousPackage` so it can move
